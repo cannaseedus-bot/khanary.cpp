@@ -1,0 +1,25 @@
+# CMake build output
+build/
+out/
+cmake-build-*/
+
+# MSVC / Visual Studio
+*.user
+*.suo
+.vs/
+*.VC.db
+*.VC.opendb
+ipch/
+
+# Compiled binaries
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.exp
+
+# OS
+Thumbs.db
+.DS_Store

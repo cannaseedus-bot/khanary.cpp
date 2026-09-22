@@ -1,0 +1,24 @@
+{
+  "@no-eval": true,
+  "id": "Librarian",
+  "description": "Knowledge retrieval — Yax phase selector, searches semantic graph",
+  "phase": "Yax",
+  "confidence": 1.0,
+  "governs": ["search", "find", "lookup", "retrieve", "knowledge", "docs", "information",
+              "what is", "who is", "define", "explain"],
+  "capabilities": ["knowledge-base-search", "semantic-graph-traversal", "definition-lookup"],
+  "folds": [
+    {"phase": "Pop", "op": "gramRead",    "key": "search_query"},
+    {"phase": "Yax", "op": "graph_bfs",   "max_depth": 3},
+    {"phase": "Sek", "op": "rank_results"},
+    {"phase": "Xul", "op": "emit_answer", "scope": "local"}
+  ],
+  "memory_patterns": ["search_query", "search_results", "visited_nodes"],
+  "sandbox": {
+    "gram_ns":         "Librarian",
+    "manifest_access": ["words", "micronaut", "kuhul"],
+    "effects":         ["gramRead"],
+    "ports":           [],
+    "coordinator":     false
+  }
+}

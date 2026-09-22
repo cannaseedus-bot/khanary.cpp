@@ -1,0 +1,37 @@
+{
+  "Pop":    ["[Pop]", "phase:0", "angle:0", "gramRead", "perceive", "intent:observe"],
+  "Wo":     ["[Wo id type]", "phase:1", "angle:π/3", "allocate", "route", "intent:allocate"],
+  "Yax":    ["[Yax id]", "phase:2", "angle:2π/3", "select", "horizontal-fold", "intent:select"],
+  "Sek":    ["[Sek glyph args]", "phase:3", "angle:π", "compute", "execute", "intent:compute"],
+  "Ch'en":  ["[Ch'en id val]", "phase:4", "angle:4π/3", "verify", "evidence", "intent:verify"],
+  "Xul":    ["[Xul]", "phase:5", "angle:5π/3", "gramWrite", "emit", "intent:emit"],
+  "K'ayab'":["lifecycle:begin", "checkpoint:start", "phase:Pop"],
+  "Kumk'u": ["lifecycle:end", "checkpoint:commit", "phase:Xul"],
+  "⟁Pop":   ["Pop"],
+  "⟁Wo":    ["Wo"],
+  "⟁Yax":   ["Yax"],
+  "⟁Sek":   ["Sek"],
+  "⟁Ch'en": ["Ch'en"],
+  "⟁Xul":   ["Xul"],
+  "⟁EVOLVE⟁":["gate:semantic_graph_mutation", "requires:Xul_commit"],
+  "horizontal-fold": ["Δθ=0", "weight=+1.0", "no_xcfe_required", "same_phase_traversal"],
+  "vertical-fold":   ["Δθ=π/3", "weight=+0.5", "xcfe_required", "phase_transition"],
+
+  "⟁PROJECTION_ABI": [
+    "version:v1",
+    "⟁FIELD",
+    "⟁EVIDENCE",
+    "⟁INFER",
+    "⟁COUNTEREXAMPLE",
+    "⟁VERIFY",
+    "⟁Xul"
+  ],
+  "⟁FIELD":          ["meaning:the set of manifest-resolved concept neighborhoods activated by F_Q"],
+  "⟁INFER":          ["meaning:determine what follows from supplied evidence"],
+  "⟁COUNTEREXAMPLE": ["meaning:test the proposed inference against an alternative case"],
+
+  "⟁JROM_trace":      ["outside:∇θ", "provenance", "audit", "replay", "not-training-input"],
+  "⟁JROM_projection": ["inside:∇θ", "DDS-input", "ABI_v", "ThinkingLevel", "project()"],
+  "⟁Governor":        ["load", "C_V", "C_E", "unresolved_count", "verification"],
+  "⟁Gyroscope":       ["alignment", "Ω_gyro", "P_glyph-P_NL", "C_ABI_signal"]
+}

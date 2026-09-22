@@ -1,0 +1,23 @@
+{
+  "@no-eval": true,
+  "id": "ELIZA",
+  "description": "ELIZA/AIML pattern-response system — Pop detection, Xul emission",
+  "phase": "Pop",
+  "confidence": 1.0,
+  "governs": ["pattern", "response", "intent", "greeting", "salutation", "question", "answer", "chat"],
+  "capabilities": ["intent-matching", "pattern-response", "AIML-1.0", "wildcard-match"],
+  "folds": [
+    {"phase": "Pop", "op": "gramRead",     "key": "last_input"},
+    {"phase": "Pop", "op": "aiml_match",   "wildcard": "*"},
+    {"phase": "Yax", "op": "select_template"},
+    {"phase": "Xul", "op": "emit_semantic_payload", "scope": "local"}
+  ],
+  "memory_patterns": ["last_input", "that_context", "topic", "session_vars"],
+  "sandbox": {
+    "gram_ns":         "ELIZA",
+    "manifest_access": ["words", "kuhul"],
+    "effects":         ["gramRead", "gramWrite"],
+    "ports":           [],
+    "coordinator":     false
+  }
+}

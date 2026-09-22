@@ -1,0 +1,39 @@
+{
+  "@no-eval": true,
+  "id": "Factory",
+  "description": "Micronaut factory — create/evolve/delete micronauts, Wo=create Yax=evolve Xul=delete",
+  "phase": "Wo",
+  "confidence": 1.0,
+  "governs": ["create", "evolve", "delete", "factory", "new micronaut", "build", "make", "spawn"],
+  "capabilities": [
+    "Factory:create",   "Factory:evolve", "Factory:list",
+    "Factory:read",     "Factory:edit",   "Factory:patch",
+    "Factory:status",   "Factory:delete"
+  ],
+  "op_phase_map": {
+    "create": "Wo",
+    "evolve": "Yax",
+    "list":   "Pop",
+    "read":   "Pop",
+    "edit":   "Sek",
+    "patch":  "Sek",
+    "status": "Ch'en",
+    "delete": "Xul"
+  },
+  "confidence_floor": 0.7,
+  "sandbox": {
+    "gram_ns":         "Factory",
+    "manifest_access": ["micronaut", "kuhul"],
+    "effects":         ["gramRead", "gramWrite", "micronaut:create", "micronaut:delete"],
+    "ports":           [],
+    "coordinator":     false
+  },
+  "folds": [
+    {"phase": "Pop",  "op": "gramRead",     "key": "factory_op"},
+    {"phase": "Wo",   "op": "create_micronaut"},
+    {"phase": "Yax",  "op": "evolve_micronaut"},
+    {"phase": "Sek",  "op": "edit_micronaut"},
+    {"phase": "Ch'en","op": "status_check"},
+    {"phase": "Xul",  "op": "delete_micronaut",  "scope": "local", "gate": "confidence_floor:0.7"}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "eliza":       ["intent-matching", "pattern-response", "ELIZA-operators", "⟁Pop", "⟁Xul"],
+  "ELIZA":       ["eliza"],
+  "ELIZA-1":     ["eliza", "16-reasoning-operators", "CAUSE", "CONTRAST", "DEPENDENCY",
+                  "CONSTRAINT", "EVIDENCE", "SEQUENCE", "BOUNDARY", "STATE",
+                  "CONFLICT", "ALTERNATIVE", "INVARIANT", "TEST", "RELATION",
+                  "SUBSTITUTE", "VERIFY", "DIRECT", "⟁Pop", "⟁Sek"],
+  "factory":     ["create-micronaut", "evolve-micronaut", "delete-micronaut",
+                  "list-micronauts", "confidence_floor:0.7", "⟁Wo", "⟁Yax", "⟁Xul"],
+  "Factory":     ["factory"],
+  "coordinator": ["eliza", "factory", "routing", "⟁Ch'en", "orchestration"],
+  "librarian":   ["search", "retrieval", "knowledge-base", "⟁Yax", "intent:retrieve"],
+  "Librarian":   ["librarian"],
+  "coder":       ["code-generation", "tool-calls", "syntax-check", "⟁Sek"],
+  "KNOWLED-1":   ["knowledge-distillation", "semantic-graph", "⟁Sek", "⟁Ch'en"],
+  "gravity":     ["gravity-well-scoring", "established_nodes/distance²", "⟁Pop"],
+  "intent-unresolved": ["Factory:create", "low-gravity-fallback", "⟁Wo"]
+}

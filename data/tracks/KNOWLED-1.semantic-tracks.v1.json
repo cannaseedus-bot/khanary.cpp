@@ -1,0 +1,27 @@
+{
+  "@no-eval": true,
+  "id": "KNOWLED-1",
+  "description": "Knowledge distillation — Sek→Ch'en semantic graph evolution and compression",
+  "phase": "Sek",
+  "confidence": 1.0,
+  "governs": ["distill", "compress", "knowledge", "semantic", "graph", "evolve", "fold",
+              "consolidate", "summarize", "learn", "understand"],
+  "capabilities": ["knowledge-distillation", "semantic-graph-mutation", "EVOLVE-gate",
+                   "n-gram-extraction", "manifest-compression"],
+  "folds": [
+    {"phase": "Pop",  "op": "gramRead",     "key": "distill_input"},
+    {"phase": "Sek",  "op": "extract_ngrams"},
+    {"phase": "Sek",  "op": "compute_semantic_distance"},
+    {"phase": "Ch'en","op": "verify_evolution"},
+    {"phase": "Xul",  "op": "commit_to_semantic_graph",  "scope": "local", "gate": "⟁EVOLVE⟁"}
+  ],
+  "invariant": "ΔZ = ΔG_semantic ⊕ ΔC_earned",
+  "memory_patterns": ["distill_corpus", "semantic_delta", "graph_checkpoint"],
+  "sandbox": {
+    "gram_ns":         "KNOWLED-1",
+    "manifest_access": ["words", "micronaut", "kuhul"],
+    "effects":         ["gramRead", "gramWrite", "semantic_graph:write", "manifest:write"],
+    "ports":           [9000],
+    "coordinator":     false
+  }
+}

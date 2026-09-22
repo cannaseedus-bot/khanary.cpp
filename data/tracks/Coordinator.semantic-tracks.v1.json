@@ -1,0 +1,25 @@
+{
+  "@no-eval": true,
+  "id": "Coordinator",
+  "description": "Orchestrator — routes between ELIZA, Factory, Coder, and Librarian; Ch'en phase",
+  "phase": "Ch'en",
+  "confidence": 1.0,
+  "governs": ["coordinate", "route", "orchestrate", "delegate", "manage", "plan"],
+  "capabilities": ["eliza", "factory", "coder", "librarian", "routing", "orchestration"],
+  "sub_micronauts": ["ELIZA", "ELIZA-1", "Factory", "Librarian", "KNOWLED-1"],
+  "folds": [
+    {"phase": "Pop",  "op": "gramRead",        "key": "coordinator_request"},
+    {"phase": "Wo",   "op": "gravity_score_all"},
+    {"phase": "Yax",  "op": "select_sub_micronaut"},
+    {"phase": "Sek",  "op": "delegate"},
+    {"phase": "Ch'en","op": "verify_delegation"},
+    {"phase": "Xul",  "op": "return_result", "scope": "request"}
+  ],
+  "sandbox": {
+    "gram_ns":         "Coordinator",
+    "manifest_access": ["words", "micronaut", "kuhul", "css"],
+    "effects":         ["gramRead", "gramWrite", "route:delegate"],
+    "ports":           [9000, 8764, 17480],
+    "coordinator":     true
+  }
+}
