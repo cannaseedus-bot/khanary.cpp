@@ -6,7 +6,8 @@
 namespace khanary::micronaut {
 
 // Load micronaut.semantic-tracks.v1.json files
-// Each file defines a micronaut: id, phase, governs, folds, memory patterns
+// Each file defines a micronaut: id, phase, governs, folds, memory patterns,
+// and optional semantic Key vector metadata used by W·C·R routing.
 class TrackLoader {
 public:
     explicit TrackLoader(MicronautRegistry& reg);

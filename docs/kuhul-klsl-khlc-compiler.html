@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>K'uhul Full-Stack Engine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body {
+    margin:0;
+    padding:0;
+    background:#020307;
+    color:#e8f5ff;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .shell {
+    padding:18px;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  h1 { font-size:18px; margin-bottom:4px; }
+  h2 { font-size:15px; margin-top:18px; }
+  textarea {
+    width:100%;
+    min-height:120px;
+    background:#050814;
+    color:#e8f5ff;
+    border:1px solid #16f2aa55;
+    border-radius:8px;
+    padding:8px;
+    font-family:JetBrains Mono,Monaco,monospace;
+    font-size:12px;
+    resize:vertical;
+  }
+  button {
+    margin-top:8px;
+    border-radius:999px;
+    border:none;
+    padding:6px 12px;
+    font-size:12px;
+    cursor:pointer;
+    background:linear-gradient(135deg,#16f2aa,#00f5ff);
+    color:#020307;
+    font-weight:600;
+    margin-right:8px;
+  }
+  pre {
+    background:#050814;
+    border-radius:8px;
+    padding:10px;
+    font-size:11px;
+    overflow:auto;
+  }
+  .row {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:12px;
+  }
+  #preview {
+    background:#050814;
+    border-radius:8px;
+    padding:10px;
+    min-height:200px;
+  }
+  #threejs-container {
+    width:100%;
+    height:300px;
+    background:#000;
+    border-radius:8px;
+    margin-top:10px;
+  }
+  .block-palette {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));
+    gap:8px;
+    margin:10px 0;
+  }
+  .block {
+    background:#0a1520;
+    border:1px solid #16f2aa;
+    border-radius:6px;
+    padding:8px;
+    text-align:center;
+    cursor:grab;
+    font-size:11px;
+  }
+  .block:hover {
+    background:#16f2aa22;
+  }
+  .execution-log {
+    background:#0a1520;
+    border-left:3px solid #16f2aa;
+    padding:8px;
+    margin:5px 0;
+    font-size:11px;
+    max-height:200px;
+    overflow-y:auto;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div class="shell">
+  <h1>K'uhul Full-Stack Engine: DOM + Networking + Three.js</h1>
+  
+  <div class="block-palette">
+    <div class="block" onclick="addBlock('DOM')">DOM Block</div>
+    <div class="block" onclick="addBlock('NETWORK')">Network Block</div>
+    <div class="block" onclick="addBlock('3D')">3D Graphics Block</div>
+    <div class="block" onclick="addBlock('UI')">UI Component</div>
+    <div class="block" onclick="addBlock('API')">REST API Call</div>
+    <div class="block" onclick="addBlock('ANIMATION')">Animation</div>
+  </div>
+
+  <h2>K'uhul Full-Stack Code</h2>
+  <textarea id="kuhulSource" placeholder="Enter K'uhul code...">
+[Pop main_app]
+  # DOM MANIPULATION BLOCK
+  [Muwan create_dom_block]
+  
+  # NETWORKING BLOCK - XJSON REST API
+  [Muwan fetch_api_data]
+  
+  # 3D GRAPHICS BLOCK - Three.js
+  [Muwan init_threejs_scene]
+  
+  # UI UPDATE BLOCK
+  [Muwan update_interface]
+[Xul]
+
+[Pop create_dom_block]
+  [Wo "app-container"]→[Ch'en container_id]
+  [Wo "<div class='ui-panel'><h2>K'uhul 3D Dashboard</h2><div id='data-display'></div><button id='refresh-btn'>Refresh Data</button></div>"]→[Ch'en html_content]
+  [Yax container_id]→[Sek create_element html_content]→[Ch'en dom_element]
+  [Yax dom_element]→[Sek add_event "click" "#refresh-btn" handle_refresh]
+[Xul]
+
+[Pop fetch_api_data]
+  [Wo "https://jsonplaceholder.typicode.com/posts/1"]→[Ch'en api_url]
+  [Wo "GET"]→[Ch'en method]
+  [Wo "{}"]→[Ch'en headers]
+  [Yax api_url]→[Yax method]→[Yax headers]→[Sek http_request]→[Ch'en response]
+  [Yax response]→[Sek json_parse]→[Ch'en json_data]
+  [Yax json_data]→[Ch'en api_data]
+  [Sek "API data loaded successfully"]
+[Xul]
+
+[Pop init_threejs_scene]
+  [Wo "threejs-container"]→[Ch'en container]
+  [Yax container]→[Sek init_threejs]→[Ch'en scene_obj]
+  
+  # Create 3D objects
+  [Wo "#16f2aa"]→[Ch'en color]
+  [Wo 1]→[Ch'en size]
+  [Yax scene_obj]→[Sek create_cube color size]→[Ch'en cube]
+  
+  # Animation loop
+  [K'ayab' animation_loop]
+    [Yax cube]→[Sek rotate 0.01 0.02 0]
+    [Yax scene_obj]→[Sek render]
+    [Wo 16]→[Ch'en frame_delay]
+  [Kumk'u animation_loop]
+[Xul]
+
+[Pop update_interface]
+  [Yax api_data]→[Sek get "title"]→[Ch'en title]
+  [Wo "data-display"]→[Ch'en display_id]
+  [Yax display_id]→[Sek update_content title]
+  [Sek "Interface updated with live data"]
+[Xul]
+
+[Pop handle_refresh]
+  [Sek "Refreshing data..."]
+  [Muwan fetch_api_data]
+  [Muwan update_interface]
+[Xul]
+  </textarea>
+  
+  <button id="btnCompile">Compile K'uhul</button>
+  <button id="btnExecute">Execute Full Stack</button>
+  <button id="btnLoadDemo">Load Advanced Demo</button>
+
+  <div class="row">
+    <div>
+      <h2>Compilation & Execution</h2>
+      <pre id="compilationOutput"></pre>
+      <div class="execution-log" id="executionLog"></div>
+    </div>
+    <div>
+      <h2>Live Preview</h2>
+      <div id="preview">
+        <div id="app-container"></div>
+        <div id="threejs-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// K'UHUL FULL-STACK ENGINE
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// THREE.JS INTEGRATION
+// -----------------------------------------------------------------------------
+class KuhulThreeJS {
+  constructor() {
+    this.scenes = new Map();
+    this.animations = new Map();
+  }
+  
+  initScene(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+    
+    camera.position.z = 5;
+    
+    const sceneObj = { scene, camera, renderer, objects: [] };
+    this.scenes.set(containerId, sceneObj);
+    
+    return sceneObj;
+  }
+  
+  createCube(sceneObj, color = '#16f2aa', size = 1) {
+    const geometry = new THREE.BoxGeometry(size, size, size);
+    const material = new THREE.MeshBasicMaterial({ color: color });
+    const cube = new THREE.Mesh(geometry, material);
+    
+    sceneObj.scene.add(cube);
+    sceneObj.objects.push(cube);
+    
+    return cube;
+  }
+  
+  rotateObject(object, x, y, z) {
+    object.rotation.x += x;
+    object.rotation.y += y;
+    object.rotation.z += z;
+  }
+  
+  render(sceneObj) {
+    sceneObj.renderer.render(sceneObj.scene, sceneObj.camera);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// NETWORKING ENGINE - XJSON REST API
+// -----------------------------------------------------------------------------
+class KuhulNetworking {
+  constructor() {
+    this.cache = new Map();
+  }
+  
+  async httpRequest(url, method = 'GET', headers = {}) {
+    try {
+      const response = await fetch(url, { method, headers });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.text();
+    } catch (error) {
+      return `ERROR: ${error.message}`;
+    }
+  }
+  
+  jsonParse(data) {
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return { error: "Invalid JSON" };
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// DOM MANIPULATION ENGINE
+// -----------------------------------------------------------------------------
+class KuhulDOM {
+  constructor() {
+    this.elements = new Map();
+    this.eventHandlers = new Map();
+  }
+  
+  createElement(containerId, html) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    
+    container.innerHTML = html;
+    return container;
+  }
+  
+  updateContent(elementId, content) {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.textContent = content;
+    }
+  }
+  
+  addEvent(element, eventType, selector, handlerName) {
+    const container = typeof element === 'string' ? document.getElementById(element) : element;
+    if (!container) return;
+    
+    container.addEventListener('click', (e) => {
+      if (e.target.matches(selector)) {
+        this.eventHandlers.get(handlerName)?.();
+      }
+    });
+  }
+  
+  registerHandler(name, handler) {
+    this.eventHandlers.set(name, handler);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// K'UHUL COMPILER & VM WITH FULL-STACK EXTENSIONS
+// -----------------------------------------------------------------------------
+class KuhulFullStackCompiler {
+  constructor() {
+    this.opcodes = {
+      // Core glyphs
+      'Pop': 0x01, 'Wo': 0x02, 'Ch\'en': 0x03, 'Yax': 0x04, 'Sek': 0x05,
+      'Slp': 0x06, 'Zotz\'': 0x07, 'Yaxk\'in': 0x08, 'Mol': 0x09,
+      'K\'ayab\'': 0x0A, 'Kumk\'u': 0x0B, 'Sak': 0x0C, 'K\'ank\'in': 0x0D,
+      'Xul': 0x0E, 'Muwan': 0x0F,
+      
+      // Extended operations
+      'create_element': 0x20,
+      'update_content': 0x21,
+      'add_event': 0x22,
+      'http_request': 0x23,
+      'json_parse': 0x24,
+      'init_threejs': 0x25,
+      'create_cube': 0x26,
+      'rotate': 0x27,
+      'render': 0x28,
+      'get': 0x29
+    };
+    
+    this.threejs = new KuhulThreeJS();
+    this.networking = new KuhulNetworking();
+    this.dom = new KuhulDOM();
+  }
+
+  tokenize(source) {
+    const tokens = [];
+    const lines = source.split('\n');
+    
+    for (let line of lines) {
+      line = line.trim();
+      if (!line || line.startsWith('#')) continue;
+      
+      const glyphMatches = line.matchAll(/\[([^\]]+)\](→)?/g);
+      
+      for (const match of glyphMatches) {
+        const glyphContent = match[1];
+        const parts = glyphContent.split(/\s+/);
+        const glyph = parts[0];
+        const args = parts.slice(1);
+        
+        tokens.push({ type: 'GLYPH', glyph, args, line });
+      }
+    }
+    
+    return tokens;
+  }
+
+  parse(tokens) {
+    const ast = { type: 'PROGRAM', functions: [], currentFunction: null };
+    
+    for (const token of tokens) {
+      switch (token.glyph) {
+        case 'Pop':
+          ast.currentFunction = { type: 'FUNCTION', name: token.args[0] || 'anonymous', body: [] };
+          ast.functions.push(ast.currentFunction);
+          break;
+        case 'Xul':
+          ast.currentFunction = null;
+          break;
+        default:
+          if (ast.currentFunction) {
+            ast.currentFunction.body.push({ type: 'OPERATION', glyph: token.glyph, args: token.args });
+          }
+          break;
+      }
+    }
+    
+    return ast;
+  }
+
+  generateBytecode(ast) {
+    const bytecode = [];
+    
+    for (const func of ast.functions) {
+      bytecode.push(this.opcodes.Pop, ...this.encodeString(func.name));
+      this.generateFunctionBytecode(func.body, bytecode);
+      bytecode.push(this.opcodes.Xul);
+    }
+    
+    return new Uint8Array(bytecode);
+  }
+
+  generateFunctionBytecode(body, bytecode) {
+    for (const node of body) {
+      const opcode = this.opcodes[node.glyph];
+      if (opcode !== undefined) {
+        bytecode.push(opcode);
+        for (const arg of node.args) {
+          bytecode.push(...this.encodeArgument(arg));
+        }
+      }
+    }
+  }
+
+  encodeArgument(arg) {
+    if (this.isNumber(arg)) {
+      return [0x01, parseInt(arg)];
+    } else if (arg.startsWith('"') && arg.endsWith('"')) {
+      return [0x02, ...this.encodeString(arg.slice(1, -1))];
+    } else if (arg.startsWith('#')) {
+      return [0x04, ...this.encodeString(arg.slice(1))]; // Color
+    } else {
+      return [0x03, ...this.encodeString(arg)];
+    }
+  }
+
+  encodeString(str) {
+    const bytes = [str.length];
+    for (let i = 0; i < str.length; i++) {
+      bytes.push(str.charCodeAt(i));
+    }
+    return bytes;
+  }
+
+  isNumber(str) {
+    return !isNaN(str) && !isNaN(parseFloat(str));
+  }
+
+  compile(source) {
+    try {
+      const tokens = this.tokenize(source);
+      const ast = this.parse(tokens);
+      const bytecode = this.generateBytecode(ast);
+      
+      return { success: true, bytecode, ast, tokens };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+class KuhulFullStackVM {
+  constructor() {
+    this.registers = new Array(16);
+    this.memory = new Map();
+    this.stack = [];
+    this.callStack = [];
+    this.output = [];
+    this.pc = 0;
+    this.running = false;
+    
+    this.compiler = new KuhulFullStackCompiler();
+    this.threejs = this.compiler.threejs;
+    this.networking = this.compiler.networking;
+    this.dom = this.compiler.dom;
+  }
+  
+  async execute(bytecode) {
+    this.bytecode = bytecode;
+    this.pc = 0;
+    this.running = true;
+    this.output = [];
+    
+    this.log("K'uhul Full-Stack VM Started");
+    
+    while (this.running && this.pc < bytecode.length) {
+      const opcode = this.bytecode[this.pc++];
+      await this.executeInstruction(opcode);
+    }
+    
+    this.log("K'uhul Full-Stack VM Finished");
+    return this.output.join('\n');
+  }
+  
+  async executeInstruction(opcode) {
+    switch (opcode) {
+      case 0x01: // Pop
+        this.callStack.push(this.pc);
+        this.log(`FUNCTION started`);
+        break;
+        
+      case 0x02: // Wo
+        this.registers[0] = this.decodeString();
+        break;
+        
+      case 0x03: // Ch'en
+        this.memory.set(this.stack.pop() || 'data', this.registers[0]);
+        break;
+        
+      case 0x04: // Yax
+        this.registers[0] = this.memory.get(this.stack.pop() || 'data');
+        break;
+        
+      case 0x05: // Sek
+        this.output.push(this.registers[0]);
+        this.log(`OUTPUT: ${this.registers[0]}`);
+        break;
+        
+      case 0x0F: // Muwan
+        const funcName = this.decodeString();
+        this.log(`CALLING: ${funcName}`);
+        break;
+        
+      // DOM Operations
+      case 0x20: // create_element
+        const containerId = this.stack.pop();
+        const html = this.stack.pop();
+        this.registers[0] = this.dom.createElement(containerId, html);
+        break;
+        
+      case 0x21: // update_content
+        const elementId = this.stack.pop();
+        const content = this.stack.pop();
+        this.dom.updateContent(elementId, content);
+        break;
+        
+      case 0x22: // add_event
+        const element = this.stack.pop();
+        const eventType = this.stack.pop();
+        const selector = this.stack.pop();
+        const handler = this.stack.pop();
+        this.dom.addEvent(element, eventType, selector, handler);
+        break;
+        
+      // Networking Operations
+      case 0x23: // http_request
+        const url = this.stack.pop();
+        const method = this.stack.pop();
+        const headers = this.stack.pop();
+        this.registers[0] = await this.networking.httpRequest(url, method, JSON.parse(headers));
+        break;
+        
+      case 0x24: // json_parse
+        this.registers[0] = this.networking.jsonParse(this.registers[0]);
+        break;
+        
+      // Three.js Operations
+      case 0x25: // init_threejs
+        const container = this.stack.pop();
+        this.registers[0] = this.threejs.initScene(container);
+        break;
+        
+      case 0x26: // create_cube
+        const sceneObj = this.stack.pop();
+        const color = this.stack.pop();
+        const size = this.stack.pop();
+        this.registers[0] = this.threejs.createCube(sceneObj, color, parseFloat(size));
+        break;
+        
+      case 0x27: // rotate
+        const object = this.stack.pop();
+        const x = parseFloat(this.stack.pop());
+        const y = parseFloat(this.stack.pop());
+        const z = parseFloat(this.stack.pop());
+        this.threejs.rotateObject(object, x, y, z);
+        break;
+        
+      case 0x28: // render
+        const scene = this.stack.pop();
+        this.threejs.render(scene);
+        break;
+        
+      case 0x29: // get
+        const obj = this.stack.pop();
+        const key = this.stack.pop();
+        this.registers[0] = obj[key];
+        break;
+        
+      case 0x0E: // Xul
+        if (this.callStack.length > 0) {
+          this.pc = this.callStack.pop();
+        } else {
+          this.running = false;
+        }
+        break;
+    }
+  }
+  
+  decodeString() {
+    const length = this.bytecode[this.pc++];
+    let str = '';
+    for (let i = 0; i < length; i++) {
+      str += String.fromCharCode(this.bytecode[this.pc++]);
+    }
+    return str;
+  }
+  
+  log(message) {
+    const executionLog = document.getElementById('executionLog');
+    if (executionLog) {
+      executionLog.innerHTML += `<div>${message}</div>`;
+      executionLog.scrollTop = executionLog.scrollHeight;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// UI INTEGRATION & BLOCK SYSTEM
+// -----------------------------------------------------------------------------
+
+const compiler = new KuhulFullStackCompiler();
+const vm = new KuhulFullStackVM();
+
+// Register event handlers
+vm.dom.registerHandler('handle_refresh', () => {
+  vm.log("Refresh button clicked!");
+  // Re-execute relevant functions
+});
+
+function addBlock(type) {
+  const source = document.getElementById('kuhulSource');
+  let blockCode = '';
+  
+  switch(type) {
+    case 'DOM':
+      blockCode = `[Pop create_ui]\n  [Wo "container"]→[Ch'en id]\n  [Wo "<div>New UI Block</div>"]→[Ch'en html]\n  [Yax id]→[Sek create_element html]→[Ch'en element]\n[Xul]`;
+      break;
+    case 'NETWORK':
+      blockCode = `[Pop fetch_data]\n  [Wo "https://api.example.com/data"]→[Ch'en url]\n  [Yax url]→[Sek http_request]→[Ch'en response]\n  [Yax response]→[Sek json_parse]→[Ch'en data]\n[Xul]`;
+      break;
+    case '3D':
+      blockCode = `[Pop create_3d]\n  [Wo "three-container"]→[Ch'en container]\n  [Yax container]→[Sek init_threejs]→[Ch'en scene]\n  [Wo "#ff0000"]→[Ch'en color]\n  [Yax scene]→[Sek create_cube color 1]→[Ch'en cube]\n[Xul]`;
+      break;
+  }
+  
+  source.value += '\n\n' + blockCode;
+}
+
+document.getElementById('btnCompile').addEventListener('click', () => {
+  const source = document.getElementById('kuhulSource').value;
+  const result = compiler.compile(source);
+  
+  const output = document.getElementById('compilationOutput');
+  
+  if (result.success) {
+    output.textContent = `FULL-STACK COMPILATION SUCCESS!
+    
+Bytecode Size: ${result.bytecode.length} bytes
+Functions: ${result.ast.functions.map(f => f.name).join(', ')}
+
+Extended Operations Available:
+• DOM Manipulation (create_element, update_content, add_event)
+• Networking (http_request, json_parse)  
+• 3D Graphics (init_threejs, create_cube, rotate, render)
+• Data Access (get)
+    `;
+  } else {
+    output.textContent = `COMPILATION ERROR: ${result.error}`;
+  }
+});
+
+document.getElementById('btnExecute').addEventListener('click', async () => {
+  const source = document.getElementById('kuhulSource').value;
+  const result = compiler.compile(source);
+  
+  if (result.success) {
+    document.getElementById('executionLog').innerHTML = '';
+    document.getElementById('preview').innerHTML = `
+      <div id="app-container"></div>
+      <div id="threejs-container"></div>
+    `;
+    
+    await vm.execute(result.bytecode);
+  }
+});
+
+document.getElementById('btnLoadDemo').addEventListener('click', () => {
+  const demoCode = `[Pop advanced_demo]
+  # DOM + Networking + 3D Integration
+  [Muwan setup_dashboard]
+  [Muwan load_external_data]
+  [Muwan create_3d_visualization]
+[Xul]
+
+[Pop setup_dashboard]
+  [Wo "app-container"]→[Ch'en container]
+  [Wo "<div class='dashboard'><h1>K'uhul Full-Stack Dashboard</h1><div class='stats' id='stats'></div><div class='controls'><button id='load-btn'>Load Data</button><button id='3d-btn'>3D View</button></div></div>"]→[Ch'en html]
+  [Yax container]→[Sek create_element html]→[Ch'en dashboard]
+  [Yax dashboard]→[Sek add_event "click" "#load-btn" handle_load]
+  [Yax dashboard]→[Sek add_event "click" "#3d-btn" handle_3d]
+[Xul]
+
+[Pop load_external_data]
+  [Sek "Loading data from API..."]
+  [Wo "https://jsonplaceholder.typicode.com/users/1"]→[Ch'en api_url]
+  [Yax api_url]→[Sek http_request]→[Ch'en user_data]
+  [Yax user_data]→[Sek json_parse]→[Ch'en user]
+  [Yax user]→[Sek get "name"]→[Ch'en username]
+  [Wo "stats"]→[Ch'en stats_id]
+  [Yax stats_id]→[Sek update_content username]
+  [Sek "User data loaded successfully"]
+[Xul]
+
+[Pop create_3d_visualization]
+  [Sek "Initializing 3D visualization..."]
+  [Wo "threejs-container"]→[Ch'en container]
+  [Yax container]→[Sek init_threejs]→[Ch'en scene]
+  
+  # Create multiple 3D objects
+  [Wo "#16f2aa"]→[Ch'en color1]
+  [Wo "#00f5ff"]→[Ch'en color2]
+  [Wo "#ff6b6b"]→[Ch'en color3]
+  
+  [Yax scene]→[Sek create_cube color1 0.8]→[Ch'en cube1]
+  [Yax scene]→[Sek create_cube color2 0.6]→[Ch'en cube2] 
+  [Yax scene]→[Sek create_cube color3 0.4]→[Ch'en cube3]
+  
+  # Position cubes
+  [Yax cube1]→[Sek set_position -2 0 0]
+  [Yax cube2]→[Sek set_position 0 0 0]
+  [Yax cube3]→[Sek set_position 2 0 0]
+  
+  # Animation
+  [K'ayab' animate]
+    [Yax cube1]→[Sek rotate 0.02 0.01 0]
+    [Yax cube2]→[Sek rotate 0.01 0.02 0.01]
+    [Yax cube3]→[Sek rotate 0.015 0.015 0.015]
+    [Yax scene]→[Sek render]
+  [Kumk'u animate]
+[Xul]
+
+[Pop handle_load]
+  [Sek "Manual refresh triggered"]
+  [Muwan load_external_data]
+[Xul]
+
+[Pop handle_3d]
+  [Sek "3D visualization activated"]
+  [Muwan create_3d_visualization]
+[Xul]`;
+  
+  document.getElementById('kuhulSource').value = demoCode;
+});
+
+// Initialize
+document.getElementById('btnLoadDemo').click();
+</script>
+</body>
+</html>

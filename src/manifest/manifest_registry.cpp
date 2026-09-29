@@ -1,5 +1,6 @@
 #include "manifest_registry.h"
 #include "../util/json.h"
+#include "../util/schema.h"
 #include "../config.h"
 #include <fstream>
 #include <sstream>
@@ -18,6 +19,13 @@ void ManifestRegistry::load(const std::string& path) {
     if (!root || !root->is_object())
         throw std::runtime_error("ManifestRegistry: root must be object in " + path);
 
+    std::string error;
+    const auto schema = std::filesystem::path(path).parent_path().parent_path() / "schema/manifest-map.schema.json";
+    if (!validate_schema_file(*root, schema, &error))
+        throw std::runtime_error("ManifestRegistry: " + error);
+
+    // Validate the entire map before committing any entries. Objects have the
+    // typed XCFE conditional shape and are serialized as declarative tokens.
     std::unique_lock lk(mtx_);
     for (const auto& [k, v] : root->as_object()) {
         Array arr;

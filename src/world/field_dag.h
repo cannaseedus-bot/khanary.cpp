@@ -19,14 +19,20 @@ struct FieldNode {
     // "track" = micronaut (one dominant phase, circle in SVG)
     // "tensor" = living tensor (multi-phase arc in SVG)
     // "pipeline_stage" = C6 pipeline stage (rect in SVG)
+    // "ontology" = top-level ontology class (rect in SVG)
     std::string kind = "track";
 
     std::string track_id;
     std::string phase_name;  // dominant / primary phase
     std::string face_name;
     std::string block_name;
+    std::string category;    // "executive"|"cognitive"|"storage"|"creative"|""
     float       confidence;
+    float       static_weight = 1.0f;
+    float       health = 1.0f;
+    float       wcr_prior = 1.0f;
     float       x, y, z;
+    std::string vector_source = "world_position";
     bool        coordinator;
     std::vector<std::string> effects;
     // SVG-3D weight layer: intensity per AtomicDOMBlock (Perceive..Evolve)
@@ -35,15 +41,35 @@ struct FieldNode {
     std::vector<FoldEntry> fold_map;
 };
 
-// Directed arc in the semantic field graph
+// Directed (or undirected) arc in the semantic field graph
 struct FieldEdge {
     std::string from;
     std::string to;
     // "delegate" | "horizontal_fold" | "vertical_fold"
     std::string type;
+    // Relation token when built from relations data (canonical + compatibility aliases).
+    // Canonical examples: @is_a, @part_of, @supports, @requires, @governs, @delegates_to.
+    std::string verb;
+    // Canonical phase hint for verb relation family (Pop/Wo/Sek/Ch'en).
+    std::string relation_phase;
     float       weight;       // cos(Δθ): 1.0 / 0.5 / -1.0 / ...
     float       delta_theta;  // degrees
     bool        xcfe_required;
+    bool        directed = true;  // false → horizontal relation (Δθ=0)
+};
+
+struct FieldSvgProjectionNode {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float phase_angle = 0.0f;
+    std::array<float, 7> bar_heights{};
+    bool  bar_heights_valid = false;
+};
+
+struct FieldSvgProjection {
+    std::vector<FieldSvgProjectionNode> nodes;
+    bool gpu_projected = false;
 };
 
 // Builds the 2-D semantic field DAG from WorldState + MicronautRegistry.
@@ -54,9 +80,11 @@ public:
     FieldDag(const WorldState& ws, const micronaut::MicronautRegistry& reg);
 
     void build();
+    // Overlay GML graph nodes/edges onto the DAG. Must be called AFTER build().
+    void load_gml(const std::string& path);
     std::string to_xml() const;
     // SVG output: field substrate + tensor arcs (kind=tensor) + track circles + SVG-3D blocks
-    std::string to_svg() const;
+    std::string to_svg(const FieldSvgProjection* projection = nullptr) const;
 
     // Register a living tensor node with its fold_map phases.
     // Adds the node and its @live / @self_aware entries; no edges auto-added.
@@ -86,7 +114,10 @@ private:
     // Raw C₆ phase position on circle, no z-offset (for tensor arcs)
     static SVGPos phase_svg_pos(kuhul::Phase p);
     static std::string svg_edge_path(const SVGPos& a, const SVGPos& b);
-    std::string svg_tensor_block(const FieldNode& n, const SVGPos& p) const;
+    std::string svg_tensor_block(
+        const FieldNode& n,
+        const SVGPos& p,
+        const FieldSvgProjectionNode* projected) const;
     std::string svg_tensor_arc(const FieldNode& n) const;
 };
 

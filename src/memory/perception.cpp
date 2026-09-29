@@ -1,8 +1,38 @@
 #include "perception.h"
 #include <functional>
 #include <cmath>
+#include <cctype>
+#include <algorithm>
 
 namespace khanary::memory {
+
+namespace {
+
+static std::string canonicalize_query(const std::string& query) {
+    std::string out;
+    out.reserve(query.size());
+    bool last_space = false;
+    for (unsigned char ch : query) {
+        if (std::isspace(ch)) {
+            if (!out.empty() && !last_space) {
+                out.push_back(' ');
+                last_space = true;
+            }
+            continue;
+        }
+        out.push_back(static_cast<char>(std::tolower(ch)));
+        last_space = false;
+    }
+    if (!out.empty() && out.back() == ' ') out.pop_back();
+    return out.empty() ? std::string("__empty__") : out;
+}
+
+static float sanitize_confidence_component(float value) {
+    if (!std::isfinite(value)) return 0.0f;
+    return std::clamp(value, 0.0f, 1.0f);
+}
+
+} // namespace
 
 PerceptionStore::PerceptionStore() {}
 
@@ -11,13 +41,23 @@ void PerceptionStore::embed(
     const std::vector<float>& confidence_context,
     uint32_t field_dim)
 {
+    if (field_dim == 0) {
+        field_.clear();
+        return;
+    }
+
     field_.assign(field_dim, 0.0f);
     // Hash the query into field positions
     std::hash<std::string> hasher;
-    size_t h = hasher(query);
+    const std::string canonical_query = canonicalize_query(query);
+    const size_t h = hasher(canonical_query);
+    constexpr uint32_t kHashBits = static_cast<uint32_t>(sizeof(size_t) * 8u);
     for (uint32_t i = 0; i < field_dim; ++i) {
-        float q_comp = std::sin((float)((h >> (i % 64)) & 0xFF) * 0.1f + (float)i);
-        float c_comp = (i < confidence_context.size()) ? confidence_context[i] : 0.0f;
+        const float q_comp = std::sin(
+            static_cast<float>((h >> (i % kHashBits)) & 0xFFu) * 0.1f + static_cast<float>(i));
+        const float c_comp = (i < confidence_context.size())
+            ? sanitize_confidence_component(confidence_context[i])
+            : 0.0f;
         field_[i] = q_comp * 0.7f + c_comp * 0.3f;
     }
     // L1 normalize

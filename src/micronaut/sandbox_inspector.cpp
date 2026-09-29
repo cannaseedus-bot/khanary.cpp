@@ -1,12 +1,21 @@
 #include "sandbox_inspector.h"
 #include <algorithm>
+#include <vector>
 
 namespace khanary::micronaut {
 
 using namespace khanary::util;
 
 void SandboxInspector::register_track(const std::string& id, TrackSandbox sb) {
+    if (id.empty()) return;
     std::lock_guard<std::mutex> lk(mtx_);
+    std::sort(sb.manifest_access.begin(), sb.manifest_access.end());
+    sb.manifest_access.erase(std::unique(sb.manifest_access.begin(), sb.manifest_access.end()),
+                             sb.manifest_access.end());
+    std::sort(sb.effects.begin(), sb.effects.end());
+    sb.effects.erase(std::unique(sb.effects.begin(), sb.effects.end()), sb.effects.end());
+    std::sort(sb.ports.begin(), sb.ports.end());
+    sb.ports.erase(std::unique(sb.ports.begin(), sb.ports.end()), sb.ports.end());
     sandboxes_[id] = std::move(sb);
 }
 
@@ -88,8 +97,15 @@ JsonPtr SandboxInspector::sandbox_json(const std::string& track_id) const {
 JsonPtr SandboxInspector::all_json() const {
     std::lock_guard<std::mutex> lk(mtx_);
     JsonObject root;
-    for (const auto& [id, sb] : sandboxes_)
-        root[id] = sandbox_to_json(id, sb);
+    std::vector<std::string> ids;
+    ids.reserve(sandboxes_.size());
+    for (const auto& [id, _] : sandboxes_) ids.push_back(id);
+    std::sort(ids.begin(), ids.end());
+    for (const auto& id : ids) {
+        const auto it = sandboxes_.find(id);
+        if (it != sandboxes_.end())
+            root[id] = sandbox_to_json(id, it->second);
+    }
     return json_object(std::move(root));
 }
 

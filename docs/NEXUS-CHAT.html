@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusChat - AI Interface</title>
+    <style>
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --accent: #00ff88;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --border: #333333;
+            --shadow: rgba(0, 255, 136, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .logo {
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            font-size: 28px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .nav-tab.active {
+            border-bottom: 2px solid var(--accent);
+            color: var(--accent);
+        }
+        
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        .model-list, .file-list {
+            list-style: none;
+        }
+        
+        .model-item, .file-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .model-item:hover, .file-item:hover {
+            background-color: #222222;
+        }
+        
+        .model-item.active, .file-item.active {
+            border-left: 3px solid var(--accent);
+        }
+        
+        .model-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #555;
+        }
+        
+        .model-status.online {
+            background-color: var(--accent);
+        }
+        
+        .btn {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            background-color: #222222;
+            border-color: var(--accent);
+        }
+        
+        .btn-primary {
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            font-weight: bold;
+        }
+        
+        .btn-primary:hover {
+            background-color: #00cc6d;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+        
+        /* Main Chat Area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .model-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .model-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 15px;
+            border-radius: 10px;
+            line-height: 1.5;
+        }
+        
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            border-bottom-right-radius: 2px;
+        }
+        
+        .ai-message {
+            align-self: flex-start;
+            background-color: var(--bg-tertiary);
+            border-bottom-left-radius: 2px;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 15px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            resize: none;
+            height: 60px;
+            font-size: 16px;
+        }
+        
+        .send-btn {
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 8px;
+            width: 60px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .input-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            color: var(--accent);
+            background-color: var(--bg-tertiary);
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background-color: var(--bg-secondary);
+            border-radius: 10px;
+            width: 500px;
+            max-width: 90%;
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 0 20px var(--shadow);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .github-url-input {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+        
+        .file-preview {
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        
+        /* Performance Metrics */
+        .performance-metrics {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+        
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .metric-value {
+            color: var(--accent);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .logo span, .nav-tab span, .btn span, .model-item span, .file-item span {
+                display: none;
+            }
+            
+            .logo, .nav-tab, .btn, .model-item, .file-item {
+                justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            
+            .model-name {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span>NexusChat</span>
+            </div>
+            
+            <div class="nav-tabs">
+                <div class="nav-tab active" data-tab="models">Models</div>
+                <div class="nav-tab" data-tab="files">Files</div>
+            </div>
+            
+            <div class="tab-content">
+                <!-- Models Tab -->
+                <div class="tab-pane active" id="models">
+                    <button class="btn btn-primary" id="add-model-btn">
+                        <span>+</span>
+                        <span>Add Model</span>
+                    </button>
+                    
+                    <ul class="model-list">
+                        <li class="model-item active" data-model="local_clin">
+                            <span>Local CLIN</span>
+                            <div class="model-status online"></div>
+                        </li>
+                        <li class="model-item" data-model="mx2lm_core">
+                            <span>MX2LM Core</span>
+                            <div class="model-status online"></div>
+                        </li>
+                        <li class="model-item" data-model="mx2qwen">
+                            <span>MX2Qwen</span>
+                            <div class="model-status"></div>
+                        </li>
+                        <li class="model-item" data-model="mx2php">
+                            <span>MX2PHP</span>
+                            <div class="model-status"></div>
+                        </li>
+                    </ul>
+                    
+                    <div class="performance-metrics">
+                        <div class="metric">
+                            <span>Inference:</span>
+                            <span class="metric-value" id="inference-time">187ms</span>
+                        </div>
+                        <div class="metric">
+                            <span>Memory:</span>
+                            <span class="metric-value" id="memory-usage">42MB</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Files Tab -->
+                <div class="tab-pane" id="files">
+                    <button class="btn" id="import-github-btn">
+                        <span>📥</span>
+                        <span>Import from GitHub</span>
+                    </button>
+                    
+                    <button class="btn" id="upload-file-btn">
+                        <span>📁</span>
+                        <span>Upload File</span>
+                    </button>
+                    
+                    <button class="btn" id="load-local-model">
+                        <span>🤖</span>
+                        <span>Load Local Model</span>
+                    </button>
+                    
+                    <ul class="file-list">
+                        <li class="file-item active">
+                            <span>system_config.json</span>
+                            <span>⚙️</span>
+                        </li>
+                        <li class="file-item">
+                            <span>model_registry.json</span>
+                            <span>📋</span>
+                        </li>
+                        <li class="file-item">
+                            <span>chat_memory.scx</span>
+                            <span>💾</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="model-info">
+                    <div class="model-status online"></div>
+                    <div class="model-name">Local CLIN</div>
+                </div>
+                <div class="chat-actions">
+                    <button class="action-btn" id="system-info">
+                        <span>⚙️</span>
+                        <span>System Info</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chat-messages">
+                <div class="message ai-message">
+                    <div class="message-header">
+                        <span>NexusChat</span>
+                        <span id="boot-time">10:24 AM</span>
+                    </div>
+                    <div class="message-content">
+                        <strong>System Online</strong><br>
+                        Local CLIN model loaded successfully.<br>
+                        Kernel processes: <span class="metric-value">Active</span><br>
+                        Inference engine: <span class="metric-value">Ready</span><br>
+                        How can I assist you today?
+                    </div>
+                </div>
+                
+                <div class="message user-message">
+                    <div class="message-header">
+                        <span>You</span>
+                        <span>10:25 AM</span>
+                    </div>
+                    <div class="message-content">
+                        Can you help me optimize this Python function for better performance?
+                    </div>
+                </div>
+                
+                <div class="message ai-message">
+                    <div class="message-header">
+                        <span>NexusChat</span>
+                        <span>10:25 AM</span>
+                    </div>
+                    <div class="message-content">
+                        Of course! I can analyze and optimize your Python code using the local CLIN model. Please share the function you'd like me to optimize.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea class="chat-input" placeholder="Type your message... (Supports text, code, and file references)"></textarea>
+                    <button class="send-btn">➤</button>
+                </div>
+                <div class="input-actions">
+                    <button class="action-btn">
+                        <span>📎</span>
+                        <span>Attach</span>
+                    </button>
+                    <button class="action-btn" id="run-inference">
+                        <span>🔍</span>
+                        <span>Test Inference</span>
+                    </button>
+                    <button class="action-btn" id="save-chat">
+                        <span>💾</span>
+                        <span>Save Chat</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- GitHub Import Modal -->
+    <div class="modal" id="github-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Import from GitHub</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="github-url-input" placeholder="Paste GitHub repository URL...">
+                <div class="input-group">
+                    <label>File Type Filter</label>
+                    <select>
+                        <option>All Files</option>
+                        <option>Python Files</option>
+                        <option>JavaScript Files</option>
+                        <option>Markdown Files</option>
+                        <option>JSON Files</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;">Import Repository</button>
+                
+                <div class="file-preview">
+                    # File preview will appear here
+                    # After entering a GitHub URL
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Model Modal -->
+    <div class="modal" id="model-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Add New Model</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Model Name</label>
+                    <input type="text" placeholder="e.g., My Local GPT">
+                </div>
+                
+                <div class="input-group">
+                    <label>Model Type</label>
+                    <select id="model-type">
+                        <option value="local">Local Model</option>
+                        <option value="api">API Endpoint</option>
+                        <option value="huggingface">Hugging Face</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                
+                <div class="input-group" id="local-path-group">
+                    <label>Model Path</label>
+                    <input type="text" placeholder="/local_models/model.gguf">
+                </div>
+                
+                <div class="input-group" id="api-endpoint-group" style="display: none;">
+                    <label>Endpoint URL</label>
+                    <input type="text" placeholder="http://localhost:8000/v1/chat/completions">
+                </div>
+                
+                <div class="input-group" id="api-key-group" style="display: none;">
+                    <label>API Key (if required)</label>
+                    <input type="password" placeholder="sk-...">
+                </div>
+                
+                <button class="btn btn-primary" style="width: 100%;">Add Model</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info Modal -->
+    <div class="modal" id="system-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">System Information</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Kernel Status</label>
+                    <div class="file-preview">
+{
+  "system": {
+    "kernel_processes": "Active",
+    "file_system": "Mounted",
+    "ai_model_service": "Running",
+    "local_inference": "Ready"
+  },
+  "models": {
+    "local_clin": "Loaded",
+    "mx2lm_core": "Available",
+    "mx2qwen": "Available"
+  },
+  "performance": {
+    "boot_time": "87ms",
+    "inference_speed": "187ms",
+    "memory_usage": "42MB"
+  }
+}
+                    </div>
+                </div>
+                
+                <div class="performance-metrics" style="justify-content: space-around;">
+                    <div class="metric">
+                        <span>Boot Time:</span>
+                        <span class="metric-value">87ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Inference:</span>
+                        <span class="metric-value">187ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Memory:</span>
+                        <span class="metric-value">42MB</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // System Configuration
+        const systemConfig = {
+            kernel_processes: {
+                file_system: {
+                    type: "virtual_fs",
+                    mounts: [
+                        { path: "/system", type: "readonly" },
+                        { path: "/user", type: "readwrite" },
+                        { path: "/local_models", type: "readwrite" }
+                    ]
+                },
+                ai_model_service: {
+                    supported_models: ["local_clin", "mx2lm_core", "mx2qwen", "mx2php"],
+                    local_inference: true
+                }
+            },
+            chat_config: {
+                mode: "multi_model",
+                default: "local_clin",
+                local_models: {
+                    local_clin: {
+                        path: "/local_models/clin-model.bin",
+                        status: "loaded"
+                    }
+                }
+            }
+        };
+
+        // Tab switching functionality
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Model selection
+        document.querySelectorAll('.model-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.model-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                const modelName = item.querySelector('span').textContent;
+                const modelId = item.getAttribute('data-model');
+                document.querySelector('.model-name').textContent = modelName;
+                
+                // Update system for model switch
+                console.log(`Switched to model: ${modelId}`);
+            });
+        });
+        
+        // File selection
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+        
+        // Modal controls
+        const githubModal = document.getElementById('github-modal');
+        const modelModal = document.getElementById('model-modal');
+        const systemModal = document.getElementById('system-modal');
+        
+        document.getElementById('import-github-btn').addEventListener('click', () => {
+            githubModal.classList.add('active');
+        });
+        
+        document.getElementById('add-model-btn').addEventListener('click', () => {
+            modelModal.classList.add('active');
+        });
+        
+        document.getElementById('system-info').addEventListener('click', () => {
+            systemModal.classList.add('active');
+        });
+        
+        document.getElementById('load-local-model').addEventListener('click', () => {
+            // Simulate local model loading
+            addMessage("Loading local CLIN model from /local_models/clin-model.bin...", false);
+            setTimeout(() => {
+                addMessage("Local CLIN model loaded successfully. Inference engine ready.", false);
+            }, 1000);
+        });
+        
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', () => {
+                githubModal.classList.remove('active');
+                modelModal.classList.remove('active');
+                systemModal.classList.remove('active');
+            });
+        });
+        
+        // Model type switching
+        document.getElementById('model-type').addEventListener('change', function() {
+            const type = this.value;
+            document.getElementById('local-path-group').style.display = type === 'local' ? 'block' : 'none';
+            document.getElementById('api-endpoint-group').style.display = type === 'api' ? 'block' : 'none';
+            document.getElementById('api-key-group').style.display = type === 'api' ? 'block' : 'none';
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === githubModal) githubModal.classList.remove('active');
+            if (e.target === modelModal) modelModal.classList.remove('active');
+            if (e.target === systemModal) systemModal.classList.remove('active');
+        });
+        
+        // Chat functionality
+        const chatInput = document.querySelector('.chat-input');
+        const sendBtn = document.querySelector('.send-btn');
+        const chatMessages = document.querySelector('.chat-messages');
+        
+        function addMessage(content, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isUser ? 'user-message' : 'ai-message');
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span>${isUser ? 'You' : 'NexusChat'}</span>
+                    <span>${timeString}</span>
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Update performance metrics
+            updatePerformanceMetrics();
+        }
+        
+        function updatePerformanceMetrics() {
+            // Simulate performance updates
+            const inferenceTime = Math.floor(150 + Math.random() * 100);
+            const memoryUsage = Math.floor(40 + Math.random() * 10);
+            
+            document.getElementById('inference-time').textContent = `${inferenceTime}ms`;
+            document.getElementById('memory-usage').textContent = `${memoryUsage}MB`;
+        }
+        
+        // Test inference
+        document.getElementById('run-inference').addEventListener('click', () => {
+            addMessage("Running local inference test...", false);
+            setTimeout(() => {
+                addMessage("Inference test completed. Average response time: 187ms", false);
+            }, 800);
+        });
+        
+        sendBtn.addEventListener('click', () => {
+            const message = chatInput.value.trim();
+            if (message) {
+                addMessage(message, true);
+                chatInput.value = '';
+                
+                // Simulate AI response with local inference
+                setTimeout(() => {
+                    const responses = [
+                        "I've processed your request using the local CLIN model.",
+                        "Local inference completed. Here's my response based on your query.",
+                        "Analysis complete using on-device processing.",
+                        "Response generated through local model inference."
+                    ];
+                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                    addMessage(randomResponse, false);
+                }, 800);
+            }
+        });
+        
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendBtn.click();
+            }
+        });
+        
+        // Initialize system
+        document.getElementById('boot-time').textContent = new Date().toLocaleTimeString();
+        updatePerformanceMetrics();
+    </script>
+</body>
+</html>

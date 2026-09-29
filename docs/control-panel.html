@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ASX OS · Kernel Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-deep: #0a0a0f;
+            --bg-panel: #0f0f17;
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --accent-teal: #16f2aa;
+            --accent-teal-glow: rgba(22, 242, 170, 0.25);
+            --accent-blue: #38bdf8;
+            --text-primary: #eef2ff;
+            --text-secondary: #9ca3af;
+            --editor-bg: #09090e;
+            --terminal-green: #3fe0a0;
+        }
+
+        body {
+            background: radial-gradient(circle at 20% 30%, #12121c, var(--bg-deep));
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        /* modern scroll */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+        }
+
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            padding: 18px;
+            gap: 18px;
+        }
+
+        /* left rail — minimal structure, zero kuhul verbosity */
+        .control-rail {
+            width: 280px;
+            background: rgba(18, 18, 28, 0.75);
+            backdrop-filter: blur(14px);
+            border-radius: 28px;
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 16px;
+            gap: 24px;
+        }
+
+        /* branding zone = perfect for tags / version */
+        .brand-tag {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(255,255,255,0.15);
+            padding-bottom: 14px;
+        }
+        .logo-badge {
+            font-weight: 700;
+            font-size: 1.55rem;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff, var(--accent-teal));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .spec-tag {
+            font-size: 0.7rem;
+            background: rgba(22,242,170,0.12);
+            padding: 4px 8px;
+            border-radius: 40px;
+            border: 0.5px solid rgba(22,242,170,0.3);
+            color: var(--accent-teal);
+            font-family: monospace;
+        }
+
+        /* metric cards (compressed) */
+        .kernel-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .port-chip {
+            background: #12121c;
+            border-radius: 20px;
+            padding: 10px 14px;
+            border-left: 3px solid var(--accent-teal);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+        .port-chip span:first-child {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .port-number {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: var(--accent-teal);
+        }
+
+        .dns-compact {
+            background: rgba(0,0,0,0.35);
+            border-radius: 20px;
+            padding: 12px;
+        }
+        .dns-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-family: monospace;
+        }
+        .dns-host {
+            color: var(--accent-blue);
+        }
+        .dns-ip {
+            color: var(--text-secondary);
+        }
+
+        /* rest / system buttons - clean grid */
+        .cmd-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .sys-btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 40px;
+            padding: 8px 0;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        .sys-btn:hover {
+            background: rgba(22,242,170,0.12);
+            border-color: var(--accent-teal);
+            color: var(--accent-teal);
+        }
+        .primary-action {
+            background: rgba(22,242,170,0.18);
+            border-color: var(--accent-teal);
+        }
+        .status-led {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            font-size: 0.7rem;
+            justify-content: center;
+        }
+        .led {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .led-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-teal);
+            box-shadow: 0 0 6px var(--accent-teal);
+        }
+        .led-dot.warning {
+            background: #f59e0b;
+            box-shadow: none;
+        }
+
+        /* MIDDLE: TERMINAL / KERNEL (core) */
+        .kernel-terminal {
+            flex: 1;
+            background: rgba(9, 9, 14, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .term-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(0,0,0,0.2);
+        }
+        .term-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            background: rgba(255,255,255,0.05);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        .term-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .term-actions button {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 30px;
+            transition: 0.2s;
+        }
+        .term-actions button:hover {
+            background: rgba(255,255,255,0.08);
+            color: white;
+        }
+        .terminal-view {
+            flex: 1;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            padding: 18px;
+            overflow-y: auto;
+            background: var(--editor-bg);
+            color: #cdd9f4;
+        }
+        .line {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-bottom: 4px;
+            line-height: 1.4;
+            border-left: 2px solid transparent;
+            padding-left: 8px;
+        }
+        .line.prompt {
+            color: var(--terminal-green);
+        }
+        .line.output {
+            color: #b9c3e6;
+        }
+        .line.error {
+            color: #ffa08c;
+        }
+        .line.success {
+            color: var(--accent-teal);
+        }
+
+        /* RIGHT: AI ASSISTANT (streamlined, no kuhul overload) */
+        .assistant-panel {
+            width: 300px;
+            background: rgba(18, 18, 28, 0.75);
+            backdrop-filter: blur(14px);
+            border-radius: 28px;
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .assistant-header {
+            padding: 18px 18px 12px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+        }
+        .assistant-header h3 {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .msg {
+            max-width: 92%;
+            font-size: 0.8rem;
+            padding: 10px 12px;
+            border-radius: 20px;
+            line-height: 1.4;
+        }
+        .msg.user {
+            background: rgba(22,242,170,0.15);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.ai {
+            background: rgba(255,255,255,0.05);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            color: #e2e8ff;
+        }
+        .chat-input-area {
+            padding: 14px;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input-area textarea {
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 10px 14px;
+            color: white;
+            font-size: 0.8rem;
+            resize: none;
+            font-family: inherit;
+        }
+        .chat-input-area textarea:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+        .send-btn {
+            background: var(--accent-teal);
+            border: none;
+            width: 38px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        /* hide kuhul spec dump, only relevant backend controls */
+        .hide-spec-noise {
+            display: none;
+        }
+        .glyph-clutter {
+            display: none;
+        }
+        button {
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    <!-- LEFT: settings / system core, no forced language showcase -->
+    <div class="control-rail">
+        <div class="brand-tag">
+            <span class="logo-badge">ASX OS</span>
+            <span class="spec-tag">v3 · KUHUL-NPX</span>
+        </div>
+
+        <div class="kernel-meta">
+            <div class="port-chip">
+                <span>PORT SPEC · ASX MESH</span>
+                <div class="port-number">61680–61699</div>
+                <div style="font-size:0.7rem; margin-top:4px;">glyph↔opcodes · WebGPU backend</div>
+            </div>
+
+            <!-- DNS authority - clean config view -->
+            <div class="dns-compact">
+                <div style="font-size:0.7rem; margin-bottom:8px; color:var(--accent-blue);">◈ DNS AUTHORITY</div>
+                <div class="dns-item"><span class="dns-host">xjson.app</span><span class="dns-ip">→ 127.0.0.1:61680</span></div>
+                <div class="dns-item"><span class="dns-host">rig.xjson.app</span><span class="dns-ip">→ :61681</span></div>
+                <div class="dns-item"><span class="dns-host">hive.xjson.app</span><span class="dns-ip">→ :61680</span></div>
+                <div class="dns-item"><span class="dns-host">prime.xjson.app</span><span class="dns-ip">→ :61682</span></div>
+            </div>
+
+            <!-- system operational controls (no verbose kuhul syntax) -->
+            <div style="margin: 4px 0 0 0">
+                <button class="sys-btn primary-action" id="launchBackendBtn">🚀 LAUNCH BACKEND</button>
+            </div>
+            <div class="cmd-grid">
+                <button class="sys-btn" id="dnsTestBtn">🔍 DNS test</button>
+                <button class="sys-btn" id="restStateBtn">📡 OS State</button>
+                <button class="sys-btn" id="compileXjsonBtn">⚙️ XJSON compile</button>
+                <button class="sys-btn" id="hiveShardsBtn">🗂️ HIVE shards</button>
+                <button class="sys-btn" id="kuhulDetectBtn">🔌 Detect services</button>
+                <button class="sys-btn" id="scxDecompressBtn">🧩 SCX decompress</button>
+            </div>
+
+            <div class="status-led">
+                <div class="led"><div class="led-dot"></div><span>Kernel</span></div>
+                <div class="led"><div class="led-dot"></div><span>DNS</span></div>
+                <div class="led"><div class="led-dot warning"></div><span>REST mesh</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIDDLE: TERMINAL / KERNEL INTERFACE (glyph -> opcodes / compression visible only as verb) -->
+    <div class="kernel-terminal">
+        <div class="term-header">
+            <div class="term-title">⩺ KERNEL TERMINAL · ASX/WebGPU bridge</div>
+            <div class="term-actions">
+                <button id="clearTerminalBtn">clear</button>
+                <button id="portMapBtn">port map</button>
+            </div>
+        </div>
+        <div class="terminal-view" id="terminalView">
+            <div class="line prompt">ASX kernel v3 (KUHUL-NPX) · glyph → opcodes → compute</div>
+            <div class="line output">> Port root: 61680+ | SharedArrayBuffer backend ready</div>
+            <div class="line output">> DirectWrite glyph mapping | compression active for WebGPU</div>
+            <div class="line output">> DNS authority: xjson.app resolves to 127.0.0.1:61680</div>
+            <div class="line output">> Use "Launch Backend" to spin up runtime services.</div>
+            <div id="dynamicTerminal"></div>
+        </div>
+    </div>
+
+    <!-- RIGHT: assistant (clean UI, no forced language docs) -->
+    <div class="assistant-panel">
+        <div class="assistant-header">
+            <h3>🪶 ASX Assistant</h3>
+            <button class="sys-btn" style="padding:2px 10px;" id="clearChatBtn">clear</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="msg ai">⚡ ASX OS with WebGPU communication ready. Backend uses glyph compression → opcodes. Ports follow spec (61680+).</div>
+            <div class="msg ai">Ask about launch, DNS, or REST mesh. No UI clutter — settings & tagging in left rail.</div>
+        </div>
+        <div class="chat-input-area">
+            <textarea id="chatInput" rows="1" placeholder="Ask about backend, port mapping, or services..."></textarea>
+            <button class="send-btn" id="sendChatBtn">➤</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ASX CORE - pure functionality, focused on backend/WebGPU context & removing unnecessary kuhul showcase
+    (function() {
+        // DOM elements
+        const terminalContainer = document.getElementById('dynamicTerminal');
+        const terminalView = document.getElementById('terminalView');
+        const chatMessagesDiv = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const launchBtn = document.getElementById('launchBackendBtn');
+        const dnsTestBtn = document.getElementById('dnsTestBtn');
+        const restStateBtn = document.getElementById('restStateBtn');
+        const compileXjson = document.getElementById('compileXjsonBtn');
+        const hiveShards = document.getElementById('hiveShardsBtn');
+        const kuhulDetect = document.getElementById('kuhulDetectBtn');
+        const scxDecompress = document.getElementById('scxDecompressBtn');
+        const clearTerminal = document.getElementById('clearTerminalBtn');
+        const portMapBtn = document.getElementById('portMapBtn');
+        const clearChat = document.getElementById('clearChatBtn');
+        const sendChat = document.getElementById('sendChatBtn');
+
+        // Helper: add line to terminal
+        function logToTerminal(text, type = 'output') {
+            const lineDiv = document.createElement('div');
+            lineDiv.className = `line ${type}`;
+            lineDiv.textContent = text;
+            terminalContainer.appendChild(lineDiv);
+            // auto-scroll
+            terminalView.scrollTop = terminalView.scrollHeight;
+        }
+
+        // add assistant message (without scripted spec guide)
+        function addChatMessage(content, sender = 'ai') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `msg ${sender}`;
+            msgDiv.textContent = content;
+            chatMessagesDiv.appendChild(msgDiv);
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        }
+
+        // simulate REST calls (real fetch simulation + service worker ready)
+        async function callMeshEndpoint(endpoint, displayName) {
+            logToTerminal(`→ REST call: ${endpoint}`, 'prompt');
+            try {
+                // actual fetch - for demo we handle mock but also attempt real if backend exists.
+                const response = await fetch(endpoint, { method: 'GET', headers: { 'Accept': 'application/json' } }).catch(() => null);
+                if (response && response.ok) {
+                    const data = await response.json();
+                    logToTerminal(`✓ ${displayName} response: ${JSON.stringify(data).slice(0, 120)}`, 'success');
+                    addChatMessage(`${displayName} completed. Backend active on ASX port.`, 'ai');
+                } else {
+                    // simulated success message for UI consistency (backend not yet live but architecture defined)
+                    logToTerminal(`ⓘ ${displayName} simulated (backend ready on 61680+)`, 'output');
+                    addChatMessage(`${displayName} request sent. KUHUL-NPX backend will process on port range.`, 'ai');
+                }
+            } catch (err) {
+                logToTerminal(`⚠️ ${displayName} fallback: service not reachable, but DNS/port spec reserved.`, 'error');
+                addChatMessage(`Backend not yet listening on ${endpoint}, launch using "Launch Backend".`, 'ai');
+            }
+        }
+
+        // KUHUL backend launch simulation + glyph/opcodes handshake
+        function launchBitBashBackend() {
+            logToTerminal('🚀 INIT: KUHUL-NPX backend bootstrap...', 'prompt');
+            logToTerminal('   glyph mapping → DirectWrite glyph table → WebGPU compute shaders', 'output');
+            logToTerminal('   compression stream active (SCX/KUHUL opcodes encode)', 'output');
+            logToTerminal('   SharedArrayBuffer bridge ready for WebGPU interop', 'success');
+            logToTerminal('>>> Backend listening on ports: 61680 (root), 61681 (rig), 61682 (prime)', 'success');
+            addChatMessage('KUHUL backend active. WebGPU compute pipeline uses glyph→opcodes→compute. Port range 61680+ now serves REST/KUHUL mesh.', 'ai');
+            // also simulate service worker registration message
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').then(() => {
+                    logToTerminal('Service Worker registered: offline caching + KUHUL runtime', 'success');
+                }).catch(() => logToTerminal('SW reg warning (non-critical)', 'output'));
+            }
+        }
+
+        // DNS test with spec mapping
+        function testDNS() {
+            logToTerminal(`🔍 DNS resolution: xjson.app → authority record 127.0.0.1:61680`, 'prompt');
+            logToTerminal(`   subdomains: rig / hive / prime resolved via ASX mesh`, 'success');
+            addChatMessage('DNS zone xjson.app authoritative. Backend must listen on 61680+ ports for full mesh.', 'ai');
+        }
+
+        function getOSState() {
+            logToTerminal(`📊 ASX OS state: kernel v3-KUHUL | glyph cache warm | WebGPU: pending`, 'output');
+            logToTerminal(`   active DNS zones: 4 | compressors: SCX, KLH active`, 'output');
+            addChatMessage('OS state: all system modules ready, waiting for backend launch.', 'ai');
+        }
+
+        function compileXjson() {
+            logToTerminal(`⚙️ XJSON compile: transforming extended JSON → ASX bytecode`, 'prompt');
+            logToTerminal(`   glyph opcodes injected | compress ratio: 62%`, 'success');
+            addChatMessage('XJSON compiled to ASX internal representation. Ready for WebGPU dispatch.', 'ai');
+        }
+
+        function hiveShardsInfo() {
+            logToTerminal(`🗂️ HIVE shard manager: active shards: 4 (meta, glyph, compute, rest)`, 'output');
+            logToTerminal(`   shard endpoints: /api/hive/glyphs, /api/hive/opcodes`, 'success');
+            addChatMessage('HIVE shards operational. Distributed opcode routing available.', 'ai');
+        }
+
+        function kuhulDetectServices() {
+            logToTerminal(`🔌 KUHUL service detection → scanning ports 61680-61685`, 'prompt');
+            logToTerminal(`   detected: ASX-RIG, PRIME cockpit, XJSON router, Basher`, 'success');
+            addChatMessage('KUHUL services detected: rig, prime, basher, xjson runtime.', 'ai');
+        }
+
+        function scxDecompressCall() {
+            logToTerminal(`🧩 SCX decompress: (?) conditional block → expanded to opcode stream`, 'output');
+            logToTerminal(`   glyph origin: "Sek" execute | mapped to WebGPU dispatch`, 'success');
+            addChatMessage('SCX decompression successful: glyphs mapped to compute kernel.', 'ai');
+        }
+
+        function showPortMap() {
+            logToTerminal(`🌐 ASX PORT MAP (KUHUL-NPX)`, 'prompt');
+            logToTerminal(`   61680 : root / KUHUL router | DNS gateway`, 'output');
+            logToTerminal(`   61681 : ASX-RIG backend | realtime glyph session`, 'output');
+            logToTerminal(`   61682 : PRIME cockpit modules`, 'output');
+            logToTerminal(`   61683 : HIVE shard sync | WebGPU opcodes`, 'output');
+            addChatMessage('Port specification: 61680+ follows compression/glyph pipeline. No Vite defaults.', 'ai');
+        }
+
+        function clearTerminalLog() {
+            terminalContainer.innerHTML = '';
+            logToTerminal('Terminal cleared.', 'output');
+        }
+
+        function clearChatHistory() {
+            chatMessagesDiv.innerHTML = '';
+            addChatMessage('Chat cleared. ASX assistant ready.', 'ai');
+        }
+
+        function sendUserMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            addChatMessage(text, 'user');
+            chatInput.value = '';
+            // contextual AI answers focused on backend/compression/dns
+            setTimeout(() => {
+                const lower = text.toLowerCase();
+                if (lower.includes('port') || lower.includes('61680')) {
+                    addChatMessage('ASX uses dynamic ports starting at 61680. KUHUL-NPX opcodes communicate over these with WebGPU shared buffers.', 'ai');
+                } else if (lower.includes('glyph') || lower.includes('opcode')) {
+                    addChatMessage('Glyphs map to DirectWrite glyph indices → opcodes → compute shaders. Compression reduces WebGPU payload.', 'ai');
+                } else if (lower.includes('backend') || lower.includes('launch')) {
+                    addChatMessage('Click "Launch Backend" to start KUHUL runtime. It initializes glyph router and REST mesh.', 'ai');
+                } else if (lower.includes('dns')) {
+                    addChatMessage('DNS authority covers xjson.app and subdomains. All resolve to OS ports 61680+', 'ai');
+                } else {
+                    addChatMessage('Use left panel controls to test REST endpoints, launch backend, or inspect DNS. Full WebGPU compute integration ready.', 'ai');
+                }
+            }, 200);
+        }
+
+        // attach event handlers
+        launchBtn.addEventListener('click', launchBitBashBackend);
+        dnsTestBtn.addEventListener('click', testDNS);
+        restStateBtn.addEventListener('click', getOSState);
+        compileXjson.addEventListener('click', compileXjson);
+        hiveShards.addEventListener('click', hiveShardsInfo);
+        kuhulDetect.addEventListener('click', kuhulDetectServices);
+        scxDecompress.addEventListener('click', scxDecompressCall);
+        clearTerminal.addEventListener('click', clearTerminalLog);
+        portMapBtn.addEventListener('click', showPortMap);
+        clearChat.addEventListener('click', clearChatHistory);
+        sendChat.addEventListener('click', sendUserMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendUserMessage();
+            }
+        });
+
+        // set status time + readiness
+        function setTimeOnMsgs() {
+            // not critical but adds charm
+        }
+        setTimeOnMsgs();
+
+        // optional manifest load debug (whisper)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(e => console.log('SW optional', e));
+            });
+        }
+        logToTerminal('ASX kernel UI ready — left panel for settings/system, backend compression glyph→opcodes active.', 'success');
+    })();
+</script>
+</body>
+</html>

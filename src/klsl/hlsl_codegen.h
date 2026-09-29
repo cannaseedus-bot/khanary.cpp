@@ -1,6 +1,8 @@
 #pragma once
 #include "klsl_ir.h"
+#include "klsl_opcodes.h"
 #include <string>
+#include <vector>
 
 namespace khanary::klsl {
 
@@ -12,6 +14,16 @@ public:
 
     // Emit all functions in a module
     std::string emit_module(const IRModule& mod);
+
+    // Emit a single KLSLOp low-level instruction as an HLSL expression statement.
+    // result: destination SSA name; operands: source SSA names (a, b, c registers).
+    static std::string emit_klsl_instr(KLSLOp op,
+                                        const std::string& result,
+                                        const std::vector<std::string>& operands);
+    static std::string emit_wcr_score_expr(const std::string& result,
+                                           const std::string& static_weight_expr,
+                                           const std::string& confidence_expr,
+                                           const std::string& relevance_expr);
 
 private:
     std::string emit_header(const IRFunction& fn, uint32_t gx, uint32_t gy);

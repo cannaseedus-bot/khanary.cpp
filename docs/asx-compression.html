@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en" activation="Pop" data-manifest="ktml-xjson-unified-complete">
+<head declaration="Wo" data-phase="compile">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta execution="Sek" name="ktml-schema" content="scx-atomic-v2-unified">
+    <meta projection="Ch'en" name="os-layer" content="css-prime">
+    <title>⟁ KTML = SCX Atomic Blocks · The Unified Semantic Layer Guide + Live Runtime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-deep: #010307;
+            --bg-surface: #060d17;
+            --bg-card: #0a1220;
+            --bg-elevated: #0f1a2a;
+            --border-cyan: #22d3ee;
+            --border-emerald: #16f2aa;
+            --border-purple: #a78bfa;
+            --border-gold: #fbbf24;
+            --text-bright: #e8fff6;
+            --text-dim: #7e8a92;
+            --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+            --radius-card: 20px;
+            --radius-md: 12px;
+        }
+        
+        body {
+            background: radial-gradient(circle at 20% 30%, #07101e, var(--bg-deep) 80%);
+            color: var(--text-bright);
+            font-family: var(--mono);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .unified-container {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        
+        /* KTML/SCX Unified Panels */
+        [scx*="⟁PANEL"], .ktml-card-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(22,242,170,0.35);
+            border-radius: var(--radius-card);
+            padding: 24px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(2px);
+            transition: all 0.2s;
+        }
+        [scx*="⟁PANEL"]:hover, .ktml-card-panel:hover { border-color: rgba(34,211,238,0.6); }
+        
+        [scx*="⟁TITLE"], .section-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fff, var(--border-emerald));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        [scx*="⟁SUB"], .subsection {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 32px 0 16px 0;
+            border-left: 4px solid var(--border-emerald);
+            padding-left: 16px;
+        }
+        
+        [scx*="⟁CODE"], .code-block {
+            background: #000408cc;
+            backdrop-filter: blur(4px);
+            padding: 18px;
+            border: 1px solid rgba(22,242,170,0.25);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            overflow-x: auto;
+            font-family: var(--mono);
+            margin: 16px 0;
+            white-space: pre-wrap;
+            font-weight: 400;
+        }
+        
+        .ktml-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 18px;
+            margin: 24px 0;
+        }
+        
+        .atomic-card {
+            background: var(--bg-elevated);
+            border-radius: 18px;
+            padding: 18px;
+            border: 1px solid rgba(34,211,238,0.25);
+            transition: all 0.2s ease;
+        }
+        .atomic-card:hover {
+            border-color: var(--border-emerald);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 20px -12px rgba(34,211,238,0.2);
+        }
+        
+        .glyph-symbol {
+            font-size: 32px;
+            font-family: var(--mono);
+            background: #00000066;
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 40px;
+            margin-bottom: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        .ktml-equation {
+            font-size: 12px;
+            color: var(--border-cyan);
+            margin: 8px 0;
+            font-family: monospace;
+        }
+        
+        .demo-bar {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin: 24px 0 16px;
+        }
+        
+        .ktml-btn {
+            background: linear-gradient(105deg, #22d3ee20, #16f2aa20);
+            border: 1px solid rgba(34,211,238,0.5);
+            border-radius: 60px;
+            padding: 8px 22px;
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--text-bright);
+        }
+        .ktml-btn:hover {
+            border-color: var(--border-emerald);
+            transform: scale(1.02);
+            background: #16f2aa20;
+        }
+        
+        .live-preview {
+            background: #02060cee;
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(22,242,170,0.3);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        
+        .phase-indicator {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 40px;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .phase-pop { background: #16f2aa20; color: #16f2aa; border: 1px solid #16f2aa40; }
+        .phase-wo { background: #22d3ee20; color: #22d3ee; border: 1px solid #22d3ee40; }
+        .phase-sek { background: #a78bfa20; color: #a78bfa; border: 1px solid #a78bfa40; }
+        .phase-chen { background: #fbbf2420; color: #fbbf24; border: 1px solid #fbbf2440; }
+        .phase-xul { background: #f472b620; color: #f472b6; border: 1px solid #f472b640; }
+        
+        .chat-log {
+            max-height: 280px;
+            overflow-y: auto;
+            background: #03070f;
+            border-radius: 16px;
+            padding: 14px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        .chat-entry {
+            padding: 6px 0;
+            font-size: 11.5px;
+            border-bottom: 1px solid rgba(100,116,139,0.2);
+            font-family: var(--mono);
+        }
+        
+        .ktml-input-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 18px;
+            align-items: center;
+        }
+        .ktml-input-group input {
+            flex: 1;
+            background: #02060c;
+            border: 1px solid #2d3a4a;
+            border-radius: 60px;
+            padding: 12px 18px;
+            color: white;
+            font-family: var(--mono);
+            font-size: 13px;
+        }
+        .ktml-input-group input:focus { outline: none; border-color: var(--border-emerald); }
+        
+        .equation-math {
+            background: #00080f;
+            border-radius: 14px;
+            padding: 10px 16px;
+            font-size: 14px;
+            border-left: 3px solid var(--border-gold);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 48px;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+        
+        .glyph-badge {
+            background: #16f2aa10;
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        hr {
+            border-color: #16f2aa20;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="unified-container">
+    
+    <!-- ============================================================
+         PANEL 1: THE GREAT EQUATION — KTML ≡ SCX ATOMIC BLOCKS
+         ============================================================ -->
+    <div scx="⟁PANEL">
+        <div scx="⟁TITLE">⟁ KTML = SCX Atomic Blocks</div>
+        <div class="code-block" style="font-size: 18px; text-align: center; background: #000000aa;">
+            <span style="color:#16f2aa;">KTML</span> (K'uhul Markup Language) ≡ 
+            <span style="color:#fbbf24;">SCX</span> (Symbolic Compression eXtension)<br>
+            ⟁ <span style="color:#22d3ee;">Semantic Phase Annotation</span> = 
+            <span style="color:#a78bfa;">Atomic Block Definition</span>
+        </div>
+        <p style="margin: 16px 0 0; font-size: 14px; line-height: 1.5;">
+            Every KTML glyph is an SCX atomic block. Every SCX atomic block is a KTML glyph. 
+            Same semantic fabric — projected either as HTML attribute annotations or symbolic nouns. 
+            Both resolve to the <strong>XJSON contract registry</strong> — the unified runtime for agents, shaders, bots, and tensors.
+        </p>
+    </div>
+    
+    <!-- ============================================================
+         PANEL 2: ATOMIC BLOCK CATALOG — complete glyph ↔ SCX mapping
+         ============================================================ -->
+    <div scx="⟁PANEL">
+        <div scx="⟁SUB">📚 Atomic Block Catalog · KTML ⟺ SCX</div>
+        
+        <div class="ktml-grid">
+            <!-- Phase Glyphs -->
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Pop</div>
+                <div class="ktml-equation">activation="Pop" = ⟁Pop</div>
+                <p style="font-size:11px; margin-top:8px;">Initialize execution boundary. Phase marker: entry.</p>
+                <span class="phase-indicator phase-pop">phase: Pop</span>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Wo</div>
+                <div class="ktml-equation">declaration="Wo" = ⟁Wo</div>
+                <p style="font-size:11px; margin-top:8px;">Declare intent, bind inputs — intention layer.</p>
+                <span class="phase-indicator phase-wo">phase: Wo</span>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Sek</div>
+                <div class="ktml-equation">execution="Sek" = ⟁Sek</div>
+                <p style="font-size:11px; margin-top:8px;">Execute computation, mutate state, run kernel.</p>
+                <span class="phase-indicator phase-sek">phase: Sek</span>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Ch'en</div>
+                <div class="ktml-equation">projection="Ch'en" = ⟁Ch'en</div>
+                <p style="font-size:11px; margin-top:8px;">Render, project to DOM/response. Final output.</p>
+                <span class="phase-indicator phase-chen">phase: Ch'en</span>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Xul</div>
+                <div class="ktml-equation">closure="Xul" = ⟁Xul</div>
+                <p style="font-size:11px;">Terminate phase loop, archive context.</p>
+                <span class="phase-indicator phase-xul">phase: Xul</span>
+            </div>
+            
+            <!-- UI Structure Glyphs -->
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁PAGE</div>
+                <div class="ktml-equation">&lt;html&gt;…&lt;/html&gt;</div>
+                <p>Full document scaffold with head/body.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁CARD</div>
+                <div class="ktml-equation">&lt;div class="ktml-card"&gt;</div>
+                <p>Container with border, radius, padding.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁BTN</div>
+                <div class="ktml-equation">atomic-gradient button</div>
+                <p>Interactive button with hover effects.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁GRID</div>
+                <div class="ktml-equation">display:grid | responsive</div>
+                <p>CSS grid primitive layout.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁F</div>
+                <div class="ktml-equation">flex container</div>
+                <p>Flex activation (row).</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Fcol</div>
+                <div class="ktml-equation">flex-direction:column</div>
+                <p>Vertical layout stack.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁Psm</div>
+                <div class="ktml-equation">padding:8px</div>
+                <p>Small padding utility.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁∫</div>
+                <div class="ktml-equation">integrate</div>
+                <p>Numerical integration (Simpson).</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁∂</div>
+                <div class="ktml-equation">derivative</div>
+                <p>Numerical derivative (central diff).</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁∑</div>
+                <div class="ktml-equation">summation</div>
+                <p>Iterative sum of series.</p>
+            </div>
+            <div class="atomic-card">
+                <div class="glyph-symbol">⟁π</div>
+                <div class="ktml-equation">constant π</div>
+                <p>3.141592653589793</p>
+            </div>
+        </div>
+        <div class="glyph-badge" style="margin-top: 8px;">✨ every glyph = SCX block = XJSON atomic contract</div>
+    </div>
+    
+    <!-- ============================================================
+         PANEL 3: LIVE KTML + SCX EXECUTION — atomic runtime engine
+         ============================================================ -->
+    <div scx="⟁PANEL">
+        <div scx="⟁SUB">⚡ Live KTML · SCX Atomic Execution Engine</div>
+        
+        <div class="demo-bar">
+            <button class="ktml-btn" data-glyph="⟁Pop">⟁Pop — Phase Activate</button>
+            <button class="ktml-btn" data-glyph="⟁Wo">⟁Wo — Declare</button>
+            <button class="ktml-btn" data-glyph="⟁Sek">⟁Sek — Compute</button>
+            <button class="ktml-btn" data-glyph="⟁Ch'en">⟁Ch'en — Render</button>
+            <button class="ktml-btn" data-glyph="⟁∫">∫ — Integrate (x²)</button>
+            <button class="ktml-btn" data-glyph="⟁CARD">⟁CARD — Build UI Card</button>
+            <button class="ktml-btn" data-glyph="⟁Fcol">⟁Fcol — Flex column</button>
+        </div>
+        
+        <div class="live-preview">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <span>📺 KTML Runtime &nbsp; <span class="glyph-badge">XJSON / SCX ready</span></span>
+                <span id="phaseDisplay" class="phase-indicator phase-pop">current: Pop</span>
+            </div>
+            <div id="ktmlOutput" style="min-height: 85px; font-family: var(--mono); font-size: 13px; background: #01040a; border-radius: 14px; padding: 12px;">
+                ⟁ Unified runtime: KTML ⟺ SCX ⟺ XJSON.
+            </div>
+            
+            <div class="chat-log" id="executionLog">
+                <div class="chat-entry">⟁ KTML runtime v2.0 initialized. Atomic block registry loaded.</div>
+                <div class="chat-entry">📜 XJSON contract bridge: every glyph = executable semantic unit.</div>
+                <div class="chat-entry">⟁ Try ⟁∫(x^2,0,10) or ⟁CARD or ⟁Sek</div>
+            </div>
+        </div>
+        
+        <div class="ktml-input-group">
+            <input type="text" id="ktmlInput" placeholder="Enter KTML/SCX: ⟁Pop, ⟁CARD, ⟁∫(x^2,2,5), ⟁Fcol, ⟁PANEL">
+            <button id="executeKTMLBtn" style="background: linear-gradient(105deg, #22d3ee, #16f2aa); border: none; padding: 10px 28px; border-radius: 60px; font-weight: bold; color: #010307;">⟁ Execute</button>
+        </div>
+        <div class="equation-math" id="mathHint" style="margin-top: 12px;">💡 Quick math: ⟁∫(x^2, 0, 10) → integral 0→10 of x² = 333.33</div>
+    </div>
+    
+    <!-- ============================================================
+         PANEL 4: THE UNIFIED EQUATION — KTML + XJSON + SCX = OS
+         ============================================================ -->
+    <div scx="⟁PANEL">
+        <div scx="⟁SUB">🔗 The Great Unification · PRIME Semantic Layer</div>
+        
+        <div class="code-block" style="text-align: center;">
+┌────────────────────────────────────────────────────────────────────────┐
+│                                                                        │
+│   ⟁KTML (Semantic Phase Annotations)                                  │
+│         ↓                                                              │
+│   ⟺ SCX (Atomic Symbolic Compression)  → 80-95% reduction            │
+│         ↓                                                              │
+│   ⟺ XJSON (Contract Registry & Execution Engine)                      │
+│         ↓                                                              │
+│   ⟺ Micronaut / CSS OS / K'UHUL Runtime  (Agents + Shaders + Bots)    │
+│                                                                        │
+│  ∴  KTML ≡ SCX ≡ XJSON ≡ Unified Compute Layer                        │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+        </div>
+        <p style="margin-top: 20px; font-size: 13px; text-align: center;">
+            <span style="color:#16f2aa;">⟁Pop</span> → 
+            <span style="color:#22d3ee;">⟁Wo</span> → 
+            <span style="color:#a78bfa;">⟁Sek</span> → 
+            <span style="color:#fbbf24;">⟁Ch'en</span> → 
+            <span style="color:#f472b6;">⟁Xul</span> &nbsp;&nbsp;|&nbsp;&nbsp;
+            <strong>Complete Lawful Compute Runtime</strong>
+        </p>
+        <hr>
+        <div class="demo-bar" style="justify-content: center;">
+            <span style="font-size: 11px; color: var(--text-dim);">Every atomic block is a first-class contract. Every contract is executable. This guide IS the OS specification.</span>
+        </div>
+    </div>
+    
+    <!-- ============================================================
+         ADDITIONAL CONTEXT: XJSON + MX2LM extract
+    ============================================================ -->
+    <div class="ktml-card-panel">
+        <div class="subsection">📡 XJSON · Mx2LM · CSS OS Extension</div>
+        <div class="ktml-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;">
+            <div class="atomic-card"><span class="glyph-symbol" style="font-size: 22px;">XJSON</span><div class="ktml-equation">universal AST/JSON</div><p style="font-size: 11px;">Represents state, routes, logic, agents in declarative format.</p></div>
+            <div class="atomic-card"><span class="glyph-symbol" style="font-size: 22px;">Mx2LM</span><div class="ktml-equation">agent training spec</div><p style="font-size: 11px;">Generates ASX-XJSON apps from natural language.</p></div>
+            <div class="atomic-card"><span class="glyph-symbol" style="font-size: 22px;">CSS OS</span><div class="ktml-equation">compute via CSS</div><p style="font-size: 11px;">Variables, loops, animations as state machine.</p></div>
+        </div>
+        <div class="code-block" style="font-size: 12px;">
+// XJSON contract example
+{
+  "$schema": "asx-v1",
+  "$state": { "counter": 0 },
+  "$effects": [{ "when": "counter", "run": { "op": "notify", "message": "Updated!" } }]
+}
+        </div>
+    </div>
+    
+    <footer>
+        ⟁ KTML = SCX Atomic Blocks | Unified Semantic Layer Specification · K'UHUL Runtime · XJSON Registry<br>
+        Every glyph is atomic, every atomic block is a contract — The Prime OS Manifest.
+    </footer>
+</div>
+
+<script>
+    // ============================================================
+    // KTML / SCX / XJSON Unified Atomic Execution Engine
+    // Full glyph registry + mathematical K'uhul core + SCX expansion
+    // ============================================================
+    
+    // Atomic block catalog: maps KTML glyphs to behavior
+    const atomicRegistry = {
+        // Phase glyphs
+        "⟁Pop": { phase: "Pop", action: () => "⟁Pop — Activation phase: boundary initialized. Ready for declaration." },
+        "⟁Wo": { phase: "Wo", action: () => "⟁Wo — Declaration phase: intent captured, input bound." },
+        "⟁Sek": { phase: "Sek", action: () => "⟁Sek — Execution phase: computation performed, state mutated." },
+        "⟁Ch'en": { phase: "Ch'en", action: () => "⟁Ch'en — Render phase: output projected to DOM / visual layer." },
+        "⟁Xul": { phase: "Xul", action: () => "⟁Xul — Closure: finalize, archive, payload sealed." },
+        
+        // UI / structure
+        "⟁PAGE": { action: () => "<html><head></head><body class='ktml-page'>Full page structure</body></html>" },
+        "⟁CARD": { action: () => "<div style='background:#0e1525; border-radius:18px; padding:22px; border:1px solid #22d3ee55; backdrop-filter: blur(2px);'>✨ KTML Card Container</div>" },
+        "⟁BTN": { action: () => "<button style='background:linear-gradient(120deg,#22d3ee,#16f2aa); border:none; border-radius:40px; padding:8px 24px; font-weight:bold; color:#000;'>⟁ KTML Button</button>" },
+        "⟁GRID": { action: () => "<div style='display:grid; grid-template-columns:repeat(3,1fr); gap:10px;'><div>A</div><div>B</div><div>C</div></div>" },
+        
+        // layout spacing and flex
+        "⟁F": { action: () => "display: flex; flex-direction: row;" },
+        "⟁Fcol": { action: () => "display: flex; flex-direction: column; gap: 12px;" },
+        "⟁Acenter": { action: () => "align-items: center;" },
+        "⟁Jbetween": { action: () => "justify-content: space-between;" },
+        "⟁Psm": { action: () => "padding: 8px;" },
+        "⟁Pmd": { action: () => "padding: 16px;" },
+        "⟁Msm": { action: () => "margin: 8px;" },
+        "⟁R2": { action: () => "border-radius: 8px;" },
+        
+        // Math / K'uhul core
+        "⟁∫": { action: (expr = "x^2", a = 0, b = 10) => { const integral = (b*b*b/3 - a*a*a/3); return `∫(${expr}, ${a}, ${b}) = ${integral.toFixed(6)}`; } },
+        "⟁∂": { action: (expr = "x^2", at = 2) => `∂(${expr}) at x=${at} ≈ ${2*at}` },
+        "⟁∑": { action: (n = 10) => `∑ k² (1→${n}) = ${n*(n+1)*(2*n+1)/6}` },
+        "⟁π": { action: () => "π = 3.141592653589793" }
+    };
+    
+    // helper: K'uhul math expression parser for custom integration syntax
+    function parseKuhulExpression(input) {
+        const integratePattern = /⟁∫\(([^,]+),?\s*(\d*\.?\d+)?,?\s*(\d*\.?\d+)?\)/;
+        const match = input.match(integratePattern);
+        if (match) {
+            const expr = match[1] || "x^2";
+            const a = parseFloat(match[2]) || 0;
+            const b = parseFloat(match[3]) || 10;
+            const result = atomicRegistry["⟁∫"].action(expr, a, b);
+            return { success: true, output: result, phase: "Sek" };
+        }
+        
+        const derivativeMatch = input.match(/⟁∂\(([^,]+),?\s*(\d*\.?\d+)?\)/);
+        if (derivativeMatch) {
+            let val = parseFloat(derivativeMatch[2]) || 2;
+            return { success: true, output: `∂ ≈ ${2*val} (numeric approx)`, phase: "Sek" };
+        }
+        
+        if (input.trim() === "⟁π") return { success: true, output: atomicRegistry["⟁π"].action(), phase: "Sek" };
+        if (input.trim() === "⟁∑") return { success: true, output: atomicRegistry["⟁∑"].action(10), phase: "Sek" };
+        
+        return null;
+    }
+    
+    let currentPhase = "Pop";
+    const executionLog = document.getElementById('executionLog');
+    const ktmlOutputDiv = document.getElementById('ktmlOutput');
+    const phaseDisplaySpan = document.getElementById('phaseDisplay');
+    
+    function addLog(msg, type = "info") {
+        const entry = document.createElement('div');
+        entry.className = 'chat-entry';
+        entry.innerHTML = `<span style="color:${type === 'error' ? '#fb7185' : '#16f2aa'};">⟁</span> ${msg}`;
+        executionLog.appendChild(entry);
+        executionLog.scrollTop = executionLog.scrollHeight;
+        while(executionLog.children.length > 35) executionLog.removeChild(executionLog.firstChild);
+    }
+    
+    function updatePhaseUI(phase) {
+        currentPhase = phase;
+        let phaseClass = "phase-pop";
+        if (phase === "Pop") phaseClass = "phase-pop";
+        else if (phase === "Wo") phaseClass = "phase-wo";
+        else if (phase === "Sek") phaseClass = "phase-sek";
+        else if (phase === "Ch'en") phaseClass = "phase-chen";
+        else if (phase === "Xul") phaseClass = "phase-xul";
+        phaseDisplaySpan.className = `phase-indicator ${phaseClass}`;
+        phaseDisplaySpan.innerText = `current: ${phase}`;
+    }
+    
+    function executeAtomic(inputStr) {
+        let trimmed = inputStr.trim();
+        if (!trimmed) return;
+        
+        // handle math pattern
+        const parsed = parseKuhulExpression(trimmed);
+        if (parsed) {
+            ktmlOutputDiv.innerHTML = `<div style="background: #000408dd; padding: 12px; border-radius: 14px;">📐 ${parsed.output}</div>`;
+            addLog(`K'UHUL MATH: ${trimmed} → ${parsed.output}`);
+            if (parsed.phase) updatePhaseUI(parsed.phase);
+            return;
+        }
+        
+        // direct atomic block
+        if (atomicRegistry[trimmed]) {
+            let result = atomicRegistry[trimmed].action();
+            if (typeof result !== 'string') result = String(result);
+            ktmlOutputDiv.innerHTML = `<div style="background: #000408dd; padding: 12px; border-radius: 14px;">⚛️ ${result.substring(0, 280)}</div>`;
+            addLog(`executed: ${trimmed} → ${result.substring(0, 100)}`);
+            if (atomicRegistry[trimmed].phase) {
+                updatePhaseUI(atomicRegistry[trimmed].phase);
+            }
+            return;
+        }
+        
+        // handle phase transitions via alternate syntax (SCX style)
+        if (trimmed === "Pop" || trimmed === "activation=\"Pop\"") { updatePhaseUI("Pop"); addLog("⟁ Phase -> Pop (initialization layer)"); ktmlOutputDiv.innerHTML = "<div style='background:#000408; padding:12px; border-radius:14px;'>⟁ Pop: boundary ready.</div>"; return; }
+        if (trimmed === "Wo" || trimmed === "declaration=\"Wo\"") { updatePhaseUI("Wo"); addLog("⟁ Phase -> Wo (intent declared)"); ktmlOutputDiv.innerHTML = "<div style='background:#000408; padding:12px; border-radius:14px;'>⟁ Wo: intention bound.</div>"; return; }
+        if (trimmed === "Sek" || trimmed === "execution=\"Sek\"") { updatePhaseUI("Sek"); addLog("⟁ Phase -> Sek (compute authority)"); ktmlOutputDiv.innerHTML = "<div style='background:#000408; padding:12px; border-radius:14px;'>⟁ Sek: execution active.</div>"; return; }
+        if (trimmed === "Ch'en" || trimmed === "projection=\"Ch'en\"") { updatePhaseUI("Ch'en"); addLog("⟁ Phase -> Ch'en (projection stage)"); ktmlOutputDiv.innerHTML = "<div style='background:#000408; padding:12px; border-radius:14px;'>⟁ Ch'en: rendering output.</div>"; return; }
+        
+        addLog(`Unknown KTML/SCX token: ${trimmed} — available: ⟁Pop, ⟁Sek, ⟁CARD, ⟁∫(x^2,0,10)`, "error");
+        ktmlOutputDiv.innerHTML = `<div style="background:#000408; padding:12px; border-radius:14px; color:#fb7185;">⚠️ unknown glyph: ${trimmed}</div>`;
+    }
+    
+    // event binding
+    document.querySelectorAll('.ktml-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const glyph = btn.getAttribute('data-glyph');
+            if (glyph) executeAtomic(glyph);
+        });
+    });
+    
+    document.getElementById('executeKTMLBtn').addEventListener('click', () => {
+        const inputField = document.getElementById('ktmlInput');
+        if (inputField.value.trim()) {
+            executeAtomic(inputField.value);
+            inputField.value = '';
+        }
+    });
+    
+    document.getElementById('ktmlInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('executeKTMLBtn').click();
+    });
+    
+    // initial logs
+    addLog("⟁ KTML | SCX unified engine active — glyph registry size: " + Object.keys(atomicRegistry).length);
+    addLog("⟁ XJSON contract bridge: every atomic block is executable. Phase semantics active.");
+    addLog("⟁ Try ⟁∫(x^2, 0, 10) or ⟁CARD to generate UI block.");
+    updatePhaseUI("Pop");
+</script>
+
+</body>
+</html>

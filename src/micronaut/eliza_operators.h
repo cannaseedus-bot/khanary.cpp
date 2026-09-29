@@ -15,12 +15,20 @@ struct ElizaOperator {
     std::string              sek_directive;  // emission template (Sek phase)
     kuhul::Phase             detect_phase = kuhul::Phase::Pop;
     kuhul::Phase             emit_phase   = kuhul::Phase::Sek;
+    std::string              relation_hint = "@related_to";
+    std::string              semantic_atom_hint;
 };
 
 struct OperatorMatch {
     const ElizaOperator* op = nullptr;
     float                score = 0.0f;
     std::vector<std::string> matched_cues;
+    std::string          context;
+    std::string          canonical_relation;
+    std::string          relation_phase;
+    std::string          semantic_atom;
+    float                vector_relevance = 0.0f;
+    float                wcr_attention_score = 0.0f;
 };
 
 class ElizaOperatorBank {
@@ -29,6 +37,12 @@ public:
 
     // Detect which operator matches a token sequence (Pop phase)
     std::optional<OperatorMatch> detect(const std::vector<std::string>& tokens) const;
+
+    // Ranked operator detection (highest score first).
+    std::vector<OperatorMatch> detect_all(
+        const std::vector<std::string>& tokens,
+        float min_score = 0.3f,
+        size_t top_k = 4) const;
 
     // Emit a directive from a matched operator (Sek phase)
     std::string emit(const ElizaOperator& op, const std::string& context = "") const;

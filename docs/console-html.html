@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Basher Terminal v4 — Tri-Tunnel HUD with Chat Inference</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #020308;
+    --fg: #e8fff6;
+    --neon: #16f2aa;
+    --neon-soft: rgba(22,242,170,0.25);
+    --accent: #00e0ff;
+    --danger: #ff2f6f;
+    --muted: #6b7280;
+    --panel-bg: rgba(3,10,22,0.92);
+    --panel-border: rgba(22,242,170,0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                 "Segoe UI", sans-serif;
+  }
+
+  body {
+    position: relative;
+  }
+
+  /* MATRIX RAIN BACKGROUND */
+  #matrix-canvas {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top, #041023 0, #000 55%);
+    z-index: 0;
+  }
+
+  /* GLASS HUD LAYER */
+  .hud {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none; /* panels re-enable */
+  }
+
+  .hud-row-top {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .panel {
+    pointer-events: auto;
+    background: var(--panel-bg);
+    border-radius: 14px;
+    border: 1px solid var(--panel-border);
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.7),
+      0 0 24px rgba(0,0,0,0.8),
+      0 0 40px var(--neon-soft);
+    backdrop-filter: blur(10px);
+  }
+
+  .panel-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(22,242,170,0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+  }
+
+  .panel-body {
+    padding: 10px 12px 12px;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .badge-live {
+    border-color: rgba(34,197,94,0.7);
+    color: #bbf7d0;
+  }
+
+  .led-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 10px #22c55e;
+  }
+
+  .logo-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid rgba(22,242,170,0.4);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--neon);
+    box-shadow: 0 0 15px rgba(22,242,170,0.4);
+  }
+
+  .logo-mark span {
+    transform: translateY(1px);
+  }
+
+  .hud-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e5fdf8;
+  }
+
+  .hud-sub {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .metric-pill {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(15,23,42,0.7);
+    border: 1px solid rgba(30,64,175,0.6);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #9ca3af;
+  }
+
+  .metric-pill span.value {
+    color: var(--accent);
+  }
+
+  /* TERMINAL PANEL */
+  .terminal-panel {
+    flex: 1 1 auto;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .terminal-body {
+    flex: 1 1 auto;
+    padding: 8px 12px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+                 Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+                 monospace;
+    font-size: 12px;
+    color: #cbd5f5;
+    overflow: hidden;
+  }
+
+  .terminal-output {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .term-line {
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+
+  .term-line.system  { color: var(--muted); }
+  .term-line.user    { color: #e5fdee; }
+  .term-line.info    { color: var(--accent); }
+  .term-line.warn    { color: #fde68a; }
+  .term-line.error   { color: var(--danger); }
+  .term-line.success { color: var(--neon); }
+
+  .terminal-input-row {
+    border-top: 1px solid rgba(15,23,42,0.9);
+    padding-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .prompt-label {
+    font-size: 11px;
+    color: #9ca3af;
+    user-select: none;
+  }
+
+  .prompt-label span.user {
+    color: var(--neon);
+  }
+
+  .prompt-input-wrap {
+    flex: 1 1 auto;
+    position: relative;
+  }
+
+  .prompt-input {
+    width: 100%;
+    background: radial-gradient(circle at top, #020617, #020308 40%);
+    border-radius: 6px;
+    border: 1px solid rgba(15,23,42,0.9);
+    padding: 6px 8px;
+    padding-right: 28px;
+    color: #e5e7eb;
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgba(15,23,42,0.6);
+  }
+
+  .prompt-input:focus {
+    border-color: rgba(56,189,248,0.8);
+    box-shadow:
+      0 0 0 1px rgba(8,47,73,0.8),
+      0 0 16px rgba(56,189,248,0.22);
+  }
+
+  .cursor-dot {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    transform: translateY(-50%);
+    box-shadow: 0 0 10px var(--accent);
+    animation: cursorPulse 1.1s ease-in-out infinite;
+  }
+
+  @keyframes cursorPulse {
+    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+    50% { opacity: 0.35; transform: translateY(-50%) scale(0.7); }
+  }
+
+  /* QUICK KEYS / FOOTER */
+  .hud-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px 0;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .hint-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .hint-pill {
+    border-radius: 999px;
+    border: 1px solid rgba(31,41,55,0.9);
+    background: rgba(15,23,42,0.8);
+    padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .hint-pill kbd {
+    font-size: 10px;
+    font-family: inherit;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid rgba(75,85,99,0.8);
+    background: #020617;
+    color: #e5e7eb;
+  }
+
+  /* MINI STATUS PANEL */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .status-chip {
+    padding: 6px 7px;
+    border-radius: 9px;
+    background: rgba(15,23,42,0.95);
+    border: 1px solid rgba(31,41,55,0.9);
+  }
+
+  .status-label {
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 2px;
+  }
+
+  .status-value {
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .status-sub {
+    font-size: 10px;
+    color: #6b7280;
+  }
+
+  /* MATRIX MODE TOGGLES */
+  .toggle-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 10px;
+  }
+
+  .toggle-btn {
+    padding: 3px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(31,41,55,0.9);
+    background: rgba(15,23,42,0.9);
+    cursor: pointer;
+    color: #9ca3af;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .toggle-btn span.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(75,85,99,0.9);
+  }
+
+  .toggle-btn.active {
+    border-color: rgba(56,189,248,0.85);
+    color: #e0f2fe;
+    box-shadow: 0 0 10px rgba(56,189,248,0.25);
+  }
+
+  .toggle-btn.active span.dot {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* CHAT INFERENCE PANEL */
+  .chat-panel {
+    flex: 1 1 320px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-history {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 11px;
+  }
+
+  .chat-message {
+    padding: 6px 8px;
+    border-radius: 8px;
+    max-width: 85%;
+    word-break: break-word;
+  }
+
+  .chat-message.user {
+    align-self: flex-end;
+    background: rgba(22,242,170,0.15);
+    border: 1px solid rgba(22,242,170,0.3);
+    color: #e5fdf8;
+  }
+
+  .chat-message.system {
+    align-self: flex-start;
+    background: rgba(0,224,255,0.1);
+    border: 1px solid rgba(0,224,255,0.25);
+    color: #e0f2fe;
+  }
+
+  .chat-form {
+    padding: 8px 12px;
+    border-top: 1px solid rgba(15,23,42,0.9);
+  }
+
+  .chat-input-group {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .chat-select {
+    flex: 0 0 100px;
+    background: radial-gradient(circle at top, #020617, #020308 40%);
+    border-radius: 6px;
+    border: 1px solid rgba(15,23,42,0.9);
+    padding: 6px 8px;
+    color: #e5e7eb;
+    font-family: inherit;
+    font-size: 11px;
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgba(15,23,42,0.6);
+  }
+
+  .chat-input {
+    flex: 1 1 auto;
+    background: radial-gradient(circle at top, #020617, #020308 40%);
+    border-radius: 6px;
+    border: 1px solid rgba(15,23,42,0.9);
+    padding: 6px 8px;
+    color: #e5e7eb;
+    font-family: inherit;
+    font-size: 11px;
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgba(15,23,42,0.6);
+  }
+
+  .chat-input:focus, .chat-select:focus {
+    border-color: rgba(56,189,248,0.8);
+    box-shadow:
+      0 0 0 1px rgba(8,47,73,0.8),
+      0 0 16px rgba(56,189,248,0.22);
+  }
+
+  .chat-submit {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(22,242,170,0.5);
+    background: rgba(22,242,170,0.1);
+    color: var(--neon);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .chat-submit:hover {
+    background: rgba(22,242,170,0.2);
+    box-shadow: 0 0 10px rgba(22,242,170,0.3);
+  }
+
+  .chat-submit:active {
+    transform: translateY(1px);
+  }
+
+  .chat-hint {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .hud {
+      padding: 10px;
+    }
+    .hud-row-top {
+      flex-direction: column;
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="matrix-canvas"></canvas>
+
+<div class="hud">
+  <div class="hud-row-top">
+    <!-- LEFT: Basher Identity -->
+    <div class="panel" style="min-width: 260px; max-width: 360px; flex: 1 1 260px;">
+      <div class="panel-header">
+        <div class="logo-mark"><span>Β</span></div>
+        <div>
+          <div class="hud-title">BASHER v4 — TRI-TUNNEL ORCHESTRATOR</div>
+          <div class="hud-sub">Cloudflared • SCXQ2-DNS • Local RIG</div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="led-dot"></div>
+        <span class="badge badge-live">LIVE</span>
+      </div>
+      <div class="panel-body">
+        <div class="metrics">
+          <div class="metric-pill">
+            MODE<span class="value" id="mode-label">auto</span>
+          </div>
+          <div class="metric-pill">
+            TUNNEL<span class="value" id="tunnel-label">not bound</span>
+          </div>
+          <div class="metric-pill">
+            SCXQ2<span class="value" id="scx-label">standby</span>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <button class="toggle-btn active" data-speed="normal">
+            <span class="dot"></span> Matrix: Normal
+          </button>
+          <button class="toggle-btn" data-speed="fast">
+            <span class="dot"></span> Matrix: Fast
+          </button>
+          <button class="toggle-btn" data-speed="slow">
+            <span class="dot"></span> Matrix: Slow
+          </button>
+          <button class="toggle-btn" data-speed="off">
+            <span class="dot"></span> Matrix: Off
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Mini Status -->
+    <div class="panel" style="min-width: 260px; max-width: 380px; flex: 1 1 260px;">
+      <div class="panel-header">
+        <span style="font-size:12px; color:var(--accent);">MX2LM / QWEN / JANUS LINE</span>
+        <div style="flex:1"></div>
+        <span class="badge">LM-TAPE BUS</span>
+      </div>
+      <div class="panel-body">
+        <div class="status-grid">
+          <div class="status-chip">
+            <div class="status-label">MX2LM</div>
+            <div class="status-value" id="status-mx2lm">IDLE</div>
+            <div class="status-sub">local brain</div>
+          </div>
+          <div class="status-chip">
+            <div class="status-label">QWEN-TAPE</div>
+            <div class="status-value" id="status-qwen">DETACHED</div>
+            <div class="status-sub">/lm-tapes/qwen-merged</div>
+          </div>
+          <div class="status-chip">
+            <div class="status-label">JANUS</div>
+            <div class="status-value" id="status-janus">STANDBY</div>
+            <div class="status-sub">vision + media</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT INFERENCE PANEL -->
+    <div class="panel chat-panel">
+      <div class="panel-header">
+        <span style="font-size:11px; color:#9ca3af;">CHAT INFERENCE</span>
+        <div style="flex:1"></div>
+        <span class="badge">KUHUL · LIVE</span>
+      </div>
+      <div class="panel-body">
+        <div id="chat-history" class="chat-history">
+          <div class="chat-message system">
+            [system] Chat inference ready. Scripts will be executed via KUHUL engine.
+          </div>
+        </div>
+        <div class="chat-form">
+          <div class="chat-input-group">
+            <select id="script-type" class="chat-select">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="php">PHP</option>
+              <option value="kuhul">KUHUL</option>
+            </select>
+            <input id="chat-input" class="chat-input" 
+                   placeholder="Enter script to execute..." />
+            <button id="chat-submit" class="chat-submit">Execute</button>
+          </div>
+          <div class="chat-hint">
+            All scripts are executed via KUHUL ⟁Pop⟁spawn engine
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="panel terminal-panel">
+    <div class="panel-header">
+      <span style="font-size:11px; color:#9ca3af;">BASHER TERMINAL</span>
+      <span style="font-size:11px; color:#4b5563; margin-left:6px;">/dev/ttyMX2</span>
+      <div style="flex:1"></div>
+      <span class="badge">MATRIX · LIVE</span>
+    </div>
+    <div class="terminal-body">
+      <div id="terminal-output" class="terminal-output"></div>
+
+      <div class="terminal-input-row">
+        <div class="prompt-label">
+          <span class="user">basher@MX2LM</span>:<span style="color:#9ca3af;">~</span>$
+        </div>
+        <div class="prompt-input-wrap">
+          <input id="terminal-input" class="prompt-input"
+                 autocomplete="off"
+                 spellcheck="false"
+                 placeholder="type 'help' for Basher commands…" />
+          <div class="cursor-dot"></div>
+        </div>
+      </div>
+      <div class="hud-footer">
+        <div class="hint-row">
+          <div class="hint-pill">
+            <kbd>help</kbd> palette
+          </div>
+          <div class="hint-pill">
+            <kbd>mode</kbd> tunnel auto-detect
+          </div>
+          <div class="hint-pill">
+            <kbd>tunnel</kbd> status
+          </div>
+          <div class="hint-pill">
+            <kbd>mx2lm</kbd> ping brain
+          </div>
+        </div>
+        <div class="hint-row">
+          <div class="hint-pill">
+            <kbd>Up</kbd> / <kbd>Down</kbd> history
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   MATRIX RAIN v4 — SCX Vertical Stack Engine
+------------------------------------------------------------------ */
+(function initMatrix() {
+  const canvas = document.getElementById('matrix-canvas');
+  const ctx = canvas.getContext('2d');
+
+  const glyphs = "⟁Ω§≡∆∇⌂⌘⍟⌬⎔⏣01$#?⟡⟊⟟⟠";
+  let fontSize = 16;
+  let columns = [];
+  let width, height;
+  let speedMode = "normal"; // slow | normal | fast | off
+  let lastFrame = performance.now();
+
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    fontSize = Math.max(12, Math.floor(width / 80));
+    const columnCount = Math.floor(width / fontSize);
+    columns = new Array(columnCount).fill(0).map(() => ({
+      y: Math.random() * -50,
+      speed: 1 + Math.random() * 1.5
+    }));
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+
+  function setSpeed(mode) {
+    speedMode = mode;
+  }
+
+  function step(delta) {
+    if (speedMode === "off") {
+      // faint overlay when paused
+      ctx.fillStyle = "rgba(2,3,8,0.30)";
+      ctx.fillRect(0, 0, width, height);
+      return;
+    }
+
+    const speedFactor =
+      speedMode === "fast" ? 1.8 :
+      speedMode === "slow" ? 0.4 :
+      1.0;
+
+    ctx.fillStyle = "rgba(2,3,8,0.18)";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#16f2aa";
+    ctx.font = fontSize + "px monospace";
+
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i];
+      const x = i * fontSize;
+      const char = glyphs[Math.floor(Math.random() * glyphs.length)];
+
+      // brighter head
+      ctx.fillStyle = "rgba(210,255,250,0.92)";
+      ctx.fillText(char, x, col.y * fontSize);
+      // dim trail
+      ctx.fillStyle = "rgba(22,242,170,0.42)";
+      ctx.fillText(
+        glyphs[Math.floor(Math.random() * glyphs.length)],
+        x,
+        (col.y - 1) * fontSize
+      );
+
+      col.y += col.speed * speedFactor;
+      if (col.y * fontSize > height + fontSize) {
+        col.y = (Math.random() * -20);
+        col.speed = 0.7 + Math.random() * 1.5;
+      }
+    }
+  }
+
+  function loop(now) {
+    const delta = now - lastFrame;
+    lastFrame = now;
+    step(delta);
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+
+  // expose speed control to terminal UI
+  window.__MATRIX_RAIN__ = {
+    setSpeed
+  };
+})();
+
+/* ------------------------------------------------------------------
+   CHAT INFERENCE ENGINE - KUHUL Script Execution
+------------------------------------------------------------------ */
+(function initChatInference() {
+  const chatHistory = document.getElementById('chat-history');
+  const chatInput = document.getElementById('chat-input');
+  const scriptType = document.getElementById('script-type');
+  const chatSubmit = document.getElementById('chat-submit');
+
+  function addChatMessage(text, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${isUser ? 'user' : 'system'}`;
+    messageDiv.textContent = text;
+    chatHistory.appendChild(messageDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+  }
+
+  function executeScript(script, type) {
+    addChatMessage(`[KUHUL] Executing ${type.toUpperCase()} script via ⟁Pop⟁spawn...`, false);
+    
+    // Simulate KUHUL script execution
+    setTimeout(() => {
+      let result = '';
+      
+      if (type === 'python') {
+        result = `[KUHUL] Python execution complete\nResult: ${script.length} chars processed`;
+      } else if (type === 'javascript') {
+        result = `[KUHUL] JavaScript execution complete\nResult: ${script.length} chars processed`;
+      } else if (type === 'php') {
+        result = `[KUHUL] PHP execution complete\nResult: ${script.length} chars processed`;
+      } else if (type === 'kuhul') {
+        // Special handling for KUHUL scripts
+        if (script.includes('⟁Pop⟁spawn')) {
+          result = '[KUHUL] Process spawned successfully';
+        } else if (script.includes('⟁Pop⟁compile')) {
+          result = '[KUHUL] Compilation complete';
+        } else {
+          result = '[KUHUL] KUHUL script executed successfully';
+        }
+      }
+      
+      addChatMessage(result, false);
+    }, 800);
+  }
+
+  chatSubmit.addEventListener('click', () => {
+    const script = chatInput.value.trim();
+    if (!script) return;
+    
+    const type = scriptType.value;
+    addChatMessage(`[${type.toUpperCase()}] ${script}`, true);
+    chatInput.value = '';
+    
+    executeScript(script, type);
+  });
+
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      chatSubmit.click();
+    }
+  });
+})();
+
+/* ------------------------------------------------------------------
+   BASHER TERMINAL CORE v4 - Complete Implementation
+------------------------------------------------------------------ */
+(function initTerminal() {
+  const outEl   = document.getElementById('terminal-output');
+  const inputEl = document.getElementById('terminal-input');
+
+  const modeLabel    = document.getElementById('mode-label');
+  const tunnelLabel  = document.getElementById('tunnel-label');
+  const scxLabel     = document.getElementById('scx-label');
+  const statusMx2    = document.getElementById('status-mx2lm');
+  const statusQwen   = document.getElementById('status-qwen');
+  const statusJanus  = document.getElementById('status-janus');
+
+  const toggles = document.querySelectorAll('.toggle-btn');
+
+  let history = [];
+  let historyIndex = -1;
+  let currentDir = '/prime';
+  let env = {
+    USER: 'prime',
+    SHELL: 'basher/v1',
+    PATH: '/bin:/usr/bin:/prime/bin',
+    ASX_ROOT: '/prime',
+    KUHUL_ENABLED: 'true'
+  };
+  
+  let processes = new Map();
+  let fs = initFilesystem();
+
+  function initFilesystem() {
+    return {
+      '/prime': {
+        type: 'dir',
+        children: {
+          'bin': { type: 'dir', children: {} },
+          'tapes': { 
+            type: 'dir', 
+            children: {
+              'game-studio.tape.json': { type: 'file', content: '{"name":"Game Studio"}' },
+              'web-studio.tape.json': { type: 'file', content: '{"name":"Web Studio"}' }
+            }
+          },
+          'README.md': { type: 'file', content: '# PRIME OS\nASX Runtime Environment' }
+        }
+      }
+    };
+  }
+
+  function getCurrentDir() {
+    let current = fs['/prime'];
+    const path = currentDir.split('/').filter(p => p);
+    
+    for (const segment of path) {
+      if (current.children[segment] && current.children[segment].type === 'dir') {
+        current = current.children[segment];
+      } else {
+        return null;
+      }
+    }
+    return current;
+  }
+
+  function addLine(text, type = "system") {
+    const div = document.createElement('div');
+    div.className = `term-line ${type}`;
+    div.textContent = text;
+    outEl.appendChild(div);
+    outEl.scrollTop = outEl.scrollHeight;
+  }
+
+  function addBlock(lines, type = "system") {
+    lines.forEach(l => addLine(l, type));
+  }
+
+  function banner() {
+    addBlock([
+      "[system] BASHER v4 — Tri-Tunnel Orchestrator online.",
+      "[system] Cloudflared · SCXQ2-DNS · Local RIG.",
+      "[system] type 'help' for command palette."
+    ], "system");
+  }
+
+  function setMode(mode) {
+    modeLabel.textContent = mode;
+  }
+
+  function simulateTunnelDetect() {
+    tunnelLabel.textContent = "probing…";
+    addLine("[basher] probing transport stack: cloudflared / dns / local…", "info");
+
+    setTimeout(() => {
+      // pseudo-random pick but deterministic-ish by time
+      const modes = ["cloudflared", "dns", "local"];
+      const idx = Date.now() % 3;
+      const m = modes[idx];
+
+      let desc = "";
+      if (m === "cloudflared") desc = "cloudflared:443 → asx-tunnel.trycloudflare.com";
+      if (m === "dns")        desc = "SCXQ2-DNS mesh via ghost zone";
+      if (m === "local")      desc = "headless local RIG mode";
+
+      tunnelLabel.textContent = m;
+      setMode(m);
+      addBlock([
+        `[basher] active mode: ${m}`,
+        `[basher] route: ${desc}`
+      ], "success");
+    }, 650);
+  }
+
+  function updateMatrixSpeed(mode) {
+    toggles.forEach(btn => {
+      const m = btn.getAttribute('data-speed');
+      if (m === mode) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+    if (window.__MATRIX_RAIN__) {
+      window.__MATRIX_RAIN__.setSpeed(mode);
+    }
+  }
+
+  toggles.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.getAttribute('data-speed');
+      updateMatrixSpeed(mode);
+    });
+  });
+
+  updateMatrixSpeed("normal");
+
+  // COMMAND IMPLEMENTATION
+  const commands = {
+    help() {
+      addBlock([
+        "",
+        "Available Basher commands:",
+        "  File Operations:",
+        "    ls                 List files",
+        "    cd [dir]           Change directory",
+        "    pwd                Print working directory",
+        "    cat [file]         View file contents",
+        "    mkdir [dir]        Create directory",
+        "",
+        "  ASX System:",
+        "    asx [status|version] Check ASX runtime",
+        "    kuhul [code]       Execute KUHUL code",
+        "    xjson [validate|parse] XJSON operations",
+        "    prime [spawn|agents] PRIME OS commands",
+        "",
+        "  Process Management:",
+        "    ps                 List processes",
+        "    spawn [cmd]        Spawn process",
+        "    kill [pid]         Kill process",
+        "",
+        "  Network:",
+        "    curl [url]         Make HTTP request",
+        "    ping [host]        Ping host",
+        "",
+        "  Development:",
+        "    npm [cmd]          NPM commands",
+        "    node [file]        Run Node.js script",
+        "    python [file]      Run Python script",
+        "    git [cmd]          Git commands",
+        "",
+        "  System:",
+        "    clear              Clear terminal",
+        "    echo [text]        Print text",
+        "    export [var=value] Set environment variable",
+        "    help               Show this help",
+        "    exit               Exit terminal",
+        "",
+        "  Basher Terminal:",
+        "    mode               Auto-detect tunnel mode",
+        "    tunnel             Show tunnel status",
+        "    mx2lm              Ping MX2LM local brain",
+        "    qwen               Check Qwen-tape mount",
+        "    janus              Check vision bus",
+        "    rain [off|slow|normal|fast] Control matrix rain",
+        "    status             Full stack status",
+        ""
+      ], "system");
+    },
+
+    clear() {
+      outEl.innerHTML = "";
+    },
+
+    mode() {
+      simulateTunnelDetect();
+    },
+
+    tunnel() {
+      addBlock([
+        `[basher] tunnel mode: ${modeLabel.textContent}`,
+        `[basher] route: ${tunnelLabel.textContent || "not bound"}`,
+        `[basher] scxq2: ${scxLabel.textContent}`
+      ], "info");
+    },
+
+    status() {
+      addBlock([
+        "",
+        "[status] --- runtime ---",
+        `MX2LM:  ${statusMx2.textContent}`,
+        `QWEN:   ${statusQwen.textContent}`,
+        `JANUS:  ${statusJanus.textContent}`,
+        "",
+        "[status] --- tunnel ---",
+        `MODE:   ${modeLabel.textContent}`,
+        `ROUTE:  ${tunnelLabel.textContent || "not bound"}`,
+        `SCXQ2:  ${scxLabel.textContent}`,
+        ""
+      ], "system");
+    },
+
+    mx2lm() {
+      addLine("[basher] pinging MX2LM local brain…", "info");
+      statusMx2.textContent = "ONLINE";
+      setTimeout(() => {
+        addLine("[mx2lm] ready for LM-TAPE requests (native mode).", "success");
+      }, 400);
+    },
+
+    qwen() {
+      addLine("[basher] scanning LM-TAPES for qwen-merged…", "info");
+      setTimeout(() => {
+        statusQwen.textContent = "MOUNTED";
+        addLine("[lm-tape] qwen-merged tape mounted at /lm-tapes/qwen-merged", "success");
+      }, 500);
+    },
+
+    janus() {
+      addLine("[basher] binding JANUS vision bus…", "info");
+      setTimeout(() => {
+        statusJanus.textContent = "ONLINE";
+        addLine("[janus] vision channel ready (SCXQ2 media cipher).", "success");
+      }, 500);
+    },
+
+    rain(args) {
+      const arg = (args[0] || "").toLowerCase();
+      if (!arg) {
+        addLine("[basher] usage: rain off|slow|normal|fast", "warn");
+        return;
+      }
+      if (!["off","slow","normal","fast"].includes(arg)) {
+        addLine("[basher] invalid rain mode. use: off, slow, normal, fast", "error");
+        return;
+      }
+      updateMatrixSpeed(arg);
+      addLine(`[basher] matrix rain mode → ${arg}`, "success");
+    },
+
+    // FILE OPERATIONS
+    ls(args) {
+      const dir = getCurrentDir();
+      if (!dir) return addLine('ls: directory not found', 'error');
+      
+      const items = Object.entries(dir.children).map(([name, item]) => {
+        return item.type === 'dir' ? `${name}/` : name;
+      });
+      
+      addLine(items.join('  '));
+    },
+
+    cd(args) {
+      const target = args[0] || '/prime';
+      
+      if (target === '..') {
+        const parts = currentDir.split('/').filter(p => p);
+        parts.pop();
+        currentDir = '/' + parts.join('/') || '/prime';
+      } else if (target.startsWith('/')) {
+        currentDir = target;
+      } else {
+        currentDir = currentDir + '/' + target;
+      }
+      
+      currentDir = currentDir.replace(/\/+/g, '/');
+      if (!getCurrentDir()) {
+        addLine('cd: directory not found', 'error');
+        currentDir = '/prime';
+      }
+      
+      // Update prompt
+      const promptLabel = document.querySelector('.prompt-label');
+      const dirDisplay = currentDir === '/' ? '~' : currentDir;
+      promptLabel.innerHTML = `<span class="user">basher@MX2LM</span>:<span style="color:#9ca3af;">${dirDisplay}</span>$`;
+    },
+
+    pwd() {
+      addLine(currentDir);
+    },
+
+    cat(args) {
+      const filename = args[0];
+      if (!filename) return addLine('cat: filename required', 'error');
+      
+      const dir = getCurrentDir();
+      const file = dir.children[filename];
+      
+      if (!file || file.type !== 'file') {
+        return addLine(`cat: ${filename}: no such file`, 'error');
+      }
+      
+      addLine(file.content);
+    },
+
+    mkdir(args) {
+      const dirname = args[0];
+      if (!dirname) return addLine('mkdir: directory name required', 'error');
+      
+      const dir = getCurrentDir();
+      dir.children[dirname] = { type: 'dir', children: {} };
+      addLine(`Created directory: ${dirname}`);
+    },
+
+    // ASX SYSTEM COMMANDS
+    asx(args) {
+      const subcmd = args[0];
+      switch (subcmd) {
+        case 'status':
+          addLine('ASX Runtime: ACTIVE');
+          addLine('KUHUL Engine: READY');
+          addLine('XJSON Parser: ONLINE');
+          addLine('PRIME OS: RUNNING');
+          break;
+        case 'version':
+          addLine('ASX Framework v2.1.0');
+          addLine('KUHUL VM v1.4.0');
+          addLine('XJSON v1.2.0');
+          break;
+        default:
+          addLine('Usage: asx [status|version]');
+      }
+    },
+
+    kuhul(args) {
+      const code = args.join(' ');
+      if (!code) return addLine('kuhul: code required', 'error');
+      
+      addLine(`Executing KUHUL: ${code}`, 'info');
+      
+      // Simple KUHUL interpreter
+      if (code.includes('⟁Pop⟁spawn')) {
+        addLine('KUHUL: Spawning process...', 'success');
+      } else if (code.includes('⟁Pop⟁compile')) {
+        addLine('KUHUL: Compilation complete', 'success');
+      } else {
+        addLine('KUHUL: Execution finished', 'success');
+      }
+    },
+
+    xjson(args) {
+      const subcmd = args[0];
+      if (subcmd === 'validate') {
+        addLine('XJSON: Validation passed', 'success');
+      } else if (subcmd === 'parse') {
+        addLine('XJSON: Parsing complete', 'success');
+      } else {
+        addLine('XJSON Processor v1.2.0');
+        addLine('Commands: validate, parse');
+      }
+    },
+
+    prime(args) {
+      const subcmd = args[0];
+      switch (subcmd) {
+        case 'spawn':
+          const agentType = args[1] || 'micronaut';
+          addLine(`PRIME: Spawning ${agentType} agent...`, 'info');
+          addLine(`PRIME: Agent spawned with ID: agent_${Date.now()}`, 'success');
+          break;
+        case 'agents':
+          addLine('Active PRIME Agents:');
+          addLine('- micronaut_baseball_1234 (BASEBALL)');
+          addLine('- micronaut_scraping_5678 (SCRAPING)');
+          break;
+        default:
+          addLine('PRIME OS Cognitive Shell');
+          addLine('Commands: spawn [type], agents');
+      }
+    },
+
+    // PROCESS MANAGEMENT
+    ps() {
+      addLine('PID\tCOMMAND');
+      addLine('1\tbasher');
+      addLine('2\tasx-runtime');
+      addLine('3\tprime-cognitive');
+    },
+
+    spawn(args) {
+      const cmd = args.join(' ');
+      const pid = Math.floor(Math.random() * 1000) + 100;
+      processes.set(pid, { cmd, status: 'running' });
+      addLine(`Spawned process ${pid}: ${cmd}`, 'success');
+    },
+
+    kill(args) {
+      const pid = parseInt(args[0]);
+      if (processes.has(pid)) {
+        processes.delete(pid);
+        addLine(`Killed process ${pid}`, 'success');
+      } else {
+        addLine(`kill: process ${pid} not found`, 'error');
+      }
+    },
+
+    // NETWORK
+    curl(args) {
+      const url = args[0];
+      if (!url) return addLine('curl: URL required', 'error');
+      
+      addLine(`Fetching: ${url}`, 'info');
+      addLine('HTTP/1.1 200 OK', 'success');
+      addLine('Content-Type: application/json');
+      addLine('');
+      addLine('{"status": "ok", "message": "ASX API response"}');
+    },
+
+    ping(args) {
+      const host = args[0] || 'asx.local';
+      addLine(`PING ${host} (127.0.0.1): 56 data bytes`);
+      addLine('64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.123 ms');
+      addLine('64 bytes from 127.0.0.1: icmp_seq=1 ttl=64 time=0.456 ms');
+    },
+
+    // DEVELOPMENT
+    npm(args) {
+      const subcmd = args[0];
+      addLine(`npm ${subcmd}`, 'info');
+      addLine('added 1 package, and audited 2 packages in 1.234s', 'success');
+    },
+
+    node(args) {
+      const file = args[0];
+      if (file) {
+        addLine(`Running: node ${file}`, 'info');
+        addLine('Server started on port 3000', 'success');
+      } else {
+        addLine('Welcome to Node.js v18.0.0');
+        addLine('Type ".help" for more information.');
+      }
+    },
+
+    python(args) {
+      const file = args[0];
+      if (file) {
+        addLine(`Running: python ${file}`, 'info');
+        addLine('Training complete. Accuracy: 94.2%', 'success');
+      } else {
+        addLine('Python 3.9.0 (ASX WASM Runtime)');
+        addLine('Type "help()" for more information.');
+      }
+    },
+
+    git(args) {
+      const subcmd = args[0];
+      addLine(`git ${subcmd}`, 'info');
+      addLine('Everything up-to-date', 'success');
+    },
+
+    // SYSTEM COMMANDS
+    echo(args) {
+      addLine(args.join(' '));
+    },
+
+    export(args) {
+      const [key, value] = args.join(' ').split('=');
+      if (key && value) {
+        env[key] = value;
+        addLine(`Exported ${key}=${value}`);
+      } else {
+        addLine('Environment:');
+        Object.entries(env).forEach(([k, v]) => addLine(`${k}=${v}`));
+      }
+    },
+
+    exit() {
+      addLine('Goodbye!');
+      setTimeout(() => {
+        outEl.innerHTML = '';
+        banner();
+      }, 1000);
+    }
+  };
+
+  function handleCommand(raw) {
+    const input = raw.trim();
+    if (!input) return;
+    addLine(`basher@MX2LM:${currentDir === '/' ? '~' : currentDir}$ ${input}`, "user");
+
+    const [cmd, ...rest] = input.split(/\s+/);
+    const fn = commands[cmd];
+
+    if (fn) {
+      try {
+        fn(rest);
+      } catch (err) {
+        addLine(`[error] ${err.message}`, "error");
+      }
+    } else {
+      addLine(`[basher] unknown command: ${cmd}`, "error");
+    }
+  }
+
+  function onSubmit(value) {
+    history.push(value);
+    historyIndex = history.length;
+    handleCommand(value);
+  }
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const val = inputEl.value;
+      inputEl.value = "";
+      onSubmit(val);
+    } else if (e.key === 'ArrowUp') {
+      if (history.length === 0) return;
+      historyIndex = Math.max(0, historyIndex - 1);
+      inputEl.value = history[historyIndex] || "";
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      if (history.length === 0) return;
+      historyIndex = Math.min(history.length, historyIndex + 1);
+      inputEl.value = history[historyIndex] || "";
+      e.preventDefault();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const input = inputEl.value;
+      const matches = Object.keys(commands).filter(cmd => 
+        cmd.startsWith(input)
+      );
+      
+      if (matches.length === 1) {
+        inputEl.value = matches[0] + ' ';
+      } else if (matches.length > 1) {
+        addLine('');
+        addLine('Available commands: ' + matches.join(' '), 'info');
+      }
+    }
+  });
+
+  // initial banner
+  banner();
+})();
+</script>
+</body>
+</html>

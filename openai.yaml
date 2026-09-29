@@ -1,0 +1,167 @@
+# KHANARY.CPP — OpenAI-compatible endpoint config
+# Used by bot.py and any tool that speaks the OpenAI chat completions API.
+# HeavyAdvisor (oss) on 17887 is the primary; Chat3 (qwen3) on 17888 for fast completions.
+
+advisor:
+  base_url: "http://127.0.0.1:17887/v1"
+  model: "oss"
+  temperature: 0.2
+  max_tokens: 2048
+  description: "HeavyAdvisor — deep reasoning, task planning, code review"
+
+chat:
+  base_url: "http://127.0.0.1:17888/v1"
+  model: "qwen3"
+  temperature: 0.4
+  max_tokens: 1024
+  description: "Chat3 — fast completions, quick Q&A"
+
+chat_mu:
+  base_url: "http://127.0.0.1:17889/v1"
+  model: "LFM2.5-1.2B-Instruct-Q8_0"
+  temperature: 0.3
+  max_tokens: 512
+  description: "CHAT-µ — LFM2.5-1.2B-Instruct-Q8_0, fast conversational distillation"
+  gguf: "C:/Users/canna/.lmstudio/models/lmstudio-community/LFM2.5-1.2B-Instruct-GGUF/LFM2.5-1.2B-Instruct-Q8_0.gguf"
+
+tool_mu:
+  base_url: "http://127.0.0.1:17890/v1"
+  model: "gemma-3-1b-it-qat-q4_0"
+  temperature: 0.1
+  max_tokens: 512
+  description: "TOOL-µ — gemma-3-1B-it-QAT-Q4_0, fast tool/instruction distillation"
+  gguf: "C:/Users/canna/.lmstudio/models/lmstudio-community/gemma-3-1B-it-QAT-GGUF/gemma-3-1B-it-QAT-Q4_0.gguf"
+
+# KHANARY runtime endpoints (once KHANARY.exe is running)
+khanary_mcp:
+  base_url: "http://127.0.0.1:8764"
+  description: "MCP gateway — kuhul_forge, manifest_resolve, fold_execute, micronaut_run, ..."
+
+khanary_rpc:
+  base_url: "http://127.0.0.1:8787"
+  description: "JSON-RPC 2.0 — XJSON/XCFE object surface"
+
+# Command-center planner/executor settings for bot.py "center" mode.
+# The model emits:
+#   <tools>{"tool_calls":[...]}</tools>
+# and bot.py executes allowed local MCP/RPC calls.
+command_center:
+  profile: "advisor"
+  tool_tag: "tools"
+  max_tool_calls: 8
+  allow_unknown_methods: false
+
+  allowlist:
+    rpc:
+      - key_query
+      - resolve_manifest
+      - fold_query
+      - micronaut_dispatch
+      - list_keys
+      - record_key
+      - infer
+    mcp:
+      - kuhul_forge
+      - manifest_resolve
+      - fold_execute
+      - micronaut_run
+      - grammar_check
+      - phase_query
+      - gram_read
+      - gram_write
+      - confidence_get
+      - jrom_replay
+      - sandbox_query
+      - sandbox_list
+      - sandbox_violations
+      - world_state
+      - field_dag
+      - field_dag_svg
+      - relational_graph
+      - incidence_matrix
+      - semantic_fold
+      - code_parse
+
+  verbs:
+    app:
+      track: "APP-WIZARD-µ"
+      surface: "rpc"
+      method: "key_query"
+      query_prefix: "APP: "
+    blog:
+      track: "BLOG-µ"
+      surface: "rpc"
+      method: "key_query"
+      query_prefix: "BLOG: "
+    mx2lm:
+      track: "Mx2LM"
+      surface: "rpc"
+      method: "key_query"
+      query_prefix: "Mx2LM: "
+    manifest:
+      track: "Coordinator"
+      surface: "rpc"
+      method: "resolve_manifest"
+    fold:
+      track: "Coordinator"
+      surface: "rpc"
+      method: "fold_query"
+    world:
+      track: "Librarian"
+      surface: "mcp"
+      method: "world_state"
+    cube:
+      track: "TOOL-µ"
+      surface: "rpc"
+      method: "key_query"
+      query_prefix: "CUBE: "
+    field:
+      track: "Librarian"
+      surface: "mcp"
+      method: "field_dag"
+    fieldsvg:
+      track: "Librarian"
+      surface: "mcp"
+      method: "field_dag_svg"
+    relgraph:
+      track: "ORCH-µ"
+      surface: "mcp"
+      method: "relational_graph"
+    keyquery:
+      track: "Coordinator"
+      surface: "rpc"
+      method: "key_query"
+    dispatch:
+      track: "ORCH-µ"
+      surface: "rpc"
+      method: "micronaut_dispatch"
+    listkeys:
+      track: "Coordinator"
+      surface: "rpc"
+      method: "list_keys"
+    confidence:
+      track: "INFER-µ"
+      surface: "mcp"
+      method: "confidence_get"
+    replay:
+      track: "MEM-µ"
+      surface: "mcp"
+      method: "jrom_replay"
+    sandbox:
+      track: "TOOL-µ"
+      surface: "mcp"
+      method: "sandbox_query"
+    infer:
+      track: "INFER-µ"
+      surface: "rpc"
+      method: "infer"
+    status:
+      track: "TOOL-µ"
+      surface: "rpc"
+      method: "key_query"
+      query_prefix: "STATUS: "
+    tools:
+      track: "TOOL-µ"
+      surface: "rpc"
+      method: "key_query"
+      query_prefix: "TOOLS: "

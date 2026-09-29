@@ -12,16 +12,57 @@
 
 namespace khanary::micronaut {
 
+// One directed (or undirected) relation edge between two micronauts.
+// Relation ISA is closed and typed (semantic/causal/epistemic/dependency/context/control/runtime),
+// with compatibility aliases normalized at load time.
+// directed=false → horizontal fold (Δθ=0), no XCFE gate required.
+struct RelationEntry {
+    std::string target_id;
+    std::string verb;      // canonical relation token (e.g. @is_a, @supports, @delegates_to)
+    bool        directed = true;
+};
+
+// Track fold declaration entry.
+// This is a declarative capability/weight surface for phase drivers, not a fixed execution script.
+struct FoldSpec {
+    kuhul::Phase phase = kuhul::Phase::Pop;
+    std::string  op;
+    std::string  key;
+    std::string  scope;
+    std::string  delegate;
+    std::string  note;
+    std::string  gate;
+    float        weight = 1.0f; // static fold preference [0,1]
+};
+
+struct TrackVectorMeta {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    bool declared = false;
+    std::string source = "phase_default";
+};
+
+// Map a relation token to its dominant K'uhul phase.
+kuhul::Phase verb_to_phase(const std::string& verb);
+
 struct MicronautEntry {
     std::string                   id;
     std::string                   description;
     kuhul::Phase                  primary_phase;
+    std::string                   category;        // "executive"|"cognitive"|"storage"|"creative"|""
     std::vector<std::string>      capabilities;
-    std::vector<std::string>      sub_micronauts;  // declared delegation targets
-    std::unordered_set<std::string> governs;    // token domain
-    float                         confidence;   // L_t score [0, 1]
+    std::vector<std::string>      sub_micronauts;  // plain delegation targets (legacy / no verb)
+    std::vector<RelationEntry>    relations;        // typed relational verb edges
+    std::vector<FoldSpec>         folds;            // phase-typed fold capability declarations
+    std::unordered_set<std::string> governs;        // token domain
+    TrackVectorMeta               vector_meta;      // semantic Key vector metadata (K in W·C·cos(Q,K))
+    float                         static_weight = 1.0f; // deterministic routing prior [0,1]
+    float                         health = 1.0f;        // liveness/availability signal [0,1]
+    float                         confidence;       // L_t score [0, 1]
+    bool                          no_eval = true;   // hard policy: tracks are declarative, not eval-enabled scripts
     bool                          active;
-    TrackSandbox                  sandbox;      // declared capability bounds
+    TrackSandbox                  sandbox;          // declared capability bounds
 };
 
 using DispatchFn = std::function<std::string(const std::string& query, const MicronautEntry&)>;
@@ -53,6 +94,12 @@ public:
         const std::vector<std::string>& tokens,
         float gravity_threshold = 0.1f,
         size_t top_k = 4) const;
+
+    // Relational dispatch: return all micronauts reachable from `from_id` via `verb`.
+    // Uses the declared relations table — does not score by gravity.
+    std::vector<std::string> relational_dispatch(
+        const std::string& from_id,
+        const std::string& verb) const;
 
     // List all micronauts
     std::vector<std::string> ids() const;

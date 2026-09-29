@@ -1,59 +1,83 @@
 // KHANARY attention.hlsl
-// QK-norm + scaled dot-product attention
-// Optimized for Intel HD 4600: group size 64, R32_FLOAT buffers
+// Semantic attention kernel (Yax execution backend), not transformer QKV.
+//
+// Boundary:
+//   Bot Semantics -> Shader Attention -> Attended Semantics
+//
+// Score law:
+//   S_i = W_i * C_i * R_i
+//
+// Policy law (hard gate, not score shaping):
+//   legal_i = capable_i AND policy_ok_i AND xcfe_ok_i
+//
+// Admission:
+//   A_i = 1 when semantic_score_i >= threshold and legal_i == 1
+//       = 0 otherwise
 
-cbuffer AttentionConstants : register(b0)
+cbuffer SemanticAttentionConstants : register(b0)
 {
-    uint  seq_len;
-    uint  d_head;
-    uint  n_heads;
-    float scale;  // 1/sqrt(d_head)
+    uint  record_count;
+    float admission_threshold;
+    float relation_mix;  // [0,1]: blend relation/fold/phase modifiers into S
+    float pad0;
 };
 
-StructuredBuffer<float>   Q   : register(t0);  // [seq_len * d_head * n_heads]
-StructuredBuffer<float>   K   : register(t1);  // [seq_len * d_head * n_heads]
-StructuredBuffer<float>   V   : register(t2);  // [seq_len * d_head * n_heads]
-RWStructuredBuffer<float> Out : register(u0);  // [seq_len * d_head * n_heads]
+struct SemanticRecord
+{
+    float W;   // static/pattern-strength channel
+    float C;   // confidence channel
+    float R;   // relevance channel
+    float relation_weight; // neighborhood/relation weighting
 
-groupshared float g_scores[64];  // per-row softmax accumulator
+    float fold_weight;     // fold compatibility weighting
+    float phase_weight;    // phase compatibility weighting
+    float policy_ok;       // 1.0 if policy requirement satisfied, else 0.0
+    float capable;         // 1.0 if resolver has required capabilities, else 0.0
+
+    float xcfe_ok;         // 1.0 if XCFE authorization holds, else 0.0
+    float reserved0;
+    float reserved1;
+    float reserved2;
+};
+
+StructuredBuffer<SemanticRecord> Records : register(t0);
+
+// BaseScore: raw S_i = W*C*R before relation/fold/phase modifiers.
+RWStructuredBuffer<float> BaseScore : register(u0);
+// SemanticScore: gated/weighted score used for ranking within legal candidates.
+RWStructuredBuffer<float> SemanticScore : register(u1);
+// LegalMask: 1 if capability+policy+XCFE all satisfied, else 0.
+RWStructuredBuffer<uint> LegalMask : register(u2);
+// AdmissionMask: 1 if admitted by threshold and legal gate, else 0.
+RWStructuredBuffer<uint> AdmissionMask : register(u3);
 
 [numthreads(64, 1, 1)]
-void main(uint3 tid : SV_DispatchThreadID, uint3 gtid : SV_GroupThreadID)
+void main(uint3 tid : SV_DispatchThreadID)
 {
-    uint q_pos = tid.x;       // query position in sequence
-    uint head  = tid.y;       // head index (not used here, simplified to head 0)
+    uint idx = tid.x;
+    if (idx >= record_count) return;
 
-    if (q_pos >= seq_len) return;
+    SemanticRecord rec = Records[idx];
 
-    uint d = d_head;
-    uint stride = seq_len * d;
+    float w = saturate(rec.W);
+    float c = saturate(rec.C);
+    float r = saturate(rec.R);
+    float rel = saturate(rec.relation_weight);
+    float fold = saturate(rec.fold_weight);
+    float phase = saturate(rec.phase_weight);
 
-    // QK^T scaled dot product for query q_pos
-    float max_score = -1e9f;
-    float scores[64]; // local score buffer (max seq = 64 in this shader)
-    uint n = min(seq_len, 64u);
+    float s = w * c * r;
+    BaseScore[idx] = s;
 
-    for (uint k_pos = 0; k_pos < n; k_pos++) {
-        float dot = 0.0f;
-        for (uint di = 0; di < d; di++)
-            dot += Q[q_pos * d + di] * K[k_pos * d + di];
-        scores[k_pos] = dot * scale;
-        if (scores[k_pos] > max_score) max_score = scores[k_pos];
-    }
+    // Semantic weighting layer (still symbolic channels, not token tensors).
+    float semantic_modifier = lerp(1.0f, rel * fold * phase, saturate(relation_mix));
+    float weighted = s * semantic_modifier;
 
-    // Softmax
-    float sum = 0.0f;
-    for (uint k_pos = 0; k_pos < n; k_pos++) {
-        scores[k_pos] = exp(scores[k_pos] - max_score);
-        sum += scores[k_pos];
-    }
-    for (uint k_pos = 0; k_pos < n; k_pos++) scores[k_pos] /= sum;
+    // Hard legality gate: policy constrains eligibility, not ranking algebra.
+    uint legal = (rec.policy_ok >= 0.5f && rec.capable >= 0.5f && rec.xcfe_ok >= 0.5f) ? 1u : 0u;
+    LegalMask[idx] = legal;
 
-    // Weighted sum of V
-    for (uint di = 0; di < d; di++) {
-        float v_sum = 0.0f;
-        for (uint k_pos = 0; k_pos < n; k_pos++)
-            v_sum += scores[k_pos] * V[k_pos * d + di];
-        Out[q_pos * d + di] = v_sum;
-    }
+    float score = (legal == 1u) ? weighted : 0.0f;
+    SemanticScore[idx] = score;
+    AdmissionMask[idx] = (legal == 1u && score >= admission_threshold) ? 1u : 0u;
 }

@@ -5,6 +5,7 @@
 #include <optional>
 #include <mutex>
 #include <fstream>
+#include <array>
 
 namespace khanary::kuhul {
 
@@ -14,6 +15,8 @@ struct Gram {
     std::string value;
     uint64_t    seq;        // monotone insertion order
     std::string phase;      // which phase wrote this gram
+    std::string channel;    // semantic channel (e.g. similarity/control/predication)
+    std::string authority;  // semantics authority for this gram
 };
 
 // GramStore: Pop=gramRead, Xul=gramWrite, K'ayab'→Kumk'u=gramCheckpoint
@@ -26,8 +29,23 @@ public:
     // Pop phase: read a gram by key
     std::optional<Gram> gramRead(const std::string& key) const;
 
-    // Xul phase: write a gram (creates or updates)
-    void gramWrite(const std::string& key, const std::string& value, const std::string& phase = "Xul");
+    // Xul phase: write a gram (creates or updates).
+    // channel/authority keep control-flow semantics explicit and separate from similarity lanes.
+    void gramWrite(
+        const std::string& key,
+        const std::string& value,
+        const std::string& phase = "Xul",
+        const std::string& channel = "general",
+        const std::string& authority = "definitions_and_relations");
+
+    // Convenience surface for vector metadata records.
+    void gramWriteVector(
+        const std::string& key,
+        float x, float y, float z,
+        const std::string& phase = "Xul",
+        const std::string& channel = "taxonomy_geometry",
+        const std::string& authority = "vector_meta");
+    std::optional<std::array<float, 3>> gramVector(const std::string& key) const;
 
     // K'ayab' → Kumk'u: checkpoint all grams to journal
     void gramCheckpoint();
@@ -37,6 +55,8 @@ public:
 
     bool has(const std::string& key) const;
     size_t size() const;
+    size_t replay_error_count() const;
+    std::optional<std::string> last_replay_error() const;
 
     // List all gram keys
     std::vector<std::string> keys() const;
@@ -47,8 +67,11 @@ private:
     uint64_t seq_ = 0;
     std::string journal_path_;
     std::ofstream journal_;
+    size_t replay_errors_ = 0;
+    std::optional<std::string> last_replay_error_;
 
     void append_journal(const Gram& g);
+    void register_replay_error_unlocked(const std::string& message);
 };
 
 } // namespace khanary::kuhul

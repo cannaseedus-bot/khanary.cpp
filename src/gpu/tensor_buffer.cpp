@@ -24,7 +24,8 @@ static uint32_t format_stride(TensorFormat f) {
 TensorBuffer::TensorBuffer(D3D11Device& dev, const TensorDesc& desc)
     : dev_(&dev), desc_(desc)
 {
-    desc_.stride_bytes = format_stride(desc_.format);
+    if (desc_.stride_bytes == 0)
+        desc_.stride_bytes = format_stride(desc_.format);
     byte_size_ = (size_t)desc_.elem_count * desc_.stride_bytes;
     if (byte_size_ == 0) return;
     create_buffers();
@@ -46,21 +47,21 @@ bool TensorBuffer::create_buffers() {
     if (FAILED(d->CreateBuffer(&bd, nullptr, buf_.GetAddressOf())))
         return false;
 
-    // Staging buffer for readback
+    // Staging buffer for readback — must match structured layout for CopyResource
     D3D11_BUFFER_DESC sd = bd;
-    sd.Usage         = D3D11_USAGE_STAGING;
-    sd.BindFlags     = 0;
-    sd.CPUAccessFlags= D3D11_CPU_ACCESS_READ;
-    sd.MiscFlags     = 0;
+    sd.Usage          = D3D11_USAGE_STAGING;
+    sd.BindFlags      = 0;
+    sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    sd.MiscFlags      = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     if (FAILED(d->CreateBuffer(&sd, nullptr, staging_.GetAddressOf())))
         return false;
 
-    // SRV
+    // SRV — structured buffers require BUFFER dimension with DXGI_FORMAT_UNKNOWN
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd{};
     srvd.Format              = DXGI_FORMAT_UNKNOWN;
-    srvd.ViewDimension       = D3D11_SRV_DIMENSION_BUFFEREX;
-    srvd.BufferEx.FirstElement = 0;
-    srvd.BufferEx.NumElements  = desc_.elem_count;
+    srvd.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
+    srvd.Buffer.FirstElement = 0;
+    srvd.Buffer.NumElements  = desc_.elem_count;
     if (FAILED(d->CreateShaderResourceView(buf_.Get(), &srvd, srv_.GetAddressOf())))
         return false;
 

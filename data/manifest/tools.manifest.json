@@ -1,0 +1,12 @@
+{
+  "TOOLS-CATALOG:": ["@tools_catalog", "tool:rpc", "tool:file", "tool:graph", "tool:xcfe", "intent:tool_manifest_lookup"],
+  "@tools_catalog": ["TOOLS-CATALOG:", "tool:allowlist", "tool:safety", "tool:dispatch", "tool:status", "tool:xcfe", "phase:Sek", "phase:Ch'en"],
+  "tool:rpc": ["resolve_manifest", "key_query", "fold_graph_parse", "infer", "list_keys", "key_encode", "key_decode", "keyspace_status"],
+  "tool:file": ["sandbox_query", "sandbox_list", "sandbox_violations", "phase:Ch'en"],
+  "tool:graph": ["world_state", "field_dag", "field_dag_svg", "relational_graph"],
+  "tool:xcfe": ["xcfe_eval", "kuhul_forge", "fold_execute", "op:if", "op:then", "op:else", "op:for", "op:from", "op:as", "op:cause", "op:direct", "phase:Pop", "phase:Wo", "phase:Yax", "phase:Sek", "phase:Ch'en", "phase:Xul"],
+  "tool:dispatch": ["micronaut_dispatch", "phase:Wo", "phase:Sek"],
+  "tool:status": ["snapshot:world", "snapshot:sandbox", "snapshot:keys", "phase:Pop"],
+  "tool:allowlist": ["normalize", "validate", "allow", "deny", "phase:Ch'en"],
+  "tool:safety": ["capability-check", "sandbox-gate", "audit-log", "phase:Ch'en", "phase:Xul"]
+}

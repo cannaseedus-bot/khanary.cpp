@@ -1,0 +1,9 @@
+{
+  "USERMANIFEST:": ["@user_manifest", "phase:Pop", "phase:Ch'en", "phase:Xul"],
+  "@user_manifest": ["@node:Coordinator", "call:key_query", "scope:user.manifest", "phase:Ch'en"],
+  "user.manifest": ["namespace:user", "sandbox:isolate_user_feedback", "not:core_manifest_mutation"],
+  "user.manifest:rlhf": ["source:feedback", "event:GOOD_ANSWER|BAD_ANSWER", "confidence_reward_delta", "phase:Ch'en", "phase:Xul"],
+  "user.manifest:rlhf:keyspace": ["prefix:user.manifest:rlhf:", "storage:gram_store+factory_keys", "sandbox:user-manifest"],
+  "user.manifest:guard": ["allow_prefix:user.manifest:", "deny_prefix:kuhul.manifest", "deny_prefix:words.manifest", "deny_prefix:micronaut.manifest"],
+  "user.manifest:commit": ["candidate:Ch'en_pending", "commit:Xul_verified_only", "policy:MISS_not_WRONG"]
+}

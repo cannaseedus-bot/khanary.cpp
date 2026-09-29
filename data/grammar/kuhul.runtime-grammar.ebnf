@@ -1,0 +1,1702 @@
+(* ================================================================
+   K'UHUL π — CANONICAL EBNF
+   Version: π-1.2.0
+
+   Semantic algebra:
+       <Φ, F, G, γ, θ, Π, S>
+
+   Closed phase cycle:
+       Pop -> Wo -> Yax -> Sek -> Ch'en -> Xul -> Pop'
+
+   Fundamental laws:
+
+       Fold != Xul
+       Phase != Opcode
+       Reachability != Authority
+       Representation != Authority
+       Vocabulary != Authority
+       Usage != Confidence
+       Proposal != Commit
+       Verified != Authorized
+       Relation-shaped data != Topological relation
+
+       ΔB != 0
+           => Xul
+           AND XCFE-authorized
+           AND transaction-bound CommitAuthority
+
+   XCFE owns control.
+   K'UHUL owns semantic execution.
+   Ch'en verifies.
+   Xul is the only topology commit boundary.
+
+   Implementation layer covered by sections 24-29:
+       XCFE Node ISA (14 classes), KLSL glyphs, Gram store protocol,
+       NGram pipeline detail, WCR scoring / B_tau projection,
+       Bracket programs (KuhulVM).
+   ================================================================ *)
+
+
+(* ================================================================
+   1. PROGRAM
+   ================================================================ *)
+
+program
+    ::= pi_open
+        declaration*
+        fold_definition*
+        micronaut_definition*
+        semantic_cycle
+        pi_close
+    ;
+
+pi_open
+    ::= "pi-open"
+    ;
+
+pi_close
+    ::= "pi-close"
+    ;
+
+
+(* ================================================================
+   2. CLOSED SEMANTIC CYCLE
+   ================================================================ *)
+
+semantic_cycle
+    ::= pop_phase
+        wo_phase
+        yax_phase
+        sek_phase
+        chen_phase
+        xul_phase
+    ;
+
+phase
+    ::= pop_phase
+      | wo_phase
+      | yax_phase
+      | sek_phase
+      | chen_phase
+      | xul_phase
+    ;
+
+pop_phase  ::= "Pop"   phase_body ;
+wo_phase   ::= "Wo"    phase_body ;
+yax_phase  ::= "Yax"   phase_body ;
+sek_phase  ::= "Sek"   phase_body ;
+chen_phase ::= "Ch'en" phase_body ;
+xul_phase  ::= "Xul"   xul_body  ;
+
+phase_body ::= "{" phase_statement* "}" ;
+xul_body   ::= "{" xul_statement*   "}" ;
+
+
+(* ================================================================
+   3. PHASE GEOMETRY
+   C6 cyclic group. Index i carries angle i*(pi/3).
+   arc_weight(from,to) = cos(angle_to - angle_from).
+   SC-1: only four arc weights are possible.
+   ================================================================ *)
+
+phase_angle
+    ::= "0"
+      | "pi/3"
+      | "2pi/3"
+      | "pi"
+      | "4pi/3"
+      | "5pi/3"
+    ;
+
+phase_ref
+    ::= "Pop" | "Wo" | "Yax" | "Sek" | "Ch'en" | "Xul"
+    ;
+
+phase_transition     ::= phase_ref "->"  phase_ref ;
+
+(* horizontal_transition: same phase, delta_theta=0, weight=+1.0.
+   SC-2: always authorized. *)
+horizontal_transition ::= track_ref "<->" track_ref ;
+
+(* vertical_transition: adjacent phase step, delta_theta=pi/3, weight=+0.5.
+   SC-3: dist MUST equal 1; requires XCFE authorization. *)
+vertical_transition  ::= phase_ref "=>"  phase_ref ;
+
+
+(* ================================================================
+   4. FOLD / UNFOLD
+
+   State: Omega = (phi, T, s)
+     phi = phase
+     T   = active semantic track
+     s   = 0 folded | 1 unfolded
+
+   Legal primitive:
+       Handle -> Unfold -> Neighborhood
+              -> Attention -> Fold -> Handle'
+
+   Fold does NOT mutate B.
+   Fold/unfold may occur repeatedly at one phase without advancing phi.
+   ================================================================ *)
+
+fold_definition
+    ::= "fold" identifier
+        "{"
+            fold_member*
+        "}"
+    ;
+
+fold_member
+    ::= node_definition
+      | relation_definition
+      | field_definition
+      | invariant_definition
+    ;
+
+fold_operation
+    ::= unfold_operation
+      | fold_operation_close
+      | fold_entry_binding
+    ;
+
+unfold_operation   ::= "unfold" "(" track_ref [ "," handle_ref ] ")" ;
+fold_operation_close ::= "fold" "(" track_ref [ "," field_ref ] ")" ;
+
+(* FoldEntry: per-node fold hook binding. *)
+fold_entry_binding
+    ::= "fold_entry"
+        "("
+            phase_ref ","
+            fold_hook ","
+            fold_monitor_expr ","
+            fold_action
+        ")"
+    ;
+
+fold_hook        ::= "on_read" | "on_write" | "on_gc" ;
+fold_monitor_expr ::= string ;
+fold_action      ::= "warn_clip" | "promote_checkpoint" ;
+
+fold_state ::= "folded" | "unfolded" ;
+fold_bit   ::= "0" | "1" ;
+handle_ref ::= identifier ;
+
+
+(* ================================================================
+   5. SEMANTIC FIELD
+
+   Unfold(T) -> F_Q   (working field, not topology)
+   Fold(T)   -> C_T   (collapsed back)
+
+   F_Q is a composite structure. Its full composition:
+
+       F_Q = { N, E, V, K, W, C, Sym, ... }
+
+         N   = nodes (semantic objects from gram store / topology)
+         E   = relations between nodes
+         V   = semantic vectors (value payloads addressed by K)
+         K   = key vectors (capability/profile vectors per micronaut)
+         W   = learned weights (per micronaut)
+         C   = evidence confidence (per micronaut)
+         Sym = symbolic projections (MathML / math-mu)
+
+   The field is NOT a vector. It can CONTAIN vectors as part of
+   its semantic state.
+
+   Unfold(T) exposes T's semantic neighborhood AND its associated
+   vector representations (Q, K, V) into F_Q.
+
+   For WCR attention operating over the field:
+       Q  = vec(current task / field state)
+       K_mu = vec(Micronaut capability / semantic profile)
+       R_mu = cos(Q, K_mu)
+   If V_mu exists: K_mu -> V_mu (semantic payload addressed by key).
+   "Q/K locate relevance; W/C qualify relevance; Key addresses V; Yax admits V."
+
+   F_Q is not topology B. Accumulating vectors/nodes/relations into
+   F_Q is observation; only an authorized Xul commit mutates B.
+   SC-4: field_accumulation must not call topology_mutation directly.
+   ================================================================ *)
+
+field_definition
+    ::= "field" identifier ":" field_type
+    ;
+
+field_type
+    ::= "query"           (* field anchored on a query vector Q         *)
+      | "semantic"        (* general semantic neighborhood field         *)
+      | "vector_bearing"  (* field carrying Q, K, V vector components   *)
+      | "candidate"       (* set of candidate micronaut contributions    *)
+      | "observation"     (* read-only observation over gram store       *)
+      | "evidence"        (* Ch'en evidence accumulation field           *)
+      | "projection"      (* symbolic / MathML projection field          *)
+      | "bounded"         (* field with explicit fold boundary           *)
+    ;
+
+field_ref ::= identifier ;
+
+field_accumulation ::= field_ref "<-" contribution ;
+
+contribution
+    ::= node_ref
+      | relation_ref
+      | semantic_vector
+      | key_vector_binding
+      | value_payload
+      | projection
+      | evidence
+    ;
+
+(* Semantic vector: a float vector associated with a named semantic entity. *)
+semantic_vector
+    ::= "vec" "(" identifier ")"
+    ;
+
+(* Query vector Q = vec(current task / field state): *)
+query_vector
+    ::= "Q" "=" "vec" "(" field_ref ")"
+    ;
+
+(* Key vector K_mu = vec(Micronaut capability / semantic profile): *)
+key_vector_binding
+    ::= "K" "(" micronaut_id ")" "=" "vec" "(" identifier ")"
+    ;
+
+(* Value payload V_mu: semantic content addressed by key K_mu.
+   K_mu -> V_mu is addressing; V_mu is what Yax admits. *)
+value_payload
+    ::= "V" "(" micronaut_id ")" "=" identifier
+    ;
+
+(* Key addressing: K -> V (not a mutation of B). *)
+key_addresses_value
+    ::= "K" "(" micronaut_id ")" "->" "V" "(" micronaut_id ")"
+    ;
+
+(* ── Vector-bearing field — concrete scored form ──────────────────────
+   F_Q as a set of SemanticRecord_i indexed by gram candidates.
+   The field is NOT a vector; vectors are components inside each record.
+
+   Central semantic path:
+       F_Q -> SemanticRecord_i -> W_i*C_i*R_i -> Geometry_i
+           -> Legal_i -> YaxAdmission_i
+
+   SemanticRecord is the concrete unit that carries all five field
+   coordinates needed by the GPU admission kernel. *)
+semantic_field
+    ::= "field" field_id "{"
+            semantic_record_entry*
+        "}"
+    ;
+
+field_id ::= identifier ;
+
+semantic_record_entry
+    ::= "record" gram_ref "{"
+            vector_component
+            weight_component
+            confidence_component
+            relevance_component
+            geometry_component*
+            legality_component*
+        "}"
+    ;
+
+gram_ref ::= identifier ;
+
+vector_component
+    ::= "vector" ":" "[" number { "," number } "]"
+    ;
+
+weight_component      ::= "W" ":" number ;
+confidence_component  ::= "C" ":" number ;
+relevance_component   ::= "R" ":" number ;
+
+(* Geometry derived from the gram's semantic/geodesic vector v=(x,y,z):
+   fold_weight     = ||v||                      (geodesic reach)
+   relation_weight = sqrt(x^2+y^2) / ||v||     (equatorial component)
+   phase_weight    = 0.5 + 0.5*(z / ||v||)     (vertical component) *)
+geometry_component
+    ::= "fold_weight"     ":" number
+      | "relation_weight" ":" number
+      | "phase_weight"    ":" number
+    ;
+
+(* Legality gate — hard binary before scoring.
+   policy_ok, capable, xcfe_ok each >= 0.5 to be legal.
+   HIGH SCORE CANNOT MANUFACTURE LEGALITY.  (SC-27) *)
+legality_component
+    ::= "policy_ok" ":" boolean
+      | "capable"   ":" boolean
+      | "xcfe_ok"   ":" boolean
+    ;
+
+
+(* ================================================================
+   6. TOPOLOGY B
+
+   B = (V, E, A, W, S)
+     V = nodes    E = relations
+     A = attributes  W = weights  S = persistent semantic state
+
+   Reading B is not mutation.
+   Describing deltaB is not mutation.
+   Only authorized Xul commit may mutate B.
+   SC-5: every topology_mutation must be wrapped in a proposal
+         and verified before it can appear in xul_statement.
+   ================================================================ *)
+
+topology_read
+    ::= "read" "B" topology_selector
+    ;
+
+topology_selector
+    ::= node_ref
+      | relation_ref
+      | neighborhood
+    ;
+
+neighborhood
+    ::= "N" "(" handle_ref "," relation_type ")"
+    ;
+
+topology_delta
+    ::= "deltaB" "{"
+            topology_mutation*
+        "}"
+    ;
+
+topology_mutation
+    ::= node_proposal
+      | relation_proposal
+      | attribute_proposal
+      | weight_proposal
+      | state_proposal
+    ;
+
+
+(* ================================================================
+   7. NODES
+   ================================================================ *)
+
+node_definition
+    ::= "node" node_id
+        "{"
+            node_property*
+        "}"
+    ;
+
+node_property
+    ::= "type"   ":" identifier
+      | "value"  ":" value
+      | "symbol" ":" symbol
+      | "weight" ":" number
+      | "state"  ":" value
+    ;
+
+node_ref ::= node_id ;
+node_id  ::= identifier ;
+
+
+(* ================================================================
+   8. RELATIONS
+
+   RelationISA defines vocabulary.
+   A valid RelationVerb does NOT itself create E(B).
+   TypedRelation != CommittedRelation  (SC-6)
+   ================================================================ *)
+
+relation_definition
+    ::= "relation" node_ref relation_verb node_ref
+    ;
+
+relation_proposal
+    ::= "propose_relation" "(" node_ref "," relation_verb "," node_ref ")"
+    ;
+
+relation_ref  ::= identifier ;
+relation_type ::= identifier ;
+
+relation_verb ::= canonical_relation_verb ;
+
+canonical_relation_verb
+    ::= "@is_a"
+      | "@part_of"
+      | "@supports"
+      | "@requires"
+      | "@governs"
+      | "@delegates_to"
+      | "@related_to"
+      | "@causes"
+      | "@enables"
+      | "@contradicts"
+      | "@co_occurs_with"
+      | relation_isa_extension
+    ;
+
+relation_isa_extension ::= identifier ;
+
+(* SC-7: relation_isa_extension must be a registered alias.
+   Unknown verbs produce MISS_relation; never resolve to @related_to. *)
+
+
+(* ================================================================
+   9. MICRONAUTS / TRACKS
+
+   Track participation != governing-track ownership.
+   Multiple tracks may unfold/fold horizontally at one phase.
+   ================================================================ *)
+
+micronaut_definition
+    ::= "micronaut" micronaut_id
+        "{"
+            capability_declaration*
+            track_binding*
+        "}"
+    ;
+
+micronaut_id ::= identifier ;
+track_ref    ::= identifier ;
+
+track_binding         ::= "track" ":" track_ref ;
+capability_declaration ::= "requests" capability_set ;
+capability_set        ::= "[" [ capability { "," capability } ] "]" ;
+capability            ::= identifier ;
+
+
+(* ================================================================
+   10. CAPABILITY LIFECYCLE
+
+   C_granted subset_of C_verified subset_of C_requested
+   A requested capability has no execution authority.
+   ================================================================ *)
+
+capability_proposal    ::= "capability_request"  capability_set ;
+capability_verification ::= "capability_verified" capability_set ;
+capability_grant       ::= "capability_granted"  capability_set ;
+
+
+(* ================================================================
+   11. YAX ATTENTION / WCR
+
+   Canonical selection formula:
+       S_mu(Q) = W_mu * C_mu * R_mu(Q)
+       R_mu(Q) = cos(Q, K_mu)
+
+   - W_mu = learned/reinforced weight of the micronaut/track
+   - C_mu = confidence (evidence-based; SC-8: never usage frequency)
+   - R_mu = query-conditioned relevance via cosine similarity
+   - S_mu = Yax admission/selection score
+
+   Q = vec(current task / field state)       -- from Unfold(T) -> F_Q
+   K_mu = vec(Micronaut capability / profile) -- from key_vector_binding
+   V_mu = semantic payload addressed by K_mu  -- what Yax admits
+
+   Q/K locate relevance. W/C qualify relevance. Key addresses V. Yax admits V.
+
+   Q and K are inside R_mu:
+       Q * K_mu  ->  R_mu
+   then:
+       (W_mu, C_mu, R_mu)  ->  S_mu
+
+   NOT transformer QKV: Q and K are semantic/capability vectors;
+   W and C qualify from outside relevance. V is the payload, not a
+   value projection matrix.
+
+   WCR is NOT extended by usage. Usage has its own path (section 12).
+
+   Full Yax pipeline:
+       Requirements -> Eligibility -> WCR -> Ranking -> Omega -> Yax
+
+   1. eligibility  -- capability/phase gate (binary, before scoring)
+   2. wcr          -- S_i = W_i * C_i * R_i  (soft score per eligible mu)
+   3. normalize    -- p_i = S_i / sum_j(S_j)
+   4. entropy      -- H = -sum_i(p_i * log2(p_i))
+                      H_hat = H / log2(|Eligible|)
+   5. admit        -- S_i >= admission_threshold (0.35)
+                      B_tau[h,*] fold neighborhood shapes the candidate set
+
+   Admission threshold: 0.35.
+   ================================================================ *)
+
+attention  ::= "attend"  "(" query_ref "," track_ref ")" ;
+selection  ::= "select"  "(" candidate_set ")" ;
+
+candidate_set ::= "[" [ candidate { "," candidate } ] "]" ;
+candidate     ::= identifier ;
+query_ref     ::= identifier ;
+
+(* Eligibility: hard binary gate applied before WCR scoring. *)
+eligibility
+    ::= "eligible" "(" micronaut_id "," operation_ref ")" "->" boolean
+    ;
+
+operation_ref ::= identifier ;
+
+(* WCR score for one eligible micronaut: *)
+wcr_expression ::= weight "*" confidence "*" relevance ;
+weight         ::= number ;
+confidence     ::= number ;
+
+(* relevance R_mu = cos(Q, K_mu).
+   Q = vec(field/task); K_mu = vec(micronaut capability profile). *)
+relevance
+    ::= "cos" "(" vec_expr "," vec_expr ")"
+    ;
+
+vec_expr
+    ::= query_vector        (* Q = vec(field_ref)         *)
+      | key_vector_binding  (* K(mu) = vec(identifier)    *)
+      | semantic_vector     (* vec(identifier) — any named vector *)
+      | key_ref             (* bare identifier for inline use *)
+    ;
+
+key_ref ::= identifier ;
+
+(* Normalize across eligible set to get selection distribution: *)
+normalized_score
+    ::= "normalize" "(" wcr_expression "," candidate_set ")"
+    ;
+
+(* Routing entropy over the normalized distribution:
+   H     = -sum_i(p_i * log2(p_i))
+   H_hat = H / log2(|Eligible|)
+   Low H_hat = confident routing; high H_hat = routing uncertainty. *)
+routing_entropy
+    ::= "entropy" "(" candidate_set ")"
+    ;
+
+
+(* ================================================================
+   12. USAGE != CONFIDENCE
+
+   Three distinct quantities -- never collapse them:
+
+   U(k) = usage / retrieval frequency
+   C(k) = evidence confidence  (SC-8: only from Ch'en verification)
+   V(k) = epistemic verdict
+
+   Roles:
+     U(k) -> RetrievalStrength(k)
+             influences which candidates enter F_Q (pre-admission)
+     S = W * C * R
+             determines admission inside F_Q (post-retrieval)
+
+   Usage is useful for surfacing associations cheaply.
+   It does NOT enter the WCR formula.
+   Adding usage to the score (WUCR) is rejected -- it conflates
+   retrieval strength with epistemic confidence.
+
+   Lookup may change U. Lookup MUST NOT change C.
+   SC-8: confidence_update is ONLY triggered by evidence_score
+         from Ch'en verification, never from lookup alone.
+   ================================================================ *)
+
+usage              ::= "usage"            "(" key_ref ")" ;
+confidence_state   ::= "confidence"       "(" key_ref ")" ;
+verdict            ::= "UNKNOWN" | "GOOD" | "BAD" ;
+verdict_statement  ::= "verdict"          "(" key_ref ")" "=" verdict ;
+lookup             ::= "lookup"           "(" key_ref ")" ;
+usage_update       ::= "usage"            "(" key_ref ")" "<-" number ;
+retrieval_strength ::= "retrieval_strength" "(" key_ref ")" ;
+retrieval_strength_update
+                   ::= "retrieval_strength" "(" key_ref ")" "<-" number ;
+confidence_update  ::= "confidence"       "(" key_ref ")" "<-" evidence_score ;
+evidence_score     ::= number ;
+
+
+(* ================================================================
+   13. MATH-mu / MATHML SEMANTIC PROJECTION
+
+   Math-mu is activated by symbolic semantic relevance,
+   not merely by a "math question."
+
+   Activation flow:
+       Words -> Nodes -> SemanticGraph -> Math-mu -> MathML
+                                                   -> symbolic reasoning
+
+   MathML does NOT mutate B.
+   Math-mu participation does not require Math-mu to govern Q.
+   SC-9: mathml_projection produces representation only;
+         no side-effect on topology B or gram store.
+   ================================================================ *)
+
+math_projection
+    ::= "math" "{"
+            math_statement*
+        "}"
+    ;
+
+math_statement
+    ::= symbolic_binding
+      | symbolic_relation
+      | symbolic_constraint
+      | symbolic_function
+      | mathml_projection
+    ;
+
+symbolic_binding  ::= math_symbol ":=" node_ref ;
+math_symbol       ::= identifier ;
+symbolic_relation ::= math_expression relation_operator math_expression ;
+symbolic_constraint ::= math_expression constraint_operator math_expression ;
+
+symbolic_function
+    ::= math_symbol "=" function_expression
+    ;
+
+function_expression
+    ::= identifier "(" [ math_expression_list ] ")"
+    ;
+
+math_expression_list ::= math_expression { "," math_expression } ;
+
+math_expression
+    ::= math_symbol
+      | number
+      | function_expression
+      | "(" math_expression ")"
+    ;
+
+relation_operator
+    ::= "=" | "!=" | "<" | ">" | "<=" | ">=" | "=>" | "<=>"
+    ;
+
+constraint_operator ::= relation_operator ;
+
+mathml_projection
+    ::= "MathML" "(" semantic_expression ")"
+    ;
+
+semantic_expression
+    ::= symbolic_relation
+      | symbolic_constraint
+      | symbolic_function
+    ;
+
+
+(* ================================================================
+   14. PROPOSAL / VERIFICATION
+   ================================================================ *)
+
+proposal
+    ::= topology_delta
+      | candidate_proposal
+      | capability_proposal
+    ;
+
+candidate_proposal
+    ::= "candidate" "{"
+            proposal_member*
+        "}"
+    ;
+
+proposal_member
+    ::= node_proposal
+      | relation_proposal
+      | attribute_proposal
+      | weight_proposal
+      | state_proposal
+      | capability_proposal
+    ;
+
+node_proposal
+    ::= "propose_node" node_definition
+    ;
+
+attribute_proposal
+    ::= "propose_attribute" "(" node_ref "," identifier "," value ")"
+    ;
+
+weight_proposal
+    ::= "propose_weight" "(" relation_ref "," number ")"
+    ;
+
+state_proposal
+    ::= "propose_state" "(" node_ref "," value ")"
+    ;
+
+verification
+    ::= "verify" "(" proposal_ref ")" "->" verification_result
+    ;
+
+proposal_ref        ::= identifier ;
+verification_result ::= "PASS" | "FAIL" | "UNKNOWN" ;
+
+
+(* ================================================================
+   15. XCFE AUTHORIZATION
+
+   XCFE owns control algebra.
+   K'UHUL syntax may reference authorization results but MUST NOT
+   manufacture control authority.
+   ================================================================ *)
+
+xcfe_authorization ::= "xcfe_authorized" "(" proposal_ref ")" ;
+authorization_result ::= "ALLOW" | "DENY" ;
+
+(* XCFE eval dispatch (first key present wins):
+     @if -> conditional branch     @for  -> iteration
+     @from -> origin extraction    @as   -> alias/cast
+     @cause -> causal link         @direct -> op dispatch
+   See XCFE Node ISA in section 24 for the 14-class closed set. *)
+
+xcfe_eval_node
+    ::= xcfe_if_node
+      | xcfe_for_node
+      | xcfe_from_node
+      | xcfe_as_node
+      | xcfe_cause_node
+      | xcfe_direct_node
+      | xcfe_fn_node
+      | xcfe_node_ref
+      | xcfe_literal
+    ;
+
+xcfe_if_node
+    ::= "{" "\"@if\""     ":" string ","
+            "\"@then\""   ":" xcfe_eval_node
+        [ "," "\"@else\"" ":" xcfe_eval_node ] "}"
+    ;
+
+xcfe_for_node
+    ::= "{" "\"@for\""  ":" string
+        [ "," "\"@as\"" ":" string ]
+        [ "," "\"@index\"" ":" string ]
+        [ "," "\"@do\"" ":" xcfe_eval_node ] "}"
+    ;
+
+xcfe_from_node
+    ::= "{" "\"@from\"" ":" string
+        [ "," "\"@as\"" ":" string ]
+        [ "," "\"@do\"" ":" xcfe_eval_node ] "}"
+    ;
+
+xcfe_as_node
+    ::= "{" "\"@as\"" ":" string
+        [ "," "\"@value\"" ":" xcfe_eval_node ]
+        [ "," "\"@cast\""  ":" cast_type ]
+        [ "," "\"@do\""    ":" xcfe_eval_node ] "}"
+    ;
+
+cast_type ::= "string" | "upper" | "lower" | "key" | "number" | "bool" ;
+
+xcfe_cause_node
+    ::= "{" "\"@cause\"" ":" string
+        [ "," "\"@because\"" ":" string ] "}"
+    ;
+
+xcfe_direct_node
+    ::= "{" "\"@direct\"" ":" string "}"
+    ;
+
+xcfe_fn_node
+    ::= "{" "\"@fn\"" ":" string "," "\"@args\"" ":" xcfe_string_args "}"
+    ;
+
+xcfe_string_args  ::= "{" [ xcfe_string_field { "," xcfe_string_field } ] "}" ;
+xcfe_string_field ::= string ":" string ;   (* SC-10: values are strings only *)
+
+xcfe_node_ref ::= "{" "\"@node\"" ":" string "}" ;
+xcfe_literal  ::= string | number | boolean | "null" ;
+
+
+(* ================================================================
+   16. XUL COMMIT
+
+   CommitAuthority is a runtime capability.
+   It is NOT expressible in K'UHUL source syntax.
+   No production of this grammar manufactures a CommitAuthority.
+
+   Informative identity (runtime):
+       A_commit = Authority(scope, proposal_identity)
+
+   Required by XulGate::authorize_commit:
+       phase == Xul
+       proposal_verified
+       mutation_authorized
+       scope_permitted
+       bound authorizer grants
+       proposal identity matches
+
+   Authority is transaction-bound, move-only, single-use.
+
+   SC-11: xul_statement may REFERENCE a verified_proposal_ref but
+          cannot construct or copy a CommitAuthority value.
+   ================================================================ *)
+
+xul_statement
+    ::= commit_statement
+      | projection
+      | invariant_assertion
+    ;
+
+commit_statement ::= "commit" "(" verified_proposal_ref ")" ;
+verified_proposal_ref ::= identifier ;
+
+
+(* ================================================================
+   17. INVARIANTS
+   ================================================================ *)
+
+invariant_definition  ::= "invariant" identifier ":" invariant_expression ;
+invariant_assertion   ::= "assert" invariant_expression ;
+invariant_expression  ::= expression ;
+
+canonical_invariant
+    ::= "collapse_only"
+      | "topology_preserving_before_xul"
+      | "proposal_not_commit"
+      | "usage_not_confidence"
+      | "reachability_not_authority"
+      | "representation_not_authority"
+    ;
+
+
+(* ================================================================
+   18. PHASE STATEMENTS
+   ================================================================ *)
+
+phase_statement
+    ::= declaration
+      | topology_read
+      | fold_operation
+      | field_accumulation
+      | attention
+      | selection
+      | lookup
+      | usage_update
+      | verdict_statement
+      | math_projection
+      | proposal
+      | verification
+      | xcfe_authorization
+      | xcfe_eval_node
+      | projection
+      | invariant_assertion
+    ;
+
+
+(* ================================================================
+   19. DECLARATIONS
+   ================================================================ *)
+
+declaration
+    ::= immutable_declaration
+      | invariant_definition
+      | field_definition
+    ;
+
+immutable_declaration ::= "Wo" identifier "=" value ;
+
+
+(* ================================================================
+   20. PROJECTION
+
+   Projection is representation, never topology authority.
+   ================================================================ *)
+
+projection ::= "project"  "(" expression ")" ;
+evidence   ::= "evidence" "(" expression ")" ;
+
+
+(* ================================================================
+   21. EXPRESSIONS / DATA
+   ================================================================ *)
+
+expression
+    ::= value
+      | identifier
+      | node_ref
+      | relation_ref
+      | field_ref
+      | math_expression
+      | "(" expression ")"
+    ;
+
+value   ::= string | number | boolean | null | list | object ;
+list    ::= "[" [ value { "," value } ] "]" ;
+object  ::= "{" [ object_member { "," object_member } ] "}" ;
+object_member ::= string ":" value ;
+boolean ::= "true" | "false" ;
+null    ::= "null" ;
+
+
+(* ================================================================
+   22. LEXICAL
+   ================================================================ *)
+
+identifier
+    ::= identifier_start { identifier_continue }
+    ;
+
+identifier_start
+    ::= letter | "_" | "@" | "mu-char"
+    ;
+
+identifier_continue
+    ::= identifier_start | digit | "-" | "." | "'"
+    ;
+
+symbol    ::= identifier ;
+string    ::= ? JSON string ? ;
+number    ::= [ "-" ] digit { digit } [ "." digit { digit } ] ;
+letter    ::= "A".."Z" | "a".."z" ;
+digit     ::= "0".."9" ;
+
+
+(* ================================================================
+   23. CLOSED-LAW SUMMARY
+
+   1.  Pop is semantic entry.
+   2.  Phase order is closed:
+           Pop -> Wo -> Yax -> Sek -> Ch'en -> Xul -> Pop'
+
+   3.  Horizontal semantic composition:
+           unfold(T) -> work -> fold(T)
+       may occur repeatedly without advancing phi.
+
+   4.  Fold/unfold never commits topology.
+
+   5.  MathML is a symbolic projection over semantic nodes.
+       Math-mu participation does not require Math-mu to govern Q.
+
+   6.  RelationVerb validity does not create a relation in B.
+
+   7.  Usage/retrieval frequency does not constitute confidence.
+
+   8.  Sek may propose deltaB.
+       Ch'en may verify deltaB.
+       XCFE may authorize deltaB.
+       Only Xul may commit authorized deltaB.
+
+   9.  CommitAuthority is external runtime authority:
+           scope + proposal_identity
+       transaction-bound, non-copyable, single-use.
+
+   10. No syntax in this grammar may manufacture CommitAuthority.
+
+   11. For every non-Xul semantic phase:
+           B_out = B_in
+
+   12. Therefore:
+           B(t+1) != B(t)
+               => Xul
+               AND Authorized(deltaB)
+               AND IdentityBound(deltaB)
+
+   13. XCFE remains the control algebra.
+       K'UHUL pi remains the semantic/execution algebra.
+   ================================================================ *)
+
+
+(* ================================================================
+   24. XCFE NODE ISA — IMPLEMENTATION LAYER
+   14-class closed set. CanonicalPhase is total (SC-12).
+   ================================================================ *)
+
+xcfe_node_class
+    ::= "CONDITION"       (* -> Wo    *)
+      | "ROUTING"         (* -> Wo    *)
+      | "CAUSAL"          (* -> Wo    *)
+      | "STRUCTURE"       (* -> Wo    *)
+      | "SELECTION"       (* -> Yax   *)
+      | "EXECUTION"       (* -> Sek   *)
+      | "CAPABILITY"      (* -> Sek   *)
+      | "TRANSFORM"       (* -> Sek   *)
+      | "VERIFICATION"    (* -> Ch'en *)
+      | "CONSEQUENCE"     (* -> Ch'en *)
+      | "COMMIT"          (* -> Xul   *)
+      | "MEMORY"          (* -> Pop   *)
+      | "NEGATION"        (* -> Pop   *)
+      | "KUHUL_RUNTIME"   (* -> Pop   *)
+    ;
+
+xcfe_operator_name
+    ::= "DEPENDENCY" | "CONSTRAINT"             (* -> CONDITION  *)
+      | "ROUTING"                                (* -> ROUTING    *)
+      | "CAUSE"                                  (* -> CAUSAL     *)
+      | "BOUNDARY" | "RELATION"                  (* -> STRUCTURE  *)
+      | "ALTERNATIVE"                            (* -> SELECTION  *)
+      | "DIRECT"                                 (* -> EXECUTION  *)
+      | "CAPABILITY"                             (* -> CAPABILITY *)
+      | "SUBSTITUTE"                             (* -> TRANSFORM  *)
+      | "EVIDENCE" | "TEST" | "VERIFY"           (* -> VERIFICATION *)
+      | "SEQUENCE"                               (* -> CONSEQUENCE *)
+      | "COMMIT"                                 (* -> COMMIT     *)
+      | "INVARIANT" | "STATE" | "MEMORY"         (* -> MEMORY     *)
+      | "CONFLICT" | "CONTRAST"                  (* -> NEGATION   *)
+      | "KUHUL_RUNTIME" | "IDENTITY"             (* -> KUHUL_RUNTIME *)
+    ;
+
+
+(* ================================================================
+   25. KLSL GLYPHS — IMPLEMENTATION LAYER
+   Atomic compute operations dispatched at Sek phase.
+   Each glyph lowers to HLSL via hlsl_codegen.cpp (SSA IR).
+   SC-13: every glyph in [Sek glyph ...] must be a known GlyphOp.
+   ================================================================ *)
+
+glyph_op
+    ::= "MATMUL"     (* matrix multiply — tensor contraction      *)
+      | "CONV"       (* convolution — spatial/channel features     *)
+      | "ATTN"       (* attention — Yax-phase semantic gate        *)
+      | "SOFTMAX"    (* probability distribution normalization     *)
+      | "AFFINE"     (* affine transform W*x + b                  *)
+      | "COMPRESS"   (* dimensionality reduction / projection      *)
+      | "SPHERICAL"  (* spherical-coordinate projection            *)
+      | "TORSION"    (* torsional / rotational field operation     *)
+      | "RADIAL"     (* radial basis / distance field              *)
+      | "WAVE"       (* wave / oscillation function                *)
+      | "NOP"        (* no-operation / pass-through                *)
+    ;
+
+klsl_instruction
+    ::= "{"
+          "op"       ":" glyph_op ","
+          "result"   ":" identifier ","
+          "operands" ":" "[" [ identifier { "," identifier } ] "]" ","
+          "attrs"    ":" "[" [ number { "," number } ] "]" ","
+          "phase"    ":" phase_ref
+        "}"
+    ;
+
+
+(* ================================================================
+   26. GRAM STORE PROTOCOL — IMPLEMENTATION LAYER
+   Pop = gramRead, Xul = gramWrite.
+   K'ayab' -> Kumk'u = gramCheckpoint (flush to JSONL journal).
+   SC-14: gramWrite uses phase=Xul in production.
+   SC-14b: gramWrite("confidence:*", val, "Ch'en") is the sole exception.
+   ================================================================ *)
+
+gram_store_entry
+    ::= "{"
+          "key"       ":" string ","
+          "value"     ":" string ","
+          "phase"     ":" phase_ref ","
+          "seq"       ":" number ","
+          "channel"   ":" gram_channel_name ","
+          "authority" ":" string
+        "}"
+    ;
+
+gram_channel_name
+    ::= "general"
+      | "similarity"
+      | "control"
+      | "predication"
+      | "taxonomy_geometry"
+      | "confidence"
+      | "template"
+      | string
+    ;
+
+gram_vector_entry
+    ::= "{"
+          "key"       ":" string ","
+          "x"         ":" number ","
+          "y"         ":" number ","
+          "z"         ":" number ","
+          "channel"   ":" "taxonomy_geometry" ","
+          "authority" ":" "vector_meta"
+        "}"
+    ;
+
+
+(* ================================================================
+   27. BRACKET PROGRAM (KuhulVM) — IMPLEMENTATION LAYER
+
+   Bracket programs are the concrete execution surface.
+   One bracket = one exec_<phase> call in kuhul_vm.cpp.
+
+   [Pop]           clear phase; no args
+   [Pop id]        gramRead(id) -> push StringVal or NullVal
+   [Wo id type]    vertical_fold(Pop->Wo); push TensorRef{id,type}
+   [Wo id]         vertical_fold(Pop->Wo); push TensorRef{id,"Tensor"}
+   [Yax id]        vertical_fold(Wo->Yax); horizontal_fold(select)
+   [Sek glyph ...]  vertical_fold(Yax->Sek); push glyph dispatch result
+   [Ch'en id val]  vertical_fold(Sek->Ch'en); gramWrite(confidence:id)
+   [Xul]           vertical_fold(Ch'en->Xul); no commit
+   [Xul id]        vertical_fold(Ch'en->Xul); pop top -> gramWrite(id)
+
+   SC-15: opcodes SHOULD appear in C6 order.
+          Out-of-order fails at runtime when vertical_fold finds dist!=1.
+   ================================================================ *)
+
+bracket_program ::= bracket_term { bracket_term } ;
+
+bracket_term
+    ::= "[" phase_ref [ " " identifier ] [ " " identifier ]
+        { " " identifier } "]"
+    ;
+
+vm_value ::= tensor_ref | string_val | number_val | null_val ;
+
+tensor_ref ::= "{" "kind" ":" "TensorRef" "," "id" ":" string "," "type" ":" string "}" ;
+string_val ::= "{" "kind" ":" "StringVal" "," "s"  ":" string "}" ;
+number_val ::= "{" "kind" ":" "NumberVal" "," "n"  ":" number "}" ;
+null_val   ::= "{" "kind" ":" "NullVal"   "}" ;
+
+
+(* ================================================================
+   28. WCR SCORING + B_tau PROJECTION — IMPLEMENTATION LAYER
+
+   WCR: S = W * C * R  (all inputs and result clamped to [0,1])
+     W = static_weight
+     C = confidence score from ConfidenceStore
+     R = relevance = blended score across 9 components:
+           bow_score, distributional_score, lexical_semantic_score,
+           nsm_prime_score, function_word_score, word_sense_score,
+           compositional_phrase_score, coarse_ngram_score,
+           tool_gram_score
+   SC-16: S = clamp(W*C*R, 0, 1).
+
+   B_tau: fold-projection matrix. Row h = context neighborhood of h.
+   Yax admission: admitted = typed_grams INTERSECT B_tau[h,*].
+   SC-17: B_tau[h,*] subset_of gram_store keys at query time.
+
+   Admission policy:
+     A(v) = R * U * D * P   threshold = 0.35
+       R = cold-start lexical prior floor
+       U = uncertainty = max(0.15, 1 - confidence)
+       D = deficit = fraction of required context missing
+       P = 0.8 * route_score + 0.2 * query_priority
+   Tie-break: (score DESC, D DESC, R DESC, node_id ASC).
+
+   Research pressure: rho = D * R * U in [0,1].
+   SC-18: rho = 0.0 when miss_kind = "none".
+   ================================================================ *)
+
+wcr_score_record
+    ::= "{"
+          "static_weight" ":" number ","
+          "confidence"    ":" number ","
+          "relevance"     ":" number ","
+          "wcr"           ":" number
+        "}"
+    ;
+
+b_tau_slice_request
+    ::= "{"
+          "anchor"          ":" string ","
+          "edge_type"       ":" b_tau_edge_type
+          [ "," "relation_type"   ":" string ]
+          [ "," "relation_family" ":" string ]
+        "}"
+    ;
+
+b_tau_edge_type ::= "default" | "all" | string ;
+
+
+(* ================================================================
+   29. NGRAM PIPELINE / FIELD DAG / MISS PROTOCOL — IMPLEMENTATION LAYER
+   SC-19: pipeline phases execute in strict Pop->Wo->Yax->Sek->Ch'en->Xul order.
+   ================================================================ *)
+
+miss_kind_name
+    ::= "evidence"      (* tau too narrow — no grams passed Yax gate *)
+      | "semantic"      (* grams admitted but no structure            *)
+      | "topology"      (* relation endpoints disconnect              *)
+      | "factual"       (* book_key unanchored                        *)
+      | "mathematical"  (* math/KLSL operator                         *)
+      | "capability"    (* non-standard capability expression         *)
+      | "relation"      (* relation verb empty/unrecognized           *)
+      | "memory"        (* all scores below noise floor               *)
+      | "none"          (* no miss: status PASS or FAIL               *)
+    ;
+
+chen_miss_context
+    ::= "{"
+          "miss_kind"         ":" miss_kind_name ","
+          "research_pressure" ":" number ","
+          "missing_keys"      ":" "[" [ string { "," string } ] "]" ","
+          "topology_hash"     ":" string ","
+          "resolved_sense"    ":" string
+        "}"
+    ;
+
+chen_advisor_response
+    ::= "{"
+          "evidence_obtained" ":" boolean ","
+          "acquired_keys"     ":" "[" [ string { "," string } ] "]" ","
+          "source"            ":" advisor_source ","
+          "confidence"        ":" number
+        "}"
+    ;
+
+advisor_source ::= "web_research" | "gram_store" | "book_fold" | string ;
+
+(* Field DAG: nodes are track/tensor/pipeline_stage/ontology.
+   Edges: delegate, horizontal_fold (SC-2), vertical_fold (SC-3).
+   SC-20: block_intensities length == 7. *)
+
+field_node_kind
+    ::= "track" | "tensor" | "pipeline_stage" | "ontology"
+    ;
+
+field_edge_type
+    ::= "delegate"
+      | "horizontal_fold"   (* delta_theta=0,    weight=+1.0, xcfe=false *)
+      | "vertical_fold"     (* delta_theta=pi/3, weight=+0.5, xcfe=true  *)
+    ;
+
+
+(* ================================================================
+   30. SHF — SEMANTIC HYPERNYM FOLD — IMPLEMENTATION LAYER
+
+   A Semantic Hypernym Fold is the fundamental addressable unit of
+   semantic context. It is a superordinate container whose unfolding
+   exposes its participating semantic neighborhood.
+
+   Formal definition:
+       SHF(h, tau) = < h, B_tau[h,*], N_tau(h), W_tau, State(h) >
+
+   Component meanings:
+     h          = semantic identity / superordinate (the "word for book")
+     B_tau[h,*] = typed incidence fingerprint (row of incidence matrix)
+     N_tau(h)   = neighborhood: set { e | B_tau[h,e] != 0 }
+     W_tau      = association / pattern-strength channel over relations
+     State(h)   = runtime tensor state
+
+   Membership in a fold is NOT restricted to IS-A:
+       x IS-A h
+       x PARTICIPATES-IN h
+       x SUPPORTS h
+       ... (typed per the Book declaration)
+
+   Book = addressable representation of the fold.
+   Book(h) = N(h) = SHF(h) at the semantic level.
+
+   Compression and restoration:
+       {v1, v2, ... vn, E_h}  --FOLD-->   h
+       h                      --UNFOLD--> Book(h)
+
+   Fold ADT: the same abstract object, six physical representations:
+   ================================================================ *)
+
+shf_record
+    ::= "{"
+          "h"       ":" string ","   (* semantic identity       *)
+          "tau"     ":" string ","   (* projection family       *)
+          "B_row"   ":" "[" [ number { "," number } ] "]" ","
+          "N"       ":" "[" [ string { "," string } ] "]" ","
+          "W"       ":" "[" [ number { "," number } ] "]" ","
+          "state"   ":" object
+        "}"
+    ;
+
+fold_adt_representation
+    ::= "book"        (* JSON manifest / neighborhood declaration     *)
+      | "graphml"     (* topology with all metadata                   *)
+      | "b_matrix"    (* incidence participation — exact, lossless    *)
+      | "fingerprint" (* B_tau[v,*] sparse binary SDR — lossy         *)
+      | "svg3d"       (* geometric / runtime-state projection — lossy *)
+      | "scxq2"       (* compressed execution encoding — lossless     *)
+    ;
+
+(* SC-21: The projection is not the object.
+   Lossless (ker=0): b_matrix, graphml, scxq2.
+   Lossy: fingerprint (drops node identity), svg3d (drops non-visual),
+          book (drops implementation wiring).
+   Never claim isomorphism between a lossy and a lossless representation. *)
+
+(* Unfold algebraic form:
+   Unfold(v, tau) = { e | B_tau[v, e] != 0 }
+   This is the set of contexts/edges in which v participates under tau. *)
+unfold_algebraic
+    ::= "unfold" "(" identifier "," identifier ")"
+    ;
+
+
+(* ================================================================
+   31. MACHINE STATE AND NAVIGATION — IMPLEMENTATION LAYER
+
+   Three spaces over which K'UHUL executes:
+     H   = Fold / hypergraph space       (structural, mostly read-only)
+     C_6 = discrete phase / control space (6 states)
+     X   = runtime tensor / state space  (mutable per step)
+
+   Complete machine state at time t:
+       Omega_t = ( F_h, phi_t, X_t )
+
+   One K'UHUL step:
+       Omega_{t+1} = ( F_h, next(phi_t), T_{phi_t}(F_h, X_t, Q) )
+
+   F_h is unchanged under all ordinary phases.
+   Only Xul can produce F_h -> F_h'.  (SC-22)
+
+   Navigation state Omega = (phi, T, s) -- three independent axes:
+     phi = C6 wheel position
+     T   = active semantic track (which Book is being traversed)
+     s   = 0 folded/bounded | 1 unfolded/expanded
+
+   Changing s does not advance phi.
+   Changing phi does not change s or T unless explicitly transitioned.
+
+   Phase-wheel P (cyclic left-shift, P^6 = I):
+       Pop=0 Wo=1 Yax=2 Sek=3 Ch'en=4 Xul=5
+   ================================================================ *)
+
+machine_state_record
+    ::= "{"
+          "F_h"  ":" string ","   (* fold/hypergraph identity  *)
+          "phi"  ":" phase_ref "," (* current C6 phase         *)
+          "X"    ":" object ","   (* runtime tensor state      *)
+          "T"    ":" string ","   (* active track              *)
+          "s"    ":" fold_bit     (* 0=folded | 1=unfolded     *)
+        "}"
+    ;
+
+navigation_step
+    ::= horizontal_transition    (* phi unchanged, T changes  *)
+      | vertical_transition      (* T unchanged, phi advances *)
+      | fold_operation           (* phi unchanged, s changes  *)
+    ;
+
+
+(* ================================================================
+   32. INCIDENCE MODEL — IMPLEMENTATION LAYER
+
+   Common substrate: B = build_incidence_model(V, E)
+   every edge carries its type.
+
+   Projection mask M_tau selects a column family:
+       B_tau = B * M_tau
+
+   Typed fingerprint of node v under projection tau:
+       F(v, tau) = B_tau[v, *]
+
+   Similarity (typed):
+       Sim_tau(u, v) = sim( B_tau[u,*], B_tau[v,*] )
+
+   Fold interaction (weighted node projection):
+       A_tau = B_tau * W_tau * B_tau^T
+   This is the semantic activation matrix used by Sek.
+
+   Yax admission mask (read-only, ephemeral — SC-22):
+       m_h        = Gate_Q( B_tau[h,*], W_E )
+       B_h_active = B_tau[h,*] HADAMARD m_h      (local, not persisted)
+
+   Canonical default projection family for semantic_fold:
+       tau_default = { phase_fold, semantic, governs, delegates, context }
+   Do not use all edges — bookkeeping/wiring pollute semantic signal.
+   ================================================================ *)
+
+incidence_projection
+    ::= "{"
+          "node"       ":" string ","
+          "edge_type"  ":" incidence_edge_type ","
+          [ "top_k"    ":" number "," ]
+          [ "node_b"   ":" string "," ]
+        "}"
+    ;
+
+incidence_edge_type
+    ::= "phase_fold" | "semantic" | "governs" | "delegates" | "context" | "all"
+    ;
+
+(* SC-23: edge_type SHOULD be declared in a Book contract, not hardcoded.
+   "all" is reserved for diagnostics/serialization — not semantic scoring. *)
+
+
+(* ================================================================
+   33. PHASE OPERATORS T_phi — IMPLEMENTATION LAYER
+
+   Each phase owns a typed operator over X:
+       T_Pop   : X -> X + observation          (perceive / gram read)
+       T_Wo    : X -> X + state / constraints  (allocate, declare intent)
+       T_Yax   : X -> X + admitted neighborhood(filter B_tau[h,*] by Gate_Q)
+       T_Sek   : X -> X + execution result     (compute A_h_active)
+       T_Ch'en : X -> X + certificate V        (assert / verify delta)
+       T_Xul   : X -> X'  AND optionally B_t -> B_{t+1}
+
+   Full cycle composition:
+       K = T_Xul o T_Ch'en o T_Sek o T_Yax o T_Wo o T_Pop
+       X_{n+1} = K(X_n)
+
+   Topological invariance:
+       forall phi != Xul:  T_phi(B) = B           (SC-22)
+
+   Ch'en assertion contract:
+       A = A_struct AND A_semantic AND A_state AND A_authority
+
+   A_struct:    delta-B well-formed; nodes/edges exist; types legal;
+                immutable topology untouched
+   A_semantic:  proposed relation has declared type; evidence supports it;
+                W_E is pattern-strength only, not truth
+   A_state:     tensor contract satisfied; values in bounds; no NaN
+   A_authority: evolution explicitly requested; operator has evolve
+                capability; provenance exists; scope permitted
+
+   Each assertion returns a typed tuple:
+       a_i -> (status, evidence, expected, observed, reason)
+       status in {PASS, FAIL, UNKNOWN}
+
+   UNKNOWN must never become PASS.  Missing evidence is not a pass.
+
+   Verification:
+       Verified(V) iff forall a_i in Required(A), status(a_i) = PASS
+
+   Ch'en resolution states for answer/evidence outcomes:
+       VERIFIED | CONTRADICTED | MISS | AMBIGUOUS |
+       INSUFFICIENT_CONTEXT | INVALID
+
+   MISS != WRONG.
+   CONTRADICTED = system asserted A despite evidence for NOT-A.
+   MISS = required context not sufficiently unfolded.
+   ================================================================ *)
+
+chen_certificate_record
+    ::= "{"
+          "kind"             ":" "chen.verification" ","
+          "subject"          ":" string ","
+          "topology_version" ":" number ","
+          "topology_hash"    ":" string ","
+          "candidate_delta"  ":" string ","
+          "assertions"       ":" "[" [ chen_assertion { "," chen_assertion } ] "]" ","
+          "verified"         ":" boolean ","
+          "rewrite_authorized" ":" "false"
+        "}"
+    ;
+
+chen_assertion
+    ::= "{"
+          "id"     ":" string ","
+          "status" ":" chen_status ","
+          [ "evidence" ":" string "," ]
+          [ "reason"   ":" string   ]
+        "}"
+    ;
+
+chen_status ::= "PASS" | "FAIL" | "UNKNOWN" ;
+
+chen_resolution_state
+    ::= "VERIFIED"
+      | "CONTRADICTED"
+      | "MISS"
+      | "AMBIGUOUS"
+      | "INSUFFICIENT_CONTEXT"
+      | "INVALID"
+    ;
+
+(* SC-24: rewrite_authorized MUST always be false in a Ch'en certificate.
+   Only XCFE+XulGate may set authorization; Ch'en supplies the proof,
+   not the permission. *)
+
+(* Xul compare-and-commit:
+   T_Xul(B_t, delta-B, V) =
+     B_t XOR delta-B   if Verified(V) AND Authorized(V) AND Fresh(V)
+     B_t               otherwise
+
+   Fresh(V): hash(B_current) = V.topology_hash    (SC-25) *)
+
+
+(* ================================================================
+   34. GPU SCORING LAYER — IMPLEMENTATION LAYER
+
+   CPU / GPU split:
+     CPU (AVX2)         -- mu-model token generation (llama-server)
+     GPU (D3D11 CS 5.0) -- gram/fold/semantic scoring (compute shaders)
+   Target: Intel HD 4600, DirectX 11.1, Compute Shader 5.0.
+   The GPU is doing semantic Field computation, not model inference.
+
+   attention.hlsl — semantic admission kernel (NOT transformer QKV):
+     Input:  StructuredBuffer<SemanticRecord>  stride=48 bytes (12 floats)
+     Output: BaseScore, SemanticScore, LegalMask, AdmissionMask
+     SC-26: stride MUST be exactly 48 bytes (12 x float32).
+
+   Scoring pipeline for each candidate record i:
+
+   Step 1 — Base WCR score (canonical, section 11):
+       S_i = W_i * C_i * R_i
+
+   Step 2 — Geometry modifier G_i derived from gram vector v=(x,y,z):
+       fold_i     = ||v_i||
+       relation_i = sqrt(x_i^2 + y_i^2) / fold_i
+       phase_i    = 0.5 + 0.5 * (z_i / fold_i)
+       G_i        = relation_i * fold_i * phase_i
+
+   Step 3 — Semantic score (geometry modifies WCR; does not replace it):
+       S_i^semantic = S_i * lerp(1, G_i, lambda_relation)
+
+   Step 4 — Legality gate (hard binary, evaluated BEFORE admission):
+       Legal_i = (policy_ok_i >= 0.5) AND (capable_i >= 0.5)
+                 AND (xcfe_ok_i >= 0.5)
+
+   Step 5 — Full Yax admission law:
+       Yax_i = Legal_i AND (S_i^semantic >= tau)
+
+   HIGH SCORE CANNOT MANUFACTURE LEGALITY.  (SC-27)
+   S_i = 0.999 with Legal_i = false => Yax_i = false.
+   This is the GPU equivalent of the XulGate law.
+
+   fold_compute.hlsl — elementwise weighted fold sum:
+       F_out = arc_weight * (F_A + F_B)
+   This is a GPU horizontal fold primitive. fold_compute.hlsl != Xul.
+   It transforms/bounds semantic field data; it does not persist B.
+   F_A, F_B -> C_T  while  B_out = B_in.  (SC-22)
+
+   C_i annotation:
+   The channel->W and authority->C mapping tables are RUNTIME POLICY,
+   not grammar. They must not appear as grammar productions.
+   However, C_i used in the GPU record is an AUTHORITY PRIOR, not the
+   evidence confidence produced by Ch'en. Both legitimately occupy the
+   C position in WCR, but they must be typed differently:
+       C_authority = source/authority prior (GPU scoring, pre-Ch'en)
+       C_evidence  = P(statement correct | evidence) (Ch'en output)
+   Do not conflate them. The hits->confidence mistake was exactly this.
+   ================================================================ *)
+
+geometry_layer
+    ::= "{"
+          "G"        ":" number ","   (* rel * fold * phase              *)
+          "S_base"   ":" number ","   (* W * C * R                       *)
+          "S_semantic" ":" number ","  (* S_base * lerp(1, G, lambda)    *)
+          "lambda"   ":" number        (* relation_mix in [0,1]          *)
+        "}"
+    ;
+
+yax_admission_record
+    ::= "{"
+          "i"         ":" identifier ","
+          "legal"     ":" boolean ","
+          "S_semantic" ":" number ","
+          "tau"       ":" number ","
+          "admitted"  ":" boolean       (* legal AND S_semantic >= tau   *)
+        "}"
+    ;
+
+fold_gpu_operation
+    ::= "{"
+          "op"         ":" "fold_compute" ","
+          "F_A"        ":" identifier ","
+          "F_B"        ":" identifier ","
+          "arc_weight" ":" number ","
+          "F_out"      ":" identifier    (* arc_weight * (F_A + F_B)     *)
+        "}"
+    ;
+
+
+(* ================================================================
+   SIDE-CONSTRAINT BLOCK  SC-1 .. SC-26
+   tools/grammar/mini_transpilers.py enforces these.
+   ================================================================ *)
+
+(* SC-1  arc_weight completeness.
+   pred:  Only {+1.0, +0.5, -0.5, -1.0} are valid arc weights.
+          Determined by delta_phase_index mod 6 in {0,1,2,3}:
+            0 -> +1.0  (same phase)
+            1 -> +0.5  (adjacent — primitive fold)
+            2 -> -0.5  (two-hop)
+            3 -> -1.0  (opposing) *)
+
+(* SC-2  horizontal_fold always authorized.
+   pred:  horizontal_transition or FoldEngine::horizontal_fold:
+          authorized=true, weight=+1.0, XCFE not consulted. *)
+
+(* SC-3  vertical_fold is primitive and requires auth.
+   pred:  dist(from,to) must equal 1. dist!=1 -> authorized=false.
+          XCFE authorization callback must be consulted. *)
+
+(* SC-4  field_accumulation must not call topology_mutation directly.
+   pred:  F_Q and B are separate layers. Field ops are observations;
+          topology writes require the proposal/verify/commit chain. *)
+
+(* SC-5  topology_mutation requires proposal wrapper.
+   pred:  Every topology_mutation appears inside a proposal, verified
+          by Ch'en and authorized by XCFE before Xul commits it. *)
+
+(* SC-6  TypedRelation != CommittedRelation.
+   pred:  relation_definition != E(B) modification.
+          E(B) is only mutated via a committed relation_proposal at Xul. *)
+
+(* SC-7  relation_isa_extension must resolve.
+   pred:  Must be a registered alias. Unknown verbs produce MISS_relation;
+          never silently become @related_to. *)
+
+(* SC-8  Usage != Confidence update rule.
+   pred:  confidence_update is ONLY triggered by evidence_score from
+          Ch'en verification; lookup triggers only usage_update. *)
+
+(* SC-9  mathml_projection is representation-only.
+   pred:  No side-effect on topology B or gram store.
+          MathML is a read-only projection of semantic node state. *)
+
+(* SC-10 xcfe_fn_node args are flat strings.
+   pred:  Every value in xcfe_string_args is a JSON string.
+          No nested objects, arrays, nulls, or numbers. *)
+
+(* SC-11 CommitAuthority not constructible in grammar.
+   pred:  No production manufactures a CommitAuthority value.
+          commit_statement references a verified_proposal_ref only.
+          Runtime mints the token; grammar cannot spell it into existence. *)
+
+(* SC-12 XCFE CanonicalPhase is total.
+   pred:  Exactly 14 classes. For every c, there is exactly one p =
+          CanonicalPhase(c). authority_phase(op) = CanonicalPhase(class(op)). *)
+
+(* SC-13 glyph_op completeness.
+   pred:  Glyph must be one of the 11 GlyphOp values. Unknown -> NOP. *)
+
+(* SC-14 gram store write phase.
+   SC-14a: gramWrite uses phase=Xul in production.
+   SC-14b: gramWrite("confidence:*", val, "Ch'en") is the sole exception. *)
+
+(* SC-15 bracket program phase monotonicity.
+   pred:  Opcodes SHOULD appear in C6 order. Out-of-order fails at
+          runtime when vertical_fold detects dist!=1. *)
+
+(* SC-16 WCR score clamping.
+   pred:  W, C, R each clamped to [0,1]. S = clamp(W*C*R, 0, 1). *)
+
+(* SC-17 B_tau anchor reachability.
+   pred:  B_tau[h,*] returns only gram_store keys that exist at query time.
+          Absent keys are excluded silently. *)
+
+(* SC-18 research_pressure range.
+   pred:  rho in [0,1]. rho = 0.0 when miss_kind = "none". *)
+
+(* SC-19 NGram pipeline phase order.
+   pred:  Pop->Wo->Yax->Sek->Ch'en->Xul in strict order.
+          No phase observes a result from a later phase. *)
+
+(* SC-20 field_node block_intensities length.
+   pred:  block_intensities always exactly length 7
+          (Perceive, Model, Reason, Plan, Execute, Monitor, Evolve). *)
+
+(* SC-21 Fold ADT projection isomorphism.
+   pred:  Lossless representations (b_matrix, graphml, scxq2) may claim
+          isomorphism. Lossy ones (fingerprint, svg3d, book) must not.
+          "The projection is not the object." *)
+
+(* SC-22 Topological invariance.
+   pred:  For all phi != Xul: T_phi(B) = B.
+          Yax's admission mask is ephemeral; fold_compute.hlsl does not
+          persist topology. Only Xul commits F_h -> F_h'. *)
+
+(* SC-23 Incidence edge_type SHOULD be declared in a Book contract.
+   pred:  "all" is reserved for diagnostics/serialization; it must not
+          be used as the default for semantic scoring. *)
+
+(* SC-24 Ch'en certificate rewrite_authorized is always false.
+   pred:  A Ch'en certificate MUST carry rewrite_authorized=false.
+          Authorization is XCFE's decision, not Ch'en's. *)
+
+(* SC-25 Xul certificate freshness.
+   pred:  hash(B_current) must equal V.topology_hash before Xul applies
+          delta-B. A stale certificate must trigger re-verification,
+          not silent application. *)
+
+(* SC-26 GPU SemanticRecord stride exactly 48 bytes.
+   pred:  SemanticRecord = 12 x float32 = 48 bytes.
+          Changing field count breaks the shader StructuredBuffer stride. *)
+
+(* SC-27 High score cannot manufacture legality.
+   pred:  Yax_i = Legal_i AND (S_semantic_i >= tau).
+          Legal_i is evaluated independently of S_semantic_i.
+          S_i = 0.999 with Legal_i = false => Yax_i = false.
+          This is the semantic equivalent of the XulGate law:
+          measurement does not become authority merely because the
+          number is high.
+   reason: mirrors CommitAuthority (SC-11): score and authority are
+           independent axes; conflating them is the root failure mode. *)

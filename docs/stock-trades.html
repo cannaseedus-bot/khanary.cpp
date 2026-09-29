@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K'UHUL QUANT - ALPHA GENERATION DASHBOARD</title>
+    <style>
+        :root {
+            --alpha-green: #00ff88;
+            --wall-street-blue: #0066ff;
+            --bloomberg-orange: #ff6600;
+            --dark-pool: #0a0a1a;
+            --trading-desk: #111122;
+            --market-red: #ff4444;
+            --market-green: #00ff88;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--dark-pool);
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .alpha-dashboard {
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            grid-template-rows: 60px 1fr;
+            grid-template-areas: 
+                "header header header"
+                "sidebar main widgets";
+            height: 100vh;
+            background: radial-gradient(circle at top right, #001122, #000011);
+        }
+
+        /* BLOOMBERG TERMINAL STYLE HEADER */
+        .header {
+            grid-area: header;
+            background: linear-gradient(90deg, #001122, #002244);
+            border-bottom: 2px solid var(--alpha-green);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .ticker-tape {
+            display: flex;
+            gap: 40px;
+            animation: ticker-scroll 30s linear infinite;
+        }
+
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .price-up {
+            color: var(--market-green);
+        }
+
+        .price-down {
+            color: var(--market-red);
+        }
+
+        /* SIDEBAR - TRADING CONTROLS */
+        .sidebar {
+            grid-area: sidebar;
+            background: rgba(0, 34, 68, 0.8);
+            border-right: 1px solid var(--wall-street-blue);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .control-panel {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--alpha-green);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-title {
+            color: var(--bloomberg-orange);
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .alpha-button {
+            background: linear-gradient(45deg, var(--alpha-green), var(--wall-street-blue));
+            border: none;
+            color: #000;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            width: 100%;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+        }
+
+        .alpha-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+        }
+
+        /* MAIN TRADING DESK */
+        .main {
+            grid-area: main;
+            padding: 20px;
+            background: rgba(8, 16, 32, 0.9);
+            overflow-y: auto;
+        }
+
+        .chart-container {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--wall-street-blue);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .chart-title {
+            color: var(--bloomberg-orange);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* WIDGETS PANEL - MARKET DATA */
+        .widgets {
+            grid-area: widgets;
+            background: rgba(0, 34, 68, 0.8);
+            border-left: 1px solid var(--wall-street-blue);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .market-widget {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--alpha-green);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .widget-title {
+            color: var(--bloomberg-orange);
+            font-size: 1rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* TRADING SPECIFIC STYLES */
+        .order-book {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .bid-side, .ask-side {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .bid-row, .ask-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .bid-row {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .ask-row {
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .position-pnl {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .pnl-positive {
+            color: var(--market-green);
+        }
+
+        .pnl-negative {
+            color: var(--market-red);
+        }
+
+        /* ANIMATIONS */
+        @keyframes ticker-scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes flash-buy {
+            0%, 100% { background: transparent; }
+            50% { background: rgba(0, 255, 136, 0.3); }
+        }
+
+        @keyframes flash-sell {
+            0%, 100% { background: transparent; }
+            50% { background: rgba(255, 68, 68, 0.3); }
+        }
+
+        /* TECHNICAL INDICATORS */
+        .indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+
+        .indicator-bullish {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid var(--market-green);
+        }
+
+        .indicator-bearish {
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid var(--market-red);
+        }
+    </style>
+</head>
+<body>
+    <div class="alpha-dashboard">
+        <!-- BLOOMBERG-STYLE HEADER -->
+        <div class="header">
+            <div class="logo" style="color: var(--alpha-green); font-size: 1.3rem;">
+                K'UHUL QUANT // ALPHA v2.1
+            </div>
+            <div class="ticker-tape">
+                <div class="ticker-item">
+                    <span>BTC/USD</span>
+                    <span class="price-up">$42,156 +2.3%</span>
+                </div>
+                <div class="ticker-item">
+                    <span>SPX</span>
+                    <span class="price-up">4,825 +0.8%</span>
+                </div>
+                <div class="ticker-item">
+                    <span>TSLA</span>
+                    <span class="price-down">$245 -1.2%</span>
+                </div>
+                <div class="ticker-item">
+                    <span>VIX</span>
+                    <span class="price-down">14.2 -5.1%</span>
+                </div>
+                <div class="ticker-item">
+                    <span>ETH/USD</span>
+                    <span class="price-up">$2,856 +3.7%</span>
+                </div>
+            </div>
+            <div style="color: var(--bloomberg-orange);">
+                LIVE <span style="animation: pulse-green 1s infinite;">●</span>
+            </div>
+        </div>
+
+        <!-- TRADING CONTROLS SIDEBAR -->
+        <div class="sidebar">
+            <div class="control-panel">
+                <div class="control-title">ALPHA STRATEGIES</div>
+                <button class="alpha-button" onclick="executeStrategy('momentum')">MOMENTUM SCALPING</button>
+                <button class="alpha-button" onclick="executeStrategy('mean-reversion')">MEAN REVERSION</button>
+                <button class="alpha-button" onclick="executeStrategy('arbitrage')">STAT ARBITRAGE</button>
+                <button class="alpha-button" onclick="executeStrategy('ml-predict')">ML PREDICTION</button>
+            </div>
+
+            <div class="control-panel">
+                <div class="control-title">QUANT CONTROLS</div>
+                <button class="alpha-button" onclick="marketBuy()">MARKET BUY</button>
+                <button class="alpha-button" onclick="marketSell()">MARKET SELL</button>
+                <button class="alpha-button" style="background: linear-gradient(45deg, #ff4444, #ff6600);" 
+                        onclick="emergencyStop()">EMERGENCY STOP</button>
+            </div>
+
+            <div class="control-panel">
+                <div class="control-title">PORTFOLIO</div>
+                <div class="position-pnl pnl-positive" id="live-pnl">+$12,450</div>
+                <div style="text-align: center; font-size: 0.9rem; color: var(--alpha-green);">
+                    Today's P&L
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="control-title">RISK METRICS</div>
+                <div style="font-size: 0.9rem; line-height: 1.6;">
+                    <div>VaR (95%): $8,240</div>
+                    <div>Sharpe: 2.34</div>
+                    <div>Max Drawdown: -3.2%</div>
+                    <div>Beta: 0.85</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN TRADING DESK -->
+        <div class="main">
+            <!-- PRICE CHART -->
+            <div class="chart-container">
+                <div class="chart-title">
+                    <span>BTC/USD - 5MIN CHART</span>
+                    <span id="btc-price" style="color: var(--alpha-green);">$42,156.78</span>
+                </div>
+                <svg id="price-chart" width="100%" height="300"></svg>
+            </div>
+
+            <!-- TECHNICAL ANALYSIS -->
+            <div class="chart-container">
+                <div class="chart-title">TECHNICAL SIGNALS</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div class="indicator indicator-bullish">RSI: 58</div>
+                    <div class="indicator indicator-bullish">MACD: BULLISH</div>
+                    <div class="indicator indicator-bearish">STOCH: 72</div>
+                    <div class="indicator indicator-bullish">EMA: BULL CROSS</div>
+                    <div class="indicator indicator-bullish">VOLUME: +42%</div>
+                </div>
+            </div>
+
+            <!-- ORDER BOOK -->
+            <div class="chart-container">
+                <div class="chart-title">ORDER BOOK - BTC/USD</div>
+                <div class="order-book">
+                    <div class="bid-side">
+                        <div class="bid-row"><span>42,155.00</span><span>2.15</span></div>
+                        <div class="bid-row"><span>42,154.50</span><span>3.42</span></div>
+                        <div class="bid-row"><span>42,154.00</span><span>1.87</span></div>
+                        <div class="bid-row"><span>42,153.50</span><span>4.21</span></div>
+                        <div class="bid-row"><span>42,153.00</span><span>2.65</span></div>
+                    </div>
+                    <div class="ask-side">
+                        <div class="ask-row"><span>42,156.00</span><span>1.92</span></div>
+                        <div class="ask-row"><span>42,156.50</span><span>3.15</span></div>
+                        <div class="ask-row"><span>42,157.00</span><span>2.48</span></div>
+                        <div class="ask-row"><span>42,157.50</span><span>1.76</span></div>
+                        <div class="ask-row"><span>42,158.00</span><span>3.89</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MARKET DATA WIDGETS -->
+        <div class="widgets">
+            <div class="market-widget">
+                <div class="widget-title">AI TRADING AGENTS</div>
+                <svg width="100%" height="120" viewBox="0 0 200 120">
+                    <use href="#quant-agent-ml" x="100" y="30"/>
+                    <use href="#quant-agent-arb" x="50" y="80"/>
+                    <use href="#quant-agent-risk" x="100" y="80"/>
+                    <use href="#quant-agent-exec" x="150" y="80"/>
+                </svg>
+            </div>
+
+            <div class="market-widget">
+                <div class="widget-title">MARKET SENTIMENT</div>
+                <div style="text-align: center; font-size: 2rem; color: var(--alpha-green);">
+                    78%
+                </div>
+                <div style="text-align: center; font-size: 0.8rem; color: var(--bloomberg-orange);">
+                    BULLISH
+                </div>
+            </div>
+
+            <div class="market-widget">
+                <div class="widget-title">LIVE TRADES</div>
+                <div id="trade-feed" style="font-size: 0.8rem; line-height: 1.4;">
+                    <!-- Trades will appear here -->
+                </div>
+            </div>
+
+            <div class="market-widget">
+                <div class="widget-title">VOLATILITY ALERTS</div>
+                <div style="font-size: 0.8rem; color: var(--market-red);">
+                    <div>● BTC 5min vol: 12.4% (HIGH)</div>
+                    <div>● SPX gamma exposure: elevated</div>
+                    <div>● VIX term structure: inverted</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUANT SVG COMPONENTS -->
+    <svg id="quant-svg-library" style="display: none;">
+        <defs>
+            <!-- Trading Agent Components -->
+            <g id="quant-agent-ml">
+                <circle r="10" fill="#0066ff" stroke="#00ff88" stroke-width="2"/>
+                <text x="0" y="4" text-anchor="middle" fill="white" font-size="8" font-weight="bold">ML</text>
+                <circle r="2" fill="#00ff88" cx="-4" cy="-4">
+                    <animate attributeName="r" values="2;3;2" dur="1s" repeatCount="indefinite"/>
+                </circle>
+            </g>
+
+            <g id="quant-agent-arb">
+                <circle r="10" fill="#ff6600" stroke="#00ff88" stroke-width="2"/>
+                <text x="0" y="4" text-anchor="middle" fill="white" font-size="8" font-weight="bold">ARB</text>
+            </g>
+
+            <g id="quant-agent-risk">
+                <circle r="10" fill="#ff4444" stroke="#00ff88" stroke-width="2"/>
+                <text x="0" y="4" text-anchor="middle" fill="white" font-size="8" font-weight="bold">RISK</text>
+            </g>
+
+            <g id="quant-agent-exec">
+                <circle r="10" fill="#00ff88" stroke="#0066ff" stroke-width="2"/>
+                <text x="0" y="4" text-anchor="middle" fill="black" font-size="8" font-weight="bold">EXEC</text>
+            </g>
+
+            <!-- Chart Components -->
+            <g id="candlestick">
+                <line class="wick" stroke="var(--candle-color)" stroke-width="1"/>
+                <rect class="body" fill="var(--candle-color)" stroke="var(--candle-color)" stroke-width="1"/>
+            </g>
+        </defs>
+    </svg>
+
+    <script>
+        // QUANT TRADING ENGINE
+        class QuantDashboard {
+            constructor() {
+                this.btcPrice = 42156.78;
+                this.pnl = 12450;
+                this.tradeCount = 0;
+                this.initializeTrading();
+            }
+
+            initializeTrading() {
+                this.createPriceChart();
+                this.startPriceUpdates();
+                this.startTradeSimulation();
+                this.updateTicker();
+            }
+
+            createPriceChart() {
+                const chart = document.getElementById('price-chart');
+                chart.innerHTML = '';
+
+                // Create candlestick chart
+                for (let i = 0; i < 50; i++) {
+                    const open = 42000 + Math.random() * 500;
+                    const close = open + (Math.random() - 0.5) * 300;
+                    const high = Math.max(open, close) + Math.random() * 100;
+                    const low = Math.min(open, close) - Math.random() * 100;
+                    
+                    const candle = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+                    candle.setAttribute('href', '#candlestick');
+                    candle.setAttribute('x', i * 12);
+                    
+                    const color = close >= open ? '#00ff88' : '#ff4444';
+                    candle.style.setProperty('--candle-color', color);
+                    
+                    // Create wick
+                    const wick = candle.querySelector('.wick');
+                    if (wick) {
+                        wick.setAttribute('x1', i * 12 + 5);
+                        wick.setAttribute('y1', this.priceToY(high));
+                        wick.setAttribute('x2', i * 12 + 5);
+                        wick.setAttribute('y2', this.priceToY(low));
+                    }
+                    
+                    // Create body
+                    const body = candle.querySelector('.body');
+                    if (body) {
+                        body.setAttribute('x', i * 12 + 2);
+                        body.setAttribute('y', this.priceToY(Math.max(open, close)));
+                        body.setAttribute('width', '6');
+                        body.setAttribute('height', Math.abs(this.priceToY(open) - this.priceToY(close)));
+                    }
+                    
+                    chart.appendChild(candle);
+                }
+            }
+
+            priceToY(price) {
+                // Convert price to chart Y coordinate
+                const minPrice = 41800;
+                const maxPrice = 42300;
+                return 280 - ((price - minPrice) / (maxPrice - minPrice)) * 250;
+            }
+
+            startPriceUpdates() {
+                setInterval(() => {
+                    // Simulate price movement
+                    const change = (Math.random() - 0.5) * 50;
+                    this.btcPrice += change;
+                    
+                    // Update display
+                    document.getElementById('btc-price').textContent = `$${this.btcPrice.toFixed(2)}`;
+                    document.getElementById('btc-price').style.color = change >= 0 ? '#00ff88' : '#ff4444';
+                    
+                    // Flash animation
+                    document.getElementById('btc-price').style.animation = 
+                        `flash-${change >= 0 ? 'buy' : 'sell'} 0.5s`;
+                    
+                    setTimeout(() => {
+                        document.getElementById('btc-price').style.animation = '';
+                    }, 500);
+                    
+                }, 2000);
+            }
+
+            startTradeSimulation() {
+                setInterval(() => {
+                    this.simulateTrade();
+                }, 3000);
+            }
+
+            simulateTrade() {
+                const sides = ['BUY', 'SELL'];
+                const side = sides[Math.floor(Math.random() * sides.length)];
+                const size = (Math.random() * 2 + 0.1).toFixed(2);
+                const price = this.btcPrice + (Math.random() - 0.5) * 10;
+                
+                // Update P&L
+                const pnlChange = (Math.random() - 0.3) * 500;
+                this.pnl += pnlChange;
+                
+                document.getElementById('live-pnl').textContent = 
+                    `${this.pnl >= 0 ? '+' : ''}$${this.pnl.toFixed(0)}`;
+                document.getElementById('live-pnl').className = 
+                    `position-pnl ${this.pnl >= 0 ? 'pnl-positive' : 'pnl-negative'}`;
+                
+                // Add to trade feed
+                const tradeFeed = document.getElementById('trade-feed');
+                const trade = document.createElement('div');
+                trade.style.padding = '2px 0';
+                trade.style.borderBottom = '1px solid rgba(0, 255, 136, 0.2)';
+                trade.innerHTML = 
+                    `<span style="color: ${side === 'BUY' ? '#00ff88' : '#ff4444'}">${side}</span> ` +
+                    `${size} BTC @ $${price.toFixed(2)}`;
+                
+                tradeFeed.appendChild(trade);
+                
+                // Keep only last 5 trades
+                if (tradeFeed.children.length > 5) {
+                    tradeFeed.removeChild(tradeFeed.firstChild);
+                }
+                
+                this.tradeCount++;
+            }
+
+            updateTicker() {
+                setInterval(() => {
+                    // Simulate ticker updates
+                    const tickerItems = document.querySelectorAll('.ticker-item');
+                    tickerItems.forEach(item => {
+                        const change = (Math.random() - 0.5) * 4;
+                        const priceElement = item.querySelector('.price-up, .price-down');
+                        if (priceElement) {
+                            const isPositive = change >= 0;
+                            priceElement.textContent = `$${(Math.random() * 100000).toFixed(0)} ${isPositive ? '+' : ''}${change.toFixed(1)}%`;
+                            priceElement.className = isPositive ? 'price-up' : 'price-down';
+                        }
+                    });
+                }, 5000);
+            }
+        }
+
+        // TRADING FUNCTIONS
+        function executeStrategy(strategy) {
+            const strategies = {
+                'momentum': 'Momentum Scalping Activated',
+                'mean-reversion': 'Mean Reversion Strategy Live',
+                'arbitrage': 'Statistical Arbitrage Running',
+                'ml-predict': 'ML Prediction Engine Started'
+            };
+            
+            alert(`🚀 ${strategies[strategy]}`);
+            
+            // Flash the strategy button
+            event.target.style.animation = 'flash-buy 0.5s';
+            setTimeout(() => {
+                event.target.style.animation = '';
+            }, 500);
+        }
+
+        function marketBuy() {
+            alert('📈 MARKET BUY ORDER EXECUTED');
+            event.target.style.animation = 'flash-buy 0.5s';
+            setTimeout(() => event.target.style.animation = '', 500);
+        }
+
+        function marketSell() {
+            alert('📉 MARKET SELL ORDER EXECUTED');
+            event.target.style.animation = 'flash-sell 0.5s';
+            setTimeout(() => event.target.style.animation = '', 500);
+        }
+
+        function emergencyStop() {
+            alert('🛑 ALL TRADING HALTED - EMERGENCY STOP');
+            document.body.style.animation = 'flash-sell 1s infinite';
+            setTimeout(() => document.body.style.animation = '', 3000);
+        }
+
+        // Initialize the quant dashboard
+        const quantDashboard = new QuantDashboard();
+
+        // Add CSS for flash animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes flash-buy {
+                0%, 100% { background: transparent; }
+                50% { background: rgba(0, 255, 136, 0.3); }
+            }
+            @keyframes flash-sell {
+                0%, 100% { background: transparent; }
+                50% { background: rgba(255, 68, 68, 0.3); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

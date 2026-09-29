@@ -1,11 +1,122 @@
 #include "field_dag.h"
+#include "gml_parser.h"
+#include "../micronaut/relation_isa.h"
 #include "../kuhul/phase_engine.h"
 #include <sstream>
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace khanary::world {
+
+namespace {
+
+std::string lower_copy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+bool contains_any(const std::string& haystack, std::initializer_list<const char*> needles) {
+    for (const char* n : needles) {
+        if (haystack.find(n) != std::string::npos) return true;
+    }
+    return false;
+}
+
+std::string gml_source_token(const std::string& path) {
+    const auto base_pos = path.find_last_of("/\\");
+    const size_t base_start = (base_pos == std::string::npos) ? 0 : base_pos + 1;
+    const auto dot_pos = path.find_last_of('.');
+    const size_t base_end = (dot_pos != std::string::npos && dot_pos > base_start)
+        ? dot_pos
+        : path.size();
+
+    std::string token = path.substr(base_start, base_end - base_start);
+    if (token.empty()) token = "graph";
+
+    for (char& c : token) {
+        const auto uc = static_cast<unsigned char>(c);
+        if (std::isalnum(uc) || c == '-' || c == '_') {
+            c = static_cast<char>(std::tolower(uc));
+        } else {
+            c = '_';
+        }
+    }
+    return token;
+}
+
+void assign_phase_face_block(FieldNode& n, kuhul::Phase p) {
+    n.phase_name = kuhul::phase_name(p);
+    const auto fi = static_cast<size_t>(p);
+    if (fi < KCUBE_FACES.size()) {
+        n.face_name  = KCUBE_FACES[fi].geometry;
+        n.block_name = KCUBE_FACES[fi].block;
+    } else {
+        n.face_name  = n.phase_name;
+        n.block_name = "";
+    }
+}
+
+std::string classify_ontology_bucket(const micronaut::MicronautEntry& e) {
+    std::string blob = lower_copy(e.id + " " + e.category + " " + e.description);
+    for (const auto& g : e.governs) {
+        blob += ' ';
+        blob += lower_copy(g);
+    }
+
+    if (contains_any(blob, {"coordinator", "orchestr", "mission", "objective", "goal", "plan", "executive"}))
+        return "Organization";
+    if (contains_any(blob, {"perspective", "view", "concern", "scenario", "profile"}))
+        return "Perspective";
+    if (contains_any(blob, {"reason", "infer", "logic", "thought", "theory", "mind", "conscious", "evaluate", "verify"}))
+        return "Function";
+    if (contains_any(blob, {"knowledge", "data", "metadata", "memory", "search", "research", "citation", "information", "retrieve", "librarian"}))
+        return "Information";
+    if (contains_any(blob, {"component", "app", "wizard", "factory", "code", "build", "template", "module", "service"}))
+        return "Component";
+    if (contains_any(blob, {"communic", "protocol", "message", "meeting", "email", "translate"}))
+        return "Communication";
+    if (contains_any(blob, {"connect", "router", "route", "dispatch", "bridge", "adapter", "tool-call", "connector"}))
+        return "Connector";
+    if (contains_any(blob, {"environment", "world", "runtime", "physical", "sandbox", "gpu"}))
+        return "Environment";
+
+    switch (e.primary_phase) {
+        case kuhul::Phase::Pop:  return "Information";
+        case kuhul::Phase::Wo:   return "Component";
+        case kuhul::Phase::Yax:  return "Perspective";
+        case kuhul::Phase::Sek:  return "Function";
+        case kuhul::Phase::Chen: return "Organization";
+        case kuhul::Phase::Xul:  return "Environment";
+    }
+    return "Information";
+}
+
+FieldEdge make_ontology_edge(const std::string& from,
+                             const std::string& to,
+                             const std::string& verb,
+                             bool directed,
+                             float weight = 1.0f,
+                             float delta_theta = 0.0f) {
+    FieldEdge e;
+    e.from = from;
+    e.to = to;
+    e.type = "ontology";
+    e.verb = micronaut::canonical_relation(verb);
+    if (!micronaut::is_supported_relation(e.verb))
+        e.verb = micronaut::infer_relation_from_lexical(verb);
+    e.relation_phase = micronaut::relation_phase_hint(e.verb);
+    e.directed = directed;
+    e.weight = weight;
+    e.delta_theta = delta_theta;
+    e.xcfe_required = false;
+    return e;
+}
+
+} // namespace
 
 FieldDag::FieldDag(const WorldState& ws, const micronaut::MicronautRegistry& reg)
     : ws_(ws), reg_(reg)
@@ -24,6 +135,8 @@ void FieldDag::build() {
 
     // Phase index: phase → list of track_ids at that phase
     std::unordered_map<int, std::vector<std::string>> phase_to_tracks;
+    // Track → ontology class link
+    std::unordered_map<std::string, std::string> track_to_ontology;
 
     // Build FieldNodes from WorldState (which is already built from registry)
     for (const auto& id : reg_.ids()) {
@@ -37,11 +150,16 @@ void FieldDag::build() {
         fn.track_id    = id;
         fn.phase_name  = kuhul::phase_name(e->primary_phase);
         fn.block_name  = std::string(block_name(wn->active_block));
-        fn.confidence  = e->confidence;
+        fn.confidence  = std::clamp(e->confidence, 0.0f, 1.0f);
+        fn.static_weight = std::clamp(e->static_weight, 0.0f, 1.0f);
+        fn.health = std::clamp(e->health, 0.0f, 1.0f);
+        fn.wcr_prior = std::clamp(fn.static_weight * fn.confidence * fn.health, 0.0f, 1.0f);
         fn.x           = wn->x;
         fn.y           = wn->y;
         fn.z           = wn->z;
+        fn.vector_source = e->vector_meta.declared ? e->vector_meta.source : "phase_default";
         fn.kind              = "track";
+        fn.category          = e->category;
         fn.coordinator       = e->sandbox.coordinator;
         fn.effects           = e->sandbox.effects;
         fn.block_intensities = wn->block_intensities;
@@ -52,19 +170,49 @@ void FieldDag::build() {
                            : fn.phase_name;
 
         phase_to_tracks[static_cast<int>(e->primary_phase)].push_back(id);
+        track_to_ontology[id] = classify_ontology_bucket(*e);
         nodes_.push_back(std::move(fn));
     }
 
-    // ── Edge set 1: declared delegate arcs ──────────────────────────────────
+    // ── Edge set 1: relational verb edges + legacy delegate arcs ────────────
     for (const auto& id : reg_.ids()) {
         const auto* e = reg_.get(id);
-        if (!e || e->sub_micronauts.empty()) continue;
-        for (const auto& target : e->sub_micronauts) {
-            if (node_map.count(target)) {
+        if (!e) continue;
+
+        // Typed relational edges from the `relations` table
+        for (const auto& rel : e->relations) {
+            if (!node_map.count(rel.target_id)) continue;
+            kuhul::Phase target_phase = kuhul::Phase::Pop;
+            if (const auto* te = reg_.get(rel.target_id))
+                target_phase = te->primary_phase;
+            float dtheta = static_cast<float>(
+                kuhul::phase_distance(e->primary_phase, target_phase)) * 60.0f;
+
+            FieldEdge edge;
+            edge.from          = id;
+            edge.to            = rel.target_id;
+            edge.verb          = micronaut::canonical_relation(rel.verb);
+            if (!micronaut::is_supported_relation(edge.verb))
+                edge.verb = micronaut::infer_relation_from_lexical(rel.verb);
+            edge.relation_phase = micronaut::relation_phase_hint(edge.verb);
+            edge.directed      = rel.directed;
+            edge.type          = rel.directed ? "delegate" : "horizontal_fold";
+            edge.weight        = rel.directed ? std::cos(dtheta * 3.14159f / 180.0f) : 1.0f;
+            edge.delta_theta   = rel.directed ? dtheta : 0.0f;
+            edge.xcfe_required = rel.directed && !micronaut::relation_matches(edge.verb, "@delegates_to");
+            edges_.push_back(std::move(edge));
+        }
+
+        // Legacy plain-delegate fallback (no verb — used when relations is empty)
+        if (e->relations.empty()) {
+            for (const auto& target : e->sub_micronauts) {
+                if (!node_map.count(target)) continue;
                 FieldEdge edge;
                 edge.from          = id;
                 edge.to            = target;
                 edge.type          = "delegate";
+                edge.verb          = "@delegates_to";
+                edge.relation_phase = micronaut::relation_phase_hint(edge.verb);
                 edge.weight        = 1.0f;
                 edge.delta_theta   = 0.0f;
                 edge.xcfe_required = false;
@@ -113,6 +261,72 @@ void FieldDag::build() {
             }
         }
     }
+
+    // ── Ontology overlay: MBED top-level classes + typed links ──────────────
+    auto add_ontology_node =
+        [&](const char* id,
+            kuhul::Phase phase,
+            float x, float y, float z,
+            std::initializer_list<const char*> attrs) {
+            FieldNode n;
+            n.kind = "ontology";
+            n.track_id = id;
+            n.category = "ontology";
+            n.confidence = 1.0f;
+            n.static_weight = 1.0f;
+            n.health = 1.0f;
+            n.wcr_prior = 1.0f;
+            n.x = x;
+            n.y = y;
+            n.z = z;
+            n.vector_source = "ontology_static";
+            n.coordinator = false;
+            assign_phase_face_block(n, phase);
+            for (const char* a : attrs) n.effects.push_back(a);
+            nodes_.push_back(std::move(n));
+        };
+
+    add_ontology_node("Organization", kuhul::Phase::Chen,  0.05f,  1.85f, 0.0f,
+                      {"mission", "requirements", "objectives", "goals", "scenarios"});
+    add_ontology_node("Perspective",  kuhul::Phase::Yax,   2.10f,  1.45f, 0.0f,
+                      {"contains_objects", "defines", "exposes_concerns"});
+    add_ontology_node("Function",     kuhul::Phase::Sek,  -2.05f,  0.25f, 0.0f,
+                      {"logical_structure", "behavior", "interfaces", "constraints"});
+    add_ontology_node("Information",  kuhul::Phase::Pop,   2.05f,  0.20f, 0.0f,
+                      {"data", "metadata", "rules"});
+    add_ontology_node("Component",    kuhul::Phase::Wo,    0.10f, -0.95f, 0.0f,
+                      {"type", "attributes", "ports", "location"});
+    add_ontology_node("Environment",  kuhul::Phase::Xul,   2.00f, -1.00f, 0.0f,
+                      {"physical_environs", "attributes"});
+    add_ontology_node("Communication",kuhul::Phase::Yax,  -1.95f, -1.45f, 0.0f,
+                      {"protocol_stack", "standards"});
+    add_ontology_node("Connector",    kuhul::Phase::Wo,    1.20f, -1.85f, 0.0f,
+                      {"type", "attributes"});
+
+    std::unordered_set<std::string> ontology_ids = {
+        "Organization", "Perspective", "Function", "Information",
+        "Component", "Environment", "Communication", "Connector"
+    };
+
+    for (const auto& [track_id, onto_id] : track_to_ontology) {
+        if (!ontology_ids.count(onto_id)) continue;
+        edges_.push_back(make_ontology_edge(track_id, onto_id, "@related_to", false, 1.0f, 0.0f));
+    }
+
+    // Core ontology relationships (from MBED top-level pattern).
+    edges_.push_back(make_ontology_edge("Organization", "Function", "@part_of", true, 0.85f, 30.0f));
+    edges_.push_back(make_ontology_edge("Organization", "Component", "@delegates_to", true, 0.85f, 30.0f));
+    edges_.push_back(make_ontology_edge("Perspective", "Organization", "@related_to", false, 1.0f, 0.0f));
+    edges_.push_back(make_ontology_edge("Perspective", "Information", "@related_to", false, 1.0f, 0.0f));
+    edges_.push_back(make_ontology_edge("Function", "Information", "@delegates_to", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Information", "Function", "@supports", true, 0.75f, 30.0f));
+    edges_.push_back(make_ontology_edge("Function", "Component", "@delegates_to", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Communication", "Function", "@delegates_to", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Function", "Communication", "@part_of", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Communication", "Component", "@delegates_to", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Component", "Connector", "@delegates_to", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Connector", "Component", "@part_of", true, 0.8f, 30.0f));
+    edges_.push_back(make_ontology_edge("Component", "Environment", "@governs", true, 0.8f, 30.0f));
 }
 
 // ── add_tensor ────────────────────────────────────────────────────────────────
@@ -125,6 +339,10 @@ void FieldDag::add_tensor(const std::string& id,
     fn.kind       = "tensor";
     fn.track_id   = id;
     fn.confidence = 1.0f;
+    fn.static_weight = 1.0f;
+    fn.health = 1.0f;
+    fn.wcr_prior = 1.0f;
+    fn.vector_source = "tensor_projection";
     fn.fold_map   = std::move(entries);
     if (!fn.fold_map.empty()) {
         fn.phase_name = fn.fold_map[0].phase_name;
@@ -141,6 +359,91 @@ void FieldDag::add_tensor(const std::string& id,
         }
     }
     nodes_.push_back(std::move(fn));
+}
+
+// ── GML overlay ───────────────────────────────────────────────────────────────
+
+void FieldDag::load_gml(const std::string& path) {
+    auto g = parse_gml_file(path);
+    if (!g) return;
+
+    const std::string source_token = gml_source_token(path);
+    const size_t N = g->nodes.size();
+    constexpr double kPI = 3.14159265358979323846;
+
+    // Build id → track_id map for edge resolution
+    std::unordered_map<int64_t, std::string> id_to_tid;
+    id_to_tid.reserve(N);
+
+    for (size_t i = 0; i < N; ++i) {
+        const auto& gn = g->nodes[i];
+
+        // If the label names a registered track, bind to it directly —
+        // no phantom node, edges will wire into the real track.
+        if (!gn.label.empty() && reg_.get(gn.label)) {
+            id_to_tid[gn.id] = gn.label;
+            continue;
+        }
+
+        FieldNode fn;
+        fn.kind        = "gml";
+        fn.track_id    = "gml:" + source_token + ":" + std::to_string(gn.id);
+        fn.phase_name  = "Pop";
+        fn.confidence  = std::clamp(static_cast<float>(gn.confidence), 0.0f, 1.0f);
+        fn.static_weight = std::clamp(static_cast<float>(gn.static_weight), 0.0f, 1.0f);
+        fn.health = std::clamp(static_cast<float>(gn.health), 0.0f, 1.0f);
+        fn.wcr_prior = std::clamp(fn.confidence * fn.static_weight * fn.health, 0.0f, 1.0f);
+        fn.vector_source = "gml";
+        fn.coordinator = false;
+        if (!gn.label.empty()) fn.category = gn.label;
+
+        if (gn.has_x && gn.has_y) {
+            fn.x = static_cast<float>(gn.x);
+            fn.y = static_cast<float>(gn.y);
+            fn.z = gn.has_z ? static_cast<float>(gn.z) : 0.0f;
+        } else {
+            double angle = (N > 1)
+                ? (2.0 * kPI * static_cast<double>(i) / static_cast<double>(N))
+                : 0.0;
+            fn.x = static_cast<float>(2.5 * std::cos(angle));
+            fn.y = static_cast<float>(2.5 * std::sin(angle));
+            fn.z = 0.0f;
+        }
+
+        id_to_tid[gn.id] = fn.track_id;
+        nodes_.push_back(std::move(fn));
+    }
+
+    for (const auto& ge : g->edges) {
+        auto sit = id_to_tid.find(ge.source);
+        auto tit = id_to_tid.find(ge.target);
+        if (sit == id_to_tid.end() || tit == id_to_tid.end()) continue;
+
+        FieldEdge fe;
+        fe.from          = sit->second;
+        fe.to            = tit->second;
+        fe.directed      = g->directed;
+        fe.type          = g->directed ? "delegate" : "horizontal_fold";
+        fe.weight        = ge.has_weight ? static_cast<float>(ge.weight) : 1.0f;
+        fe.delta_theta   = 0.0f;
+        fe.xcfe_required = false;
+
+        const std::string relation_raw = !ge.verb.empty() ? ge.verb : ge.label;
+        if (!relation_raw.empty()) {
+            std::string typed = relation_raw;
+            if (!typed.empty() && typed.front() == '@') {
+                typed = micronaut::canonical_relation(typed);
+            } else {
+                typed = micronaut::infer_relation_from_lexical(relation_raw);
+            }
+            if (!typed.empty()) {
+                fe.verb = typed;
+                fe.relation_phase = micronaut::relation_phase_hint(typed);
+                fe.xcfe_required = g->directed && !micronaut::relation_matches(typed, "@delegates_to");
+            }
+        }
+        edges_.push_back(std::move(fe));
+    }
 }
 
 // ── XML serialization ─────────────────────────────────────────────────────────
@@ -182,16 +485,37 @@ std::string FieldDag::to_xml() const {
 
     // ── nodes ─────────────────────────────────────────────────────────────────
     os << "  <nodes>\n";
+    // XCFE phase anchor nodes — @phase: typed, one per C6 face
+    for (const auto& face : KCUBE_FACES) {
+        kuhul::Phase next_p = kuhul::next_phase(face.phase);
+        char abuf[16];
+        std::snprintf(abuf, sizeof(abuf), "%.3f", kuhul::phase_angle(face.phase));
+        os << "    <node"
+           << " id=\"@phase:"   << xml_escape(kuhul::phase_name(face.phase)) << "\""
+           << " type=\"xcfe_phase\""
+           << " face=\""        << xml_escape(face.geometry) << "\""
+           << " block=\""       << xml_escape(face.block)    << "\""
+           << " angle_deg=\""   << static_cast<int>(face.angle_deg) << "\""
+           << " angle_rad=\""   << abuf << "\""
+           << " next=\"@phase:" << xml_escape(kuhul::phase_name(next_p)) << "\""
+           << "/>\n";
+    }
     for (const auto& n : nodes_) {
         os << "    <node"
-           << " id=\""          << xml_escape(n.track_id)   << "\""
+           << " id=\"@node:"    << xml_escape(n.track_id)   << "\""
            << " kind=\""        << xml_escape(n.kind)        << "\""
            << " phase=\""       << xml_escape(n.phase_name) << "\""
            << " face=\""        << xml_escape(n.face_name)  << "\""
            << " block=\""       << xml_escape(n.block_name) << "\""
            << " confidence=\""  << n.confidence             << "\""
-           << " coordinator=\"" << (n.coordinator ? "true" : "false") << "\""
-           << " x=\""           << n.x << "\""
+           << " static_weight=\"" << n.static_weight        << "\""
+           << " health=\""      << n.health                 << "\""
+           << " wcr_prior=\""   << n.wcr_prior              << "\""
+           << " coordinator=\"" << (n.coordinator ? "true" : "false") << "\"";
+        if (!n.category.empty())
+           os << " category=\"" << xml_escape(n.category) << "\"";
+        os << " vector_source=\"" << xml_escape(n.vector_source) << "\"";
+        os << " x=\""           << n.x << "\""
            << " y=\""           << n.y << "\""
            << " z=\""           << n.z << "\"";
         os << ">\n";
@@ -203,6 +527,13 @@ std::string FieldDag::to_xml() const {
             }
             os << "</effects>\n";
         }
+        os << "      <vector_meta"
+           << " source=\"" << xml_escape(n.vector_source) << "\""
+           << " qkv_role=\"K\""
+           << " x=\"" << n.x << "\""
+           << " y=\"" << n.y << "\""
+           << " z=\"" << n.z << "\""
+           << "/>\n";
         // SVG-3D weight layer: one float per AtomicDOMBlock
         os << "      <tensors";
         for (uint8_t bi = 0; bi < static_cast<uint8_t>(AtomicDOMBlock::COUNT); ++bi) {
@@ -230,12 +561,25 @@ std::string FieldDag::to_xml() const {
     os << "  <edges>\n";
     for (const auto& e : edges_) {
         os << "    <edge"
-           << " from=\""          << xml_escape(e.from)  << "\""
-           << " to=\""            << xml_escape(e.to)    << "\""
-           << " type=\""          << xml_escape(e.type)  << "\""
-           << " weight=\""        << e.weight             << "\""
+           << " from=\"@node:"    << xml_escape(e.from)  << "\""
+           << " to=\"@node:"      << xml_escape(e.to)    << "\""
+           << " type=\""          << xml_escape(e.type)  << "\"";
+        if (!e.verb.empty())
+           os << " verb=\""       << xml_escape(e.verb)  << "\"";
+        if (!e.relation_phase.empty())
+           os << " relation_phase=\"" << xml_escape(e.relation_phase) << "\"";
+        os << " weight=\""        << e.weight             << "\""
            << " delta_theta=\""   << static_cast<int>(e.delta_theta) << "\""
            << " xcfe_required=\"" << (e.xcfe_required ? "true" : "false") << "\""
+           << " directed=\""      << (e.directed ? "true" : "false") << "\""
+           << "/>\n";
+    }
+    // Phase anchor edges: @node:X → @phase:P
+    for (const auto& n : nodes_) {
+        os << "    <edge"
+           << " from=\"@node:" << xml_escape(n.track_id)   << "\""
+           << " to=\"@phase:"  << xml_escape(n.phase_name) << "\""
+           << " type=\"phase_anchor\" arc_weight=\"1.000\" directed=\"true\""
            << "/>\n";
     }
     os << "  </edges>\n";
@@ -257,11 +601,47 @@ static constexpr const char* BLOCK_COLORS[7] = {
     "#fbbf24",  // evolve    → --asx-hazard
 };
 
-// Edge type colors
-static const char* edge_color(const std::string& type) {
-    if (type == "delegate")       return "#22f2b3";
+// Relational verb colors (ASX palette)
+static const char* verb_color(const std::string& verb) {
+    const auto rel = micronaut::canonical_relation(verb);
+    if (rel == "@delegates_to" || rel == "@return_to" || rel == "@resumes")
+        return "#38bdf8"; // runtime
+    if (rel == "@is_a" || rel == "@part_of" || rel == "@has_a")
+        return "#22c55e"; // structural semantic
+    if (rel == "@related_to")
+        return "#22f2b3"; // weak semantic association
+    if (rel == "@causes" || rel == "@enables" || rel == "@prevents")
+        return "#fb7185"; // causal
+    if (rel == "@supports" || rel == "@contradicts" || rel == "@evidence_for")
+        return "#facc15"; // epistemic evidence
+    if (rel == "@requires" || rel == "@produces" || rel == "@depends_on")
+        return "#a855f7"; // dependency/process
+    if (rel == "@governs" || rel == "@redirect")
+        return "#eab308"; // control scope / redirect
+    if (rel == "@context" || rel == "@previous" || rel == "@next")
+        return "#14b8a6"; // contextual chain
+    return nullptr;
+}
+
+// Edge type colors (fallback when no verb is set)
+static const char* edge_color(const std::string& type, const std::string& verb) {
+    if (const char* vc = verb_color(verb)) return vc;
+    if (type == "ontology")        return "#fbbf24";
+    if (type == "delegate")        return "#22f2b3";
     if (type == "horizontal_fold") return "#38bdf8";
     return "#6b7280";  // vertical_fold — faint
+}
+
+static const char* ontology_fill(const std::string& id) {
+    if (id == "Organization")  return "#0891b2";
+    if (id == "Perspective")   return "#0e7490";
+    if (id == "Function")      return "#a21caf";
+    if (id == "Information")   return "#dc2626";
+    if (id == "Component")     return "#0284c7";
+    if (id == "Environment")   return "#0369a1";
+    if (id == "Communication") return "#ca8a04";
+    if (id == "Connector")     return "#2563eb";
+    return "#334155";
 }
 
 FieldDag::SVGPos FieldDag::phase_svg_pos(kuhul::Phase p) {
@@ -296,9 +676,13 @@ std::string FieldDag::svg_edge_path(const SVGPos& a, const SVGPos& b) {
 // Draw 7 isometric tensor bars above a node, colored by block type.
 // Each bar = front face (rect) + top face (parallelogram).
 // Bar height ∝ block_intensities[i]; zero-intensity bars are faint placeholders.
-std::string FieldDag::svg_tensor_block(const FieldNode& n, const SVGPos& p) const {
+std::string FieldDag::svg_tensor_block(
+    const FieldNode& n,
+    const SVGPos& p,
+    const FieldSvgProjectionNode* projected) const {
     std::ostringstream os;
     constexpr float BAR_W  = 7.0f;    // bar width
+    constexpr float BAR_MIN = 3.0f;   // minimum visible bar height
     constexpr float BAR_MAX = 28.0f;  // max bar height
     constexpr float DEPTH  = 4.0f;    // isometric top-face depth
     constexpr float GAP    = 1.5f;
@@ -306,11 +690,19 @@ std::string FieldDag::svg_tensor_block(const FieldNode& n, const SVGPos& p) cons
     const float start_x = p.x - total_w * 0.5f;
 
     for (uint8_t bi = 0; bi < 7; ++bi) {
-        float h = std::max(3.0f, n.block_intensities[bi] * BAR_MAX);
+        float h = BAR_MIN;
+        float intensity = n.block_intensities[bi];
+        if (projected && projected->bar_heights_valid) {
+            h = std::max(BAR_MIN, projected->bar_heights[bi]);
+            const float denom = std::max(0.001f, BAR_MAX - BAR_MIN);
+            intensity = std::clamp((h - BAR_MIN) / denom, 0.0f, 1.0f);
+        } else {
+            h = std::max(BAR_MIN, n.block_intensities[bi] * BAR_MAX);
+        }
         float bx = start_x + bi * (BAR_W + GAP);
         float by = p.y - 22.0f - h;   // base of bar (above node circle)
         const char* col = BLOCK_COLORS[bi];
-        float alpha = n.block_intensities[bi] < 0.05f ? 0.18f : 0.90f;
+        float alpha = intensity < 0.05f ? 0.18f : 0.90f;
 
         // Front face
         char buf[512];
@@ -321,7 +713,7 @@ std::string FieldDag::svg_tensor_block(const FieldNode& n, const SVGPos& p) cons
         os << buf;
 
         // Top face (isometric lid)
-        if (n.block_intensities[bi] >= 0.05f) {
+        if (intensity >= 0.05f) {
             // parallelogram: top-left, top-right, shifted-right, shifted-left
             std::snprintf(buf, sizeof(buf),
                 "<polygon points=\"%.1f,%.1f %.1f,%.1f %.1f,%.1f %.1f,%.1f\""
@@ -413,17 +805,31 @@ std::string FieldDag::svg_tensor_arc(const FieldNode& n) const {
     return os.str();
 }
 
-std::string FieldDag::to_svg() const {
+std::string FieldDag::to_svg(const FieldSvgProjection* projection) const {
     // Build position map
     std::unordered_map<std::string, SVGPos> pos_map;
-    for (const auto& n : nodes_)
-        pos_map[n.track_id] = to_svg_pos(n);
+    std::unordered_map<std::string, const FieldSvgProjectionNode*> projected_nodes;
+    const bool has_projection =
+        projection && projection->nodes.size() == nodes_.size();
+
+    for (size_t i = 0; i < nodes_.size(); ++i) {
+        const auto& n = nodes_[i];
+        if (has_projection) {
+            const auto& pn = projection->nodes[i];
+            pos_map[n.track_id] = {pn.x, pn.y};
+            projected_nodes[n.track_id] = &pn;
+        } else {
+            pos_map[n.track_id] = to_svg_pos(n);
+        }
+    }
 
     std::ostringstream os;
     os << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     os << "<svg xmlns=\"http://www.w3.org/2000/svg\""
        << " width=\"1024\" height=\"768\" viewBox=\"0 0 1024 768\">\n";
     os << "<title>KHANARY K-CUBE Semantic Field</title>\n";
+    if (has_projection && projection->gpu_projected)
+        os << "<desc>Field SVG projected via svg_compute.hlsl runtime path.</desc>\n";
 
     // ── Styles ────────────────────────────────────────────────────────────────
     os << R"(<style>
@@ -463,27 +869,40 @@ std::string FieldDag::to_svg() const {
     }
 
     // ── Layer 1: edges ────────────────────────────────────────────────────────
-    os << "<g id=\"edges\" opacity=\"0.65\">\n";
-    // Draw vertical_fold first (faintest), then horizontal, then delegate on top
-    for (int pass = 0; pass < 3; ++pass) {
-        const char* type_filter[] = {"vertical_fold", "horizontal_fold", "delegate"};
+    os << "<g id=\"edges\" opacity=\"0.70\">\n";
+    auto edge_pass = [](const FieldEdge& e) -> int {
+        if (e.type == "vertical_fold")   return 0;
+        if (e.type == "horizontal_fold") return 1;
+        if (e.type == "ontology")        return 2;
+        if (e.type == "delegate")        return 3;
+        return 2;
+    };
+    // Draw from faint substrate edges to strong dispatch edges.
+    for (int pass = 0; pass < 4; ++pass) {
         for (const auto& e : edges_) {
-            if (e.type != type_filter[pass]) continue;
+            if (edge_pass(e) != pass) continue;
             auto it_a = pos_map.find(e.from);
             auto it_b = pos_map.find(e.to);
             if (it_a == pos_map.end() || it_b == pos_map.end()) continue;
-            const char* col = edge_color(e.type);
-            float op   = (e.type == "vertical_fold")    ? 0.22f
-                       : (e.type == "horizontal_fold")  ? 0.45f
-                       :                                   0.80f;
-            float sw   = (e.type == "delegate") ? 1.5f : 1.0f;
-            auto path  = svg_edge_path(it_a->second, it_b->second);
+            const char* col = edge_color(e.type, e.verb);
+            float op = 0.5f;
+            float sw = 1.0f;
+            if (e.type == "vertical_fold")      { op = 0.22f; sw = 1.0f; }
+            else if (e.type == "horizontal_fold"){ op = 0.45f; sw = 1.0f; }
+            else if (e.type == "ontology")      { op = 0.58f; sw = 1.2f; }
+            else if (e.type == "delegate")      { op = 0.82f; sw = 1.5f; }
+
+            bool is_relate = (micronaut::relation_matches(e.verb, "@related_to") || !e.directed);
+            auto path = svg_edge_path(it_a->second, it_b->second);
             char buf[512];
+            const char* dash = "5 4";
+            if (is_relate) dash = "6 3 2 3";
+            else if (e.type == "ontology") dash = "4 3";
             std::snprintf(buf, sizeof(buf),
                 "  <path d=\"%s\" stroke=\"%s\" stroke-width=\"%.1f\""
-                " fill=\"none\" stroke-dasharray=\"5 4\""
+                " fill=\"none\" stroke-dasharray=\"%s\""
                 " opacity=\"%.2f\" class=\"ge\"/>\n",
-                path.c_str(), col, sw, op);
+                path.c_str(), col, sw, dash, op);
             os << buf;
         }
     }
@@ -492,10 +911,14 @@ std::string FieldDag::to_svg() const {
     // ── Layer 2: SVG-3D tensor blocks ─────────────────────────────────────────
     os << "<g id=\"tensors\">\n";
     for (const auto& n : nodes_) {
+        if (n.kind != "track") continue;
         auto it = pos_map.find(n.track_id);
         if (it == pos_map.end()) continue;
+        const FieldSvgProjectionNode* pn = nullptr;
+        auto pit = projected_nodes.find(n.track_id);
+        if (pit != projected_nodes.end()) pn = pit->second;
         os << "  <g id=\"t_" << xml_escape(n.track_id) << "\">\n";
-        os << "  " << svg_tensor_block(n, it->second) << "\n";
+        os << "  " << svg_tensor_block(n, it->second, pn) << "\n";
         os << "  </g>\n";
     }
     os << "</g>\n";
@@ -512,6 +935,40 @@ std::string FieldDag::to_svg() const {
         const char* col = BLOCK_COLORS[static_cast<uint8_t>(phase_to_block(ph))];
 
         char buf[1024];
+        if (n.kind == "ontology") {
+            const float w = 152.0f;
+            const float h = 44.0f;
+            const float x = p.x - w * 0.5f;
+            const float y = p.y - h * 0.5f;
+            const char* fill = ontology_fill(n.track_id);
+            std::snprintf(buf, sizeof(buf),
+                "  <rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"5\""
+                " fill=\"%s\" fill-opacity=\"0.70\" stroke=\"#e2e8f0\" stroke-width=\"0.8\"/>\n",
+                x, y, w, h, fill);
+            os << buf;
+            std::snprintf(buf, sizeof(buf),
+                "  <text x=\"%.1f\" y=\"%.1f\" text-anchor=\"middle\""
+                " font-family=\"ui-monospace,monospace\" font-size=\"10\""
+                " fill=\"#f8fafc\" font-weight=\"bold\">%s</text>\n",
+                p.x, p.y - 4.0f, xml_escape(n.track_id).c_str());
+            os << buf;
+            std::string attrs;
+            for (size_t i = 0; i < std::min<size_t>(3, n.effects.size()); ++i) {
+                if (i) attrs += " | ";
+                attrs += n.effects[i];
+            }
+            if (n.effects.size() > 3) attrs += " | ...";
+            if (!attrs.empty()) {
+                std::snprintf(buf, sizeof(buf),
+                    "  <text x=\"%.1f\" y=\"%.1f\" text-anchor=\"middle\""
+                    " font-family=\"ui-monospace,monospace\" font-size=\"7\""
+                    " fill=\"#e2e8f0\" opacity=\"0.9\">%s</text>\n",
+                    p.x, p.y + 10.0f, xml_escape(attrs).c_str());
+                os << buf;
+            }
+            continue;
+        }
+
         // Outer ring
         std::snprintf(buf, sizeof(buf),
             "  <circle cx=\"%.1f\" cy=\"%.1f\" r=\"18\" fill=\"none\""

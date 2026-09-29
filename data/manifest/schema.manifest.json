@@ -1,0 +1,111 @@
+{
+  "schema:xsd": [
+    "data/schema/kuhul.xsd",
+    "namespace:https://kuhul.io/kxml",
+    "root:fold", "root:kuhul_contract", "root:chen_certificate", "root:xul_commit",
+
+    "type:FoldADTType — identity+incidence+pattern_strength+state+computational_boundary",
+    "type:ChenVerificationCertificateType — assertions+miss_deficit+rewrite_authorized:fixed=false",
+    "type:XulCommitEnvelopeType — certificate_hash+authorization+freshness+delta+committed",
+    "type:PhaseWheelType — exactly 6 transitions",
+    "type:KuhulContractType — fold_adt+projections+phase_wheel+chen_certificate+xul_commit",
+
+    "scalar:PhaseNameType — Pop/Wo/Yax/Sek/Ch'en/Xul",
+    "scalar:ChenResolutionClassType — VERIFIED/CONTRADICTED/MISS/AMBIGUOUS/INSUFFICIENT_CONTEXT/INVALID",
+    "scalar:MissKindType — semantic/topology/memory/factual/mathematical/capability/evidence",
+    "scalar:RepresentationKindType — Book/GraphML/B_matrix/Fingerprint/Tensor/SVG_3D/SCXQ2/JSON",
+    "scalar:ProjectionFidelityType — lossless/lossy",
+
+    "law:chen-is-not-authorizer — rewrite_authorized fixed='false'; Ch'en verifies, Xul commits",
+    "law:miss-is-not-wrong — MissKindType encodes epistemic deficit, not error verdict",
+    "law:xul-envelope-requires-freshness — FreshnessCheckType validates topology_hash + version before commit",
+
+    "legacy:LegacyFoldDeclarationType — KXML fold topology (orchestrator/compute/storage/network/reasoning/…)",
+    "legacy:root:fold — backward compat for KXML documents",
+
+    "purpose:xml-schema-for-fold-contract-documents",
+    "consumer:field.xml", "consumer:fold_graph.xml", "consumer:chen_certificate serialization",
+    "related:data/grammar/fold_graph.xml"
+  ],
+
+  "schema:fold_runtime": [
+    "data/schema/fold.runtime.json",
+    "id:fold.runtime.v1", "kind:fold_runtime_config",
+
+    "section:fold_adt — default ADT state: phase=Pop, confidence=1.0, static_weight=1.0, health=1.0, active=true",
+    "section:phase_algebra — P^6=I; C6 transition matrix; for all phi!=Xul: T_phi(B)=B",
+    "section:operator_contracts — Pop=observe, Wo=state_and_constraints, Yax=admit_neighborhood, Sek=compute_over_admitted_structure, Ch'en=assert_and_verify_candidate, Xul=compare_and_commit",
+    "section:phase_driver_lock — audit/enforce modes; per-phase DLL (Pop.dll…Xul.dll); entry_symbol:khanary_phase_driver_entry_v1",
+    "section:phase_driver_contract_profiles — default + unigram profiles; data/drivers/phases/",
+
+    "section:projection_contract — lossless:{GraphML,B_matrix,SCXQ2}; lossy:{SDR,SVG_3D,JSON_Book_view}; rule:projection_is_not_object",
+    "section:chen_verification_contract — rewrite_authorized_by_chen:false; MISS=Acquire/Unfold; required_assertion_classes:{STRUCTURAL,SEMANTIC,STATE,AUTHORITY}",
+    "section:miss_deficit_contract — MISS(Q)=RequiredContext(Q)-ResolvedContext(F_Q); rho_research=D*R*U; miss_kind_enum includes relation",
+    "section:runtime_attention_contract — A(v)=R*U*D*P; admission_threshold:0.35; tie_break:score_desc,D_desc,R_desc,node_id_asc",
+    "section:semantic_attention_shader_contract — S=W*C*R; backend:data/shaders/attention.hlsl; legal_gate:capable&&policy_ok&&xcfe_ok; not:transformer-QKV",
+    "section:xul_commit_contract — requires:Verified+Authorized+Fresh+certificate_hash_match+topology_hash_match; on_fail:reject_delta_keep_topology",
+
+    "section:semantic_hypernym_fold — SHF(h,tau)=<h,B_tau[h,*],N_tau(h),W_tau,State(h)>; axiom:Fold-is-structure-Phase-is-operation",
+    "section:yax_wsd_contract — WSD via admission gate; resolution_states:VERIFIED/AMBIGUOUS/MISS/INSUFFICIENT_CONTEXT/CONTRADICTED/INVALID; rho_research=M*I*U",
+    "section:relation_isa_contract — 7 families; 37 canonical relations; fallback_rule:@related_to-does-not-upgrade-typed-miss",
+    "section:multi_track_fold_unfold — Omega=(phi,T,s); 3-axes:phase-wheel x fold-unfold x track; max_alternation_depth:6; movement:horizontal/vertical/diagonal",
+    "section:isa_extension_contract — base_compiler:L_A, base_isa:GraphPlan; AIML may only emit declared ops",
+    "section:semantic_code_parser_graph — grammar-driven fold-native code graph; pipeline:Surface->Grammar->AST->Atoms+RelISA->FoldGraph->KUHUL->Exec",
+
+    "sha256:9cc20348ca711681ff283c236fc1ce9c9f5b63f36f5044c63d82261169a611f7",
+    "binding:validated-at-load-by-chen-xul-pipeline",
+    "schema_stack_links:cycle-hash.spec.json+kuhul.fold-runtime.json+kuhul.xsd+resolver.primitives.json+math-isa.json",
+
+    "law:fold-not-xul — fold/unfold are s-coordinate moves; only Xul mutates B",
+    "law:projection-is-not-object — lossless/lossy projections are views, not authoritative copies",
+    "law:chen-verifies-not-authorizes — rewrite_authorized_by_chen=false",
+    "law:miss-is-not-wrong — MISS = epistemic deficit; resolution_transition:MISS→Acquire/Unfold",
+    "law:admission-threshold-0.35 — A(v)>=0.35 required for Yax admission",
+
+    "purpose:runtime-configuration-and-contract-specification-for-fold-pipeline",
+    "consumer:src/inference/inference_engine.cpp", "consumer:src/kuhul/phase_engine.cpp",
+    "consumer:src/io/runtime_attention.h", "consumer:src/kuhul/fold_engine.cpp",
+    "related:data/schema/kuhul.xsd", "related:data/grammar/fold_graph.xml"
+  ],
+
+  "schema:episode": [
+    "data/schema/episode.contract.json",
+    "id:episode.v1", "kind:episode_journal_contract",
+
+    "formal:E_t=<O_t,F_Q,Candidates,WCR,Geometry,Admission,Executors,Verdict,Evidence>",
+
+    "selection:M_cooccurrence — co-occurrence mass M_{Y,X}; NOT W_Y (runtime selection weight)",
+    "selection:W — static_weight ∈ [0,1]; multiplicative prior",
+    "selection:C — epistemic confidence ∈ [0,1]; C←f(Evidence) not f(Usage)",
+    "selection:R — relevance ∈ [0,1]; provider-dependent",
+    "selection:G — geometry bias; lerp(1,relation_weight*fold_weight*phase_weight,relation_mix)",
+    "selection:score — S=W*C*R*G",
+    "selection:legal — capable AND policy_ok AND xcfe_ok",
+    "selection:admitted — legal AND score>=0.35",
+
+    "law:generated-episode-not-training-episode",
+    "law:multiplicative-score-no-false-relevance — R=0 ⟹ S=0",
+    "law:legality-gate-is-not-score — W=C=R=1 ⟹̸ Admit",
+    "law:confidence-from-evidence — C←f(Evidence) not f(Usage)",
+    "law:cooccurrence-mass-not-selection-weight — M_{Y,X}≠W_Y",
+    "law:journal-is-direction-library — GOOD episodes contribute ΔF_i; monotonic; re-project not re-collect",
+    "law:fold-delta-not-vec-delta — ΔF≠vec(ΔF); structured delta authoritative; exactly as Fold≠Vector",
+    "law:apply-field-not-commit-topology — F_Q+α*ΔF reversible; B+ΔF→B' requires Ch'en/XCFE/Xul",
+
+    "fold_delta:composition — ΔF=⟨ΔM,ΔRelations,ΔW,ΔC⟩; four projections of one displacement",
+    "fold_direction:formal — FoldDirection_i=⟨ΔF_i,K_i,W_i,C_i,Evidence_i,Provenance_i⟩",
+    "fold_direction:principal_direction — PCA(vec)/Consensus(graph)/BitConsensus(SDR); provider-agnostic",
+    "fold_direction:retrieval — S_i=W_i*C_i*R_i; R_i=Similarity(Q,K_i)",
+    "direction_library:layers — Journal=evidence; ΔF=transition; DirectionLibrary=knowledge; Projection=retrieval",
+
+    "verdict:GOOD/BAD/UNKNOWN",
+    "dataset_projections:cooccurrence/relation/retrieval/WCR/Advisor/LFM/Micronaut/response",
+    "reconstruction_law:representations-rebuildable-from-journal-without-recollecting",
+
+    "purpose:episode-journal-contract-training-data-and-direction-library-specification",
+    "related:data/grammar/fold_graph.xml",
+    "related:data/grammar/vectors.mml",
+    "related:data/schema/fold.runtime.json",
+    "related:src/memory/confidence.cpp"
+  ]
+}

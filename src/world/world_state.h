@@ -18,8 +18,11 @@ struct TrackWorldNode {
     kuhul::Phase   primary_phase;
     AtomicDOMBlock active_block;     // current/declared primary block
     float          confidence;       // L_t score from registry entry
+    float          static_weight;    // deterministic routing prior
+    float          health;           // liveness/availability
     uint32_t       gram_count;       // grams in namespace (0 until GramStore integration)
     bool           sandbox_violation;// true if any violation recorded for this track
+    std::string    vector_source;    // phase_default | track.vector | ...
 
     // Per-block glow intensity [0..1].
     // Populated at rebuild() time: 1.0 for the primary block, 0.0 for others.

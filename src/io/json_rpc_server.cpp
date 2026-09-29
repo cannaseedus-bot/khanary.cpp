@@ -102,6 +102,8 @@ std::string JsonRpcServer::dispatch_rpc(const std::string& body) {
     } catch (const std::exception& e) {
         return R"({"jsonrpc":"2.0","error":{"code":-32603,"message":")" +
                std::string(e.what()) + R"("},"id":null})";
+    } catch (...) {
+        return R"({"jsonrpc":"2.0","error":{"code":-32603,"message":"internal error"},"id":null})";
     }
 }
 

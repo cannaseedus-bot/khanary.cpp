@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K'UHUL SVG-3D UI Kit - Quantum Design System</title>
+    <style>
+        /* K'UHUL Atomic CSS - 94.7% Compression */
+        :root {
+            --quantum-primary: #16f2aa;
+            --quantum-secondary: #00e0ff;
+            --quantum-accent: #9966ff;
+            --quantum-warning: #ffaa00;
+            --quantum-danger: #ff0066;
+            --quantum-success: #00cc88;
+            --quantum-bg: #0a0a1a;
+            --quantum-surface: #111128;
+            --quantum-text: #e9f5ff;
+            --quantum-muted: #7b8a9a;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: var(--quantum-bg); 
+            color: var(--quantum-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 30px;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar Navigation */
+        .sidebar {
+            background: var(--quantum-surface);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(22, 242, 170, 0.1);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+        
+        .nav-title {
+            color: var(--quantum-primary);
+            font-size: 1.3rem;
+            margin-bottom: 25px;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(22, 242, 170, 0.3);
+            padding-bottom: 10px;
+        }
+        
+        .nav-item {
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            color: var(--quantum-text);
+        }
+        
+        .nav-item:hover {
+            background: rgba(22, 242, 170, 0.1);
+            border-color: var(--quantum-primary);
+            transform: translateX(5px);
+        }
+        
+        .nav-item.active {
+            background: rgba(22, 242, 170, 0.15);
+            border-color: var(--quantum-primary);
+            color: var(--quantum-primary);
+        }
+        
+        /* Main Content */
+        .main-content {
+            background: var(--quantum-surface);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(22, 242, 170, 0.1);
+        }
+        
+        .section-title {
+            color: var(--quantum-primary);
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .section-subtitle {
+            color: var(--quantum-muted);
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        /* K'UHUL UI Components Grid */
+        .components-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .component-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(22, 242, 170, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .component-card:hover {
+            border-color: var(--quantum-primary);
+            box-shadow: 0 10px 30px rgba(22, 242, 170, 0.15);
+            transform: translateY(-5px);
+        }
+        
+        .component-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(22, 242, 170, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+        
+        .component-card:hover::before {
+            left: 100%;
+        }
+        
+        .component-title {
+            color: var(--quantum-secondary);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .component-desc {
+            color: var(--quantum-muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        /* Code Preview */
+        .code-preview {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border: 1px solid rgba(22, 242, 170, 0.1);
+        }
+        
+        .code-kuhul {
+            color: var(--quantum-primary);
+        }
+        
+        .code-json {
+            color: var(--quantum-secondary);
+        }
+        
+        .code-svg {
+            color: var(--quantum-accent);
+        }
+        
+        /* Chat Inference Components */
+        .chat-container {
+            background: rgba(7, 11, 24, 0.9);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            border: 1px solid rgba(153, 102, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            margin: 10px 0;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .message-user {
+            background: linear-gradient(135deg, rgba(22, 242, 170, 0.2), rgba(0, 224, 255, 0.2));
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message-ai {
+            background: linear-gradient(135deg, rgba(153, 102, 255, 0.2), rgba(0, 204, 136, 0.2));
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message-system {
+            background: rgba(255, 170, 0, 0.1);
+            max-width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--quantum-warning);
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 15px 20px;
+            background: rgba(153, 102, 255, 0.1);
+            border-radius: 20px;
+            width: fit-content;
+            margin: 10px 0;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--quantum-accent);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        /* Model Selector */
+        .model-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .model-chip {
+            padding: 10px 18px;
+            background: rgba(22, 242, 170, 0.1);
+            border: 1px solid var(--quantum-primary);
+            border-radius: 25px;
+            color: var(--quantum-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .model-chip:hover {
+            background: rgba(22, 242, 170, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .model-chip.active {
+            background: var(--quantum-primary);
+            color: var(--quantum-bg);
+            font-weight: 600;
+        }
+        
+        /* Quantum Visualization */
+        .quantum-viz {
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(22, 242, 170, 0.2);
+        }
+        
+        .viz-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--quantum-primary);
+            border-radius: 50%;
+            filter: blur(1px);
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-8px); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: static;
+                margin-bottom: 20px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .components-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="nav-title">K'UHUL UI KIT</div>
+            
+            <div class="nav-item active" onclick="showSection('chat')">💬 Chat Interface</div>
+            <div class="nav-item" onclick="showSection('kuhul')">⚡ K'UHUL Components</div>
+            <div class="nav-item" onclick="showSection('svg')">🎨 SVG-3D Elements</div>
+            <div class="nav-item" onclick="showSection('json')">📊 JSON AST System</div>
+            <div class="nav-item" onclick="showSection('quantum')">🌀 Quantum Visualizations</div>
+            <div class="nav-item" onclick="showSection('theming')">🎨 Theming System</div>
+            <div class="nav-item" onclick="showSection('performance')">⚡ Performance Metrics</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chat Interface Section -->
+            <div id="chat-section">
+                <div class="section-title">Chat Inference Design System</div>
+                <div class="section-subtitle">Quantum-optimized chat interfaces with SVG-3D visualization</div>
+                
+                <!-- Live Chat Demo -->
+                <div class="chat-container">
+                    <div class="message-system">🔗 Connected to MX2LM Quantum API</div>
+                    
+                    <div class="message-user">
+                        <strong>User:</strong> Can you explain quantum compression?
+                    </div>
+                    
+                    <div class="message-ai">
+                        <strong>Janus Quantum:</strong> Quantum compression uses superposition states to encode information. K'UHUL's SCX algorithm achieves 94.1% efficiency by mapping data to SVG path manifolds.
+                    </div>
+                    
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div style="margin-left: 10px; color: var(--quantum-accent);">Qwen-ASX is thinking...</div>
+                    </div>
+                    
+                    <!-- Model Selector -->
+                    <div class="model-selector">
+                        <div class="model-chip active">Janus Quantum</div>
+                        <div class="model-chip">Qwen-ASX</div>
+                        <div class="model-chip">Cline Java</div>
+                        <div class="model-chip">Ollama</div>
+                    </div>
+                </div>
+                
+                <!-- Chat Components -->
+                <div class="components-grid">
+                    <div class="component-card">
+                        <div class="component-title">Quantum Message Bubble</div>
+                        <div class="component-desc">SVG-based chat bubbles with quantum gradient effects</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">&lt;message-bubble type="ai" model="janus"&gt;</span><br>
+                            <span class="code-svg">  &lt;path d="M0,0 Q50,20 100,0 L100,40 Q50,60 0,40 Z"<br>        fill="url(#quantum-gradient)"/&gt;</span><br>
+                            <span class="code-json">  &lt;metadata model="janus" timestamp={Date.now()}/&gt;</span><br>
+                            <span class="code-kuhul">&lt;/message-bubble&gt;</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <div class="component-title">Neural Typing Indicator</div>
+                        <div class="component-desc">Animated dots with neural network simulation</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">&lt;typing-indicator model="qwen"&gt;</span><br>
+                            <span class="code-svg">  &lt;circle cx="10" cy="10" r="3" class="neural-pulse"/&gt;</span><br>
+                            <span class="code-json">  {<br>    "type": "typing",<br>    "model": "qwen-asx",<br>    "phase": "thinking"<br>  }</span><br>
+                            <span class="code-kuhul">&lt;/typing-indicator&gt;</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <div class="component-title">Model Selector Chip</div>
+                        <div class="component-desc">Quantum-state aware model selection</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">&lt;model-chip name="janus" active&gt;</span><br>
+                            <span class="code-svg">  &lt;rect class="quantum-glow" rx="20"/&gt;</span><br>
+                            <span class="code-json">  {<br>    "component": "model-chip",<br>    "props": {<br>      "name": "janus",<br>      "active": true,<br>      "quantum_enhanced": true<br>    }<br>  }</span><br>
+                            <span class="code-kuhul">&lt;/model-chip&gt;</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- K'UHUL Components Section -->
+            <div id="kuhul-section" style="display: none;">
+                <div class="section-title">K'UHUL Language Components</div>
+                <div class="section-subtitle">Spatial programming elements for chat inference</div>
+                
+                <div class="components-grid">
+                    <div class="component-card">
+                        <div class="component-title">Quantum Compression Operator</div>
+                        <div class="component-desc">Apply SCX compression to chat data</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">(↻) chat.history 45deg</span><br>
+                            <span class="code-json">// Compresses chat history by rotating<br>// through semantic space</span><br><br>
+                            <span class="code-kuhul">(⤒) messages [100, 50, 25]</span><br>
+                            <span class="code-json">// Hierarchical compression with<br>// three detail levels</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <div class="component-title">Neural Path Generator</div>
+                        <div class="component-desc">Generate conversation flow paths</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">conversation.flow (⟿) generate-path</span><br>
+                            <span class="code-svg">// Outputs SVG path:<br>M0,0 C100,50 200,150 300,0</span><br><br>
+                            <span class="code-kuhul">(⤧) conversation.flow {</span><br>
+                            <span class="code-kuhul">  node.process (⤂) apply-weights</span><br>
+                            <span class="code-kuhul">}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <div class="component-title">3D Spherical Loop</div>
+                        <div class="component-desc">Process chat in spherical space</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">(⟲) chat.space 360deg {</span><br>
+                            <span class="code-kuhul">  (⤦) message.relevant?</span><br>
+                            <span class="code-kuhul">  (⤧) extract-insight</span><br>
+                            <span class="code-kuhul">  (⤨) gradient-blend 0.8</span><br>
+                            <span class="code-kuhul">}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JSON AST System Section -->
+            <div id="json-section" style="display: none;">
+                <div class="section-title">JSON AST Design System</div>
+                <div class="section-subtitle">Abstract Syntax Tree for UI component composition</div>
+                
+                <div class="components-grid">
+                    <div class="component-card">
+                        <div class="component-title">Component AST Node</div>
+                        <div class="component-desc">JSON representation of UI components</div>
+                        <div class="code-preview">
+                            <span class="code-json">{<br>  "type": "MessageBubble",<br>  "props": {<br>    "role": "ai",<br>    "model": "janus",<br>    "content": "Quantum response",<br>    "timestamp": 1705672800<br>  },<br>  "children": [<br>    {<br>      "type": "SVGPath",<br>      "props": {<br>        "d": "M0,0 Q50,20 100,0...",<br>        "quantum": true<br>      }<br>    }<br>  ]<br>}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <div class="component-title">K'UHUL AST Transformer</div>
+                        <div class="component-desc">Convert K'UHUL to JSON AST</div>
+                        <div class="code-preview">
+                            <span class="code-kuhul">(⤍) user.message (⤏) "M0,0 C100,50..."</span><br><br>
+                            <span class="code-json">{<br>  "operation": "encrypt",<br>  "operands": [<br>    "user.message",<br>    "M0,0 C100,50..."<br>  ],<br>  "operator": "⤍",<br>  "keyOperator": "⤏"<br>}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <div class="component-title">Theming AST</div>
+                        <div class="component-desc">Theme definitions as AST</div>
+                        <div class="code-preview">
+                            <span class="code-json">{<br>  "theme": "quantum",<br>  "tokens": {<br>    "primary": "#16f2aa",<br>    "secondary": "#00e0ff",<br>    "surface": "#111128"<br>  },<br>  "components": {<br>    "MessageBubble": {<br>      "gradient": "quantum-glow",<br>      "animation": "pulse"<br>    }<br>  }<br>}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quantum Visualization -->
+    <div class="quantum-viz" id="quantum-viz"></div>
+
+    <script>
+        // K'UHUL UI Kit Runtime
+        class KuhulUIKit {
+            constructor() {
+                this.activeSection = 'chat';
+                this.initQuantumVisualization();
+                this.initChatDemo();
+            }
+            
+            initQuantumVisualization() {
+                const container = document.getElementById('quantum-viz');
+                const particleCount = 50;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'viz-particle';
+                    
+                    // Random position
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.top = Math.random() * 100 + '%';
+                    
+                    // Random color
+                    const colors = ['#16f2aa', '#00e0ff', '#9966ff', '#ffaa00'];
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    
+                    // Random size
+                    const size = Math.random() * 4 + 2;
+                    particle.style.width = size + 'px';
+                    particle.style.height = size + 'px';
+                    
+                    // Animation
+                    particle.animate([
+                        { transform: 'translate(0, 0)', opacity: 0.3 },
+                        { 
+                            transform: `translate(${Math.random() * 40 - 20}px, ${Math.random() * 40 - 20}px)`,
+                            opacity: 1 
+                        },
+                        { transform: 'translate(0, 0)', opacity: 0.3 }
+                    ], {
+                        duration: Math.random() * 3000 + 2000,
+                        iterations: Infinity,
+                        easing: 'ease-in-out'
+                    });
+                    
+                    container.appendChild(particle);
+                }
+            }
+            
+            initChatDemo() {
+                // Simulate typing and responses
+                setTimeout(() => {
+                    this.addMessage('ai', 'The K\'UHUL system uses SVG paths to encode neural network weights as Bezier curves, achieving 94.1% compression through spatial optimization.');
+                }, 2000);
+                
+                setTimeout(() => {
+                    this.addMessage('ai', 'JSON AST allows component composition through semantic relationships, enabling quantum-aware UI rendering.');
+                }, 4000);
+            }
+            
+            addMessage(type, content) {
+                const container = document.querySelector('.chat-container');
+                const typingIndicator = container.querySelector('.typing-indicator');
+                
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+                
+                const message = document.createElement('div');
+                message.className = `message-bubble message-${type}`;
+                message.innerHTML = `<strong>${type === 'ai' ? 'Janus Quantum:' : 'User:'}</strong> ${content}`;
+                
+                container.appendChild(message);
+                container.scrollTop = container.scrollHeight;
+                
+                // Add new typing indicator
+                setTimeout(() => {
+                    const newTyping = document.createElement('div');
+                    newTyping.className = 'typing-indicator';
+                    newTyping.innerHTML = `
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div style="margin-left: 10px; color: var(--quantum-accent);">Qwen-ASX is analyzing...</div>
+                    `;
+                    container.appendChild(newTyping);
+                }, 1000);
+            }
+            
+            showSection(section) {
+                // Hide all sections
+                document.querySelectorAll('[id$="-section"]').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // Remove active class from all nav items
+                document.querySelectorAll('.nav-item').forEach(el => {
+                    el.classList.remove('active');
+                });
+                
+                // Show selected section
+                document.getElementById(`${section}-section`).style.display = 'block';
+                
+                // Add active class to clicked nav item
+                event.target.classList.add('active');
+                
+                this.activeSection = section;
+            }
+            
+            // K'UHUL Language Execution
+            executeKuhul(code) {
+                const tokens = code.match(/\([^)]+\)/g) || [];
+                const results = [];
+                
+                tokens.forEach(token => {
+                    switch(token) {
+                        case '(↻)':
+                            results.push({ operation: 'compress', type: 'rotational' });
+                            break;
+                        case '(⟿)':
+                            results.push({ operation: 'generate', type: 'neural-path' });
+                            break;
+                        case '(⟲)':
+                            results.push({ operation: 'loop', type: 'spherical' });
+                            break;
+                        case '(⤍)':
+                            results.push({ operation: 'encrypt', type: 'vector' });
+                            break;
+                    }
+                });
+                
+                return results;
+            }
+            
+            // JSON AST Operations
+            createComponentAST(type, props, children = []) {
+                return {
+                    type: type,
+                    props: props,
+                    children: children,
+                    metadata: {
+                        created: Date.now(),
+                        engine: 'kuhul-ui-kit',
+                        version: '1.0.0'
+                    }
+                };
+            }
+            
+            // SVG Path Generation
+            generateSVGPath(points) {
+                let path = `M${points[0].x},${points[0].y}`;
+                
+                for (let i = 1; i < points.length; i++) {
+                    if (i % 3 === 0) {
+                        path += ` Q${points[i-2].x},${points[i-2].y} ${points[i].x},${points[i].y}`;
+                    } else {
+                        path += ` L${points[i].x},${points[i].y}`;
+                    }
+                }
+                
+                return path;
+            }
+        }
+        
+        // Initialize UI Kit
+        const kuhulUI = new KuhulUIKit();
+        
+        // Global functions for nav
+        function showSection(section) {
+            kuhulUI.showSection(section);
+        }
+        
+        // Model chip interactions
+        document.querySelectorAll('.model-chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                document.querySelectorAll('.model-chip').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update chat header
+                const modelName = this.textContent;
+                document.querySelector('.message-system').textContent = 
+                    `🔗 Connected to ${modelName} Quantum Inference`;
+            });
+        });
+        
+        // Example K'UHUL Execution
+        const kuhulCode = `
+            // Chat compression example
+            (↻) conversation.history 45deg
+            (⟿) generate-response-path
+            (⤍) sensitive.data (⤏) "M0,0 C100,50 200,150 300,0"
+        `;
+        
+        console.log('K\'UHUL Execution:', kuhulUI.executeKuhul(kuhulCode));
+        
+        // Example JSON AST
+        const messageAST = kuhulUI.createComponentAST('MessageBubble', {
+            role: 'ai',
+            model: 'janus',
+            content: 'Quantum response',
+            quantum: true
+        }, [
+            kuhulUI.createComponentAST('SVGPath', {
+                d: 'M0,0 Q50,20 100,0 L100,40 Q50,60 0,40 Z',
+                fill: 'url(#quantum-gradient)'
+            })
+        ]);
+        
+        console.log('JSON AST Example:', messageAST);
+    </script>
+</body>
+</html>

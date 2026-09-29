@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <mutex>
 
 namespace khanary::micronaut {
 
@@ -13,7 +14,15 @@ class GravityField {
 public:
     // Register that a micronaut owns a set of topic nodes
     void register_nodes(const std::string& micronaut_id,
-                        const std::unordered_set<std::string>& nodes);
+                        const std::unordered_set<std::string>& nodes,
+                        kuhul::Phase phase = kuhul::Phase::Pop,
+                        float vector_x = 0.0f,
+                        float vector_y = 0.0f,
+                        float vector_z = 0.0f,
+                        bool vector_declared = false);
+
+    // Remove a micronaut's gravity registration.
+    bool unregister(const std::string& micronaut_id);
 
     // Score all registered micronauts for a query token set + phase
     // Returns map: micronaut_id → gravity score
@@ -38,7 +47,12 @@ private:
         std::string                   id;
         std::unordered_set<std::string> nodes;
         kuhul::Phase                  phase = kuhul::Phase::Pop;
+        float                         vector_x = 0.0f;
+        float                         vector_y = 0.0f;
+        float                         vector_z = 0.0f;
+        bool                          vector_declared = false;
     };
+    mutable std::mutex mtx_;
     std::unordered_map<std::string, MicronautNodes> registry_;
 
     // BFS distance from token to nearest registered node

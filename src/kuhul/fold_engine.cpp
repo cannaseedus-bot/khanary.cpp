@@ -1,4 +1,5 @@
 #include "fold_engine.h"
+#include <algorithm>
 
 namespace khanary::kuhul {
 
@@ -10,6 +11,15 @@ void FoldEngine::set_xcfe_auth(XCFEAuthFn fn) {
 
 double FoldEngine::effective_weight(Phase from, Phase to) const {
     return arc_weight(from, to);
+}
+
+double FoldEngine::wcr_weighted_score(double static_weight,
+                                      double confidence,
+                                      double relevance) const {
+    const double W = std::clamp(static_weight, 0.0, 1.0);
+    const double C = std::clamp(confidence, 0.0, 1.0);
+    const double R = std::clamp(relevance, 0.0, 1.0);
+    return std::clamp(W * C * R, 0.0, 1.0);
 }
 
 FoldResult FoldEngine::horizontal_fold(

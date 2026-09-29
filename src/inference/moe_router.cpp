@@ -3,6 +3,7 @@
 #include <numeric>
 #include <cmath>
 #include <stdexcept>
+#include <limits>
 
 namespace khanary::inference {
 
@@ -72,7 +73,29 @@ std::vector<ExpertAlloc> MoERouter::route(const std::vector<float>& hidden, uint
     std::vector<ExpertAlloc> out;
     for (uint32_t i : indices)
         out.push_back({i, sum > 0 ? probs[i] / sum : 1.0f / k});
+
+    // Record top-expert weight for routing_variance()
+    if (!out.empty()) {
+        recent_top_weights_.push_back(out.front().weight);
+        if (recent_top_weights_.size() > 64) recent_top_weights_.pop_front();
+    }
     return out;
+}
+
+float MoERouter::routing_variance(uint32_t n_recent) const {
+    uint32_t n = static_cast<uint32_t>(
+        std::min<size_t>(n_recent, recent_top_weights_.size()));
+    if (n < 2) return 0.0f;
+    float sum = 0.0f;
+    auto begin = recent_top_weights_.end() - n;
+    for (auto it = begin; it != recent_top_weights_.end(); ++it) sum += *it;
+    float mean = sum / static_cast<float>(n);
+    float var = 0.0f;
+    for (auto it = begin; it != recent_top_weights_.end(); ++it) {
+        float d = *it - mean;
+        var += d * d;
+    }
+    return var / static_cast<float>(n - 1);
 }
 
 void MoERouter::record_dispatch(uint32_t expert_id) {

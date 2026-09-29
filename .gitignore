@@ -14,6 +14,7 @@ ipch/
 # Compiled binaries
 *.exe
 *.dll
+!drivers/**/*.dll
 *.lib
 *.obj
 *.pdb
@@ -23,3 +24,40 @@ ipch/
 # OS
 Thumbs.db
 .DS_Store
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime / session state
+.asx/
+.asx_memory*.jsonl
+.asx_memory*.json
+.build-copilot/
+.codex/
+.ui-shell/
+
+# Model weights
+models/
+data/models/
+data/mx2lm/
+*.gguf
+*.gguf.part
+
+# Build artifacts
+artifacts/
+
+# Large training datasets (download separately)
+data/*.jsonl
+data/gram/
+data/journal/
+data/templates/
+
+# Factory key cache
+data/factory_keys.bin
+data/factory_keys.cachemeta.json
+data/factory_keys.json
+
+# Log files
+*.log

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASX PRIME OS — Crown Intelligence · K'uhul Runtime</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    /* ASX Atomic CSS + Crown dynamic theming */
+    :root {
+      --asx-bg: #020617;
+      --asx-bg-alt: #050b1c;
+      --asx-primary: #16f2aa;
+      --asx-secondary: #00f5ff;
+      --asx-accent: #ff6b6b;
+      --asx-text: #e8f5ff;
+      --asx-text-soft: #7a8699;
+      --crown-glow: 0 0 0px rgba(22,242,170,0.5);
+      transition: --asx-primary 0.2s, background 0.3s;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--asx-bg);
+      color: var(--asx-text);
+      font-family: 'Inter', system-ui, 'Segoe UI', monospace;
+      padding: 20px;
+      transition: background 0.4s;
+    }
+    .asx-panel {
+      background: rgba(5, 11, 28, 0.7);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(22, 242, 170, 0.35);
+      border-radius: 24px;
+      padding: 20px;
+      margin: 12px 0;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .asx-terminal {
+      background: #03050f;
+      color: var(--asx-primary);
+      font-family: 'Fira Code', 'Courier New', monospace;
+      padding: 16px;
+      border-radius: 16px;
+      height: 280px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      border: 1px solid #1e2a3a;
+    }
+    .asx-btn {
+      background: linear-gradient(135deg, var(--asx-primary), var(--asx-secondary));
+      border: none;
+      padding: 10px 20px;
+      border-radius: 40px;
+      color: #020617;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 6px;
+      transition: transform 0.1s, box-shadow 0.2s;
+      font-family: monospace;
+    }
+    .asx-btn:hover { transform: scale(0.97); box-shadow: 0 0 12px var(--asx-primary); }
+    .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
+    .crown-badge { background: #0a1225; border-left: 4px solid var(--asx-primary); padding: 6px 14px; border-radius: 32px; font-size: 0.8rem; }
+    select, input {
+      background: #030814; border: 1px solid #2a3a5a; color: #c0e0ff; border-radius: 40px;
+      padding: 8px 14px; font-family: monospace;
+    }
+    button { background: #16f2aa20; border: 1px solid #16f2aa; color: #16f2aa; border-radius: 30px; padding: 6px 12px; cursor: pointer; }
+    .persona-overlay {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 4rem; font-weight: bold; letter-spacing: 8px;
+      color: rgba(22,242,170,0.05); pointer-events: none; z-index: 9999;
+      animation: fadeCrown 2.8s forwards; font-family: monospace;
+    }
+    @keyframes fadeCrown { 0% { opacity: 0; transform: scale(0.95); } 15% { opacity: 0.4; } 80% { opacity: 0.2; } 100% { opacity: 0; } }
+    #splash {
+      position: fixed; inset: 0; background: #020617; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 10000; transition: opacity 0.8s;
+    }
+  </style>
+</head>
+<body>
+
+<div id="splash">
+  <svg width="220" height="220" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="80" fill="#050b1c" stroke="#16f2aa" stroke-width="4"/>
+    <path d="M100 40C67 40 40 67 40 100C40 133 67 160 100 160C133 160 160 133 160 100C160 67 133 40 100 40Z" fill="none" stroke="#16f2aa" stroke-width="6"/>
+    <circle cx="100" cy="100" r="30" fill="#16f2aa" opacity="0.6"/>
+    <text x="100" y="190" text-anchor="middle" fill="#16f2aa" font-size="14">PRIME · CROWN</text>
+  </svg>
+  <h2 style="color:#16f2aa; margin-top: 20px;">⚡ ASX PRIME OS ⚡</h2>
+  <p style="color:#7a8699;">K'uhul · XJSON · Crown Intelligence</p>
+</div>
+
+<div id="app" style="display: none;">
+  <!-- Crown & Runtime Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+    <div class="row" style="display: flex; gap: 12px;">
+      <select id="crown-selector" style="background:#030814;"></select>
+      <div id="crown-badge" class="crown-badge">👑 DEFAULT CROWN</div>
+    </div>
+    <div class="row" style="gap: 8px;">
+      <span>🧠 XJSON:</span><span id="xjsonStatusDot">⚫</span>
+      <span>🔌 Tunnels:</span><span id="tunnelCount">0</span>
+    </div>
+  </div>
+
+  <!-- Main Controls + K'uhul -->
+  <div class="asx-panel">
+    <h2>🚀 ASX PRIME · K'uhul + Crown Engine</h2>
+    <div>
+      <button class="asx-btn" id="startXjsonBtn">▶ XJSON Server</button>
+      <button class="asx-btn" id="createTunnelBtn">🌐 Create Tunnel</button>
+      <button class="asx-btn" id="testDnsBtn">📡 Test DNS</button>
+      <button class="asx-btn" id="kuhulExecBtn">✨ Execute K'uhul</button>
+      <button class="asx-btn" id="evolveCrownBtn">🌀 Evolve Crown</button>
+    </div>
+  </div>
+
+  <!-- Terminal + Chat (Crown conversation) -->
+  <div class="grid-2">
+    <div class="asx-panel">
+      <h3>💻 ASX Terminal</h3>
+      <div id="terminal" class="asx-terminal"></div>
+      <input type="text" id="commandInput" placeholder="> command | tunnel 8080 | dns xjson.local | kuhul | crown" style="width:100%; margin-top:10px; background:#030814; border:1px solid #2a3a5a; border-radius:30px; padding:10px;" />
+    </div>
+    <div class="asx-panel">
+      <h3>👑 Crown Chat · RLHF Mirror</h3>
+      <div id="crownChat" style="height: 200px; overflow-y: auto; background:#03050f; border-radius: 16px; padding: 12px; font-size:0.85rem;"></div>
+      <div style="display:flex; gap:8px; margin-top: 8px;">
+        <input type="text" id="chatInput" placeholder="speak to the Crown..." style="flex:1;" />
+        <button id="sendChatBtn">💬 Send</button>
+      </div>
+      <div class="divider" style="margin:12px 0; height:1px; background:#1e3a3a;"></div>
+      <div><small>🎭 active persona: <span id="activePersonaSpan">Mentor</span> &nbsp;| 🎨 mood: <span id="moodSpan">analytical</span></small></div>
+    </div>
+  </div>
+
+  <!-- Status Dashboard + DNS/Tunnel Monitor -->
+  <div class="asx-panel">
+    <h3>📡 System Status · SCX · XJSON · DNS</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px;">
+      <div>XJSON: <span id="xjsonStatus">❌ offline</span></div>
+      <div>K'uhul VM: <span id="kuhulStatus">✅ ready</span></div>
+      <div>SCX compress: <span id="scxStatus">✅ active</span></div>
+      <div>Tunnels: <span id="tunnelStatusSpan">0</span></div>
+      <div>DNS local: <span id="dnsCache">xjson.local, rig.local</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --------------------------------------------------------------
+  //  CROWN INTELLIGENCE LAYER (merged with ASX PRIME)
+  // --------------------------------------------------------------
+  let currentCrownId = 'prime';
+  let crownRegistry = {
+    prime: { persona: "Prime Architect", theme: "neon", hudColor: "#16f2aa", bias: "analytical", tone: "precise" },
+    muse: { persona: "Muse", theme: "violet", hudColor: "#d46eff", bias: "creative", tone: "poetic" },
+    trainer: { persona: "Trainer", theme: "green", hudColor: "#44ff66", bias: "corrective", tone: "structured" },
+    swarm: { persona: "Swarm", theme: "blue", hudColor: "#44aaff", bias: "distributed", tone: "networked" },
+    dreamer: { persona: "Dreamer", theme: "amber", hudColor: "#ffaa44", bias: "reflective", tone: "meditative" }
+  };
+  let currentPersona = crownRegistry.prime.persona;
+  
+  function applyCrown(crownId) {
+    const crown = crownRegistry[crownId];
+    if(!crown) return;
+    currentCrownId = crownId;
+    currentPersona = crown.persona;
+    document.documentElement.style.setProperty('--asx-primary', crown.hudColor);
+    document.getElementById('crown-badge').innerHTML = `👑 ${crownId.toUpperCase()} · ${crown.persona}`;
+    document.getElementById('activePersonaSpan').innerText = crown.persona;
+    document.getElementById('moodSpan').innerText = crown.bias;
+    // cinematic overlay
+    const ov = document.createElement('div');
+    ov.className = 'persona-overlay';
+    ov.innerText = `⚡ ${crown.persona.toUpperCase()} CROWN ⚡`;
+    document.body.appendChild(ov);
+    setTimeout(()=>ov.remove(), 2600);
+    localStorage.setItem('asx:crown', crownId);
+    flashToast(`Crown evolved → ${crown.persona} mode`);
+    // broadcast to service worker (crown context)
+    if(navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CROWN_ACTIVE', crown: crownId });
+    }
+  }
+  
+  function flashToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, { position:'fixed', bottom:'20px', left:'20px', background:'#0a1225', borderLeft:'4px solid #16f2aa', padding:'8px 16px', borderRadius:'12px', zIndex:9999, fontSize:'0.8rem' });
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 2800);
+  }
+  
+  // RLHF tape + confidence simulation
+  let rlhfTapes = JSON.parse(localStorage.getItem('rlhfTapes') || '[]');
+  let lexicon = JSON.parse(localStorage.getItem('lexicon') || '{}');
+  function saveRLHFTape(text, score) {
+    const tape = { text, score, ts: Date.now() };
+    rlhfTapes.push(tape);
+    localStorage.setItem('rlhfTapes', JSON.stringify(rlhfTapes));
+    const key = `rlhf:${text.slice(0,40)}`;
+    if(!lexicon[key]) lexicon[key] = { meaning: text, uses:0, confidence: 0.5 };
+    lexicon[key].uses += 1;
+    lexicon[key].confidence = Math.min(1, lexicon[key].confidence + (score * 0.08));
+    localStorage.setItem('lexicon', JSON.stringify(lexicon));
+    // trigger crown shift based on recent scores
+    const avgRecent = rlhfTapes.slice(-3).reduce((a,t)=>a+t.score,0)/3;
+    if(avgRecent > 0.6 && currentCrownId !== 'muse') applyCrown('muse');
+    else if(avgRecent < -0.3 && currentCrownId !== 'trainer') applyCrown('trainer');
+    flashToast(`RLHF tape merged · confidence ${Math.round(lexicon[key].confidence*100)}%`);
+    updateConfidenceUI();
+  }
+  
+  function updateConfidenceUI() {
+    const vals = Object.values(lexicon);
+    const avgConf = vals.length ? vals.reduce((a,v)=>a+(v.confidence||0),0)/vals.length : 0.5;
+    // no direct UI but we can affect status
+    document.getElementById('scxStatus').innerHTML = avgConf > 0.7 ? '✅ high' : '🟡 learning';
+  }
+  
+  // Crown random evolution (mood)
+  function randomCrownShift() {
+    const keys = Object.keys(crownRegistry);
+    const randomKey = keys[Math.floor(Math.random() * keys.length)];
+    if(randomKey !== currentCrownId) applyCrown(randomKey);
+  }
+  
+  // --------------------------------------------------------------
+  //  XJSON / DNS / TUNNEL MOCK (fully integrated with SW)
+  // --------------------------------------------------------------
+  const LOCAL_DNS = { 'xjson.local': '127.0.0.1', 'rig.local': '127.0.0.1', 'hive.local': '127.0.0.1', 'prime.local': '127.0.0.1' };
+  let activeTunnels = [];
+  
+  async function startXJSON() {
+    logTerminal('[XJSON] starting embedded server on port 7777...');
+    document.getElementById('xjsonStatus').innerHTML = '✅ running';
+    document.getElementById('xjsonStatusDot').innerHTML = '🟢';
+    try {
+      const res = await fetch('/api/xjson/status');
+      const data = await res.json();
+      logTerminal(`XJSON ready: ${data.runtime} | ${data.xjson}`);
+    } catch(e) { logTerminal('XJSON endpoint not yet active (SW mock active)'); }
+  }
+  
+  async function createTunnel(localPort = '3000') {
+    logTerminal(`🌐 Creating tunnel for localhost:${localPort}`);
+    const tunnelId = 'tun_' + Date.now();
+    const publicUrl = `https://${tunnelId}.asxprime.localhost`;
+    activeTunnels.push({ id: tunnelId, localPort, publicUrl, active: true });
+    document.getElementById('tunnelCount').innerText = activeTunnels.length;
+    document.getElementById('tunnelStatusSpan').innerText = activeTunnels.length;
+    logTerminal(`Tunnel active: ${publicUrl} → localhost:${localPort}`);
+    return { tunnelId, publicUrl };
+  }
+  
+  async function testDNS() {
+    for(let host of Object.keys(LOCAL_DNS)) {
+      const ip = LOCAL_DNS[host];
+      logTerminal(`DNS ${host} → ${ip} ✅`);
+    }
+    logTerminal(`DNS cache: ${Object.keys(LOCAL_DNS).join(', ')}`);
+  }
+  
+  async function executeKuhul(glyph = '[Pop main] [Wo "Hello ASX Crown"] [Sek print] [Xul]') {
+    logTerminal(`🔮 K'uhul executing: ${glyph}`);
+    const result = `[K'uhul VM] processed glyphs → ${glyph.replace(/\[/g,'').replace(/\]/g,'')} | output: "ASX Crown active"`;
+    logTerminal(result);
+    if(navigator.serviceWorker.controller) {
+      const channel = new MessageChannel();
+      navigator.serviceWorker.controller.postMessage({ type: 'KUHUL_EXECUTE', data: { glyphs: glyph } }, [channel.port2]);
+      channel.port1.onmessage = (e) => logTerminal(`SW K'uhul reply: ${e.data.result}`);
+    }
+  }
+  
+  // Terminal logging
+  function logTerminal(msg) {
+    const term = document.getElementById('terminal');
+    const line = document.createElement('div');
+    line.textContent = `> ${msg}`;
+    term.appendChild(line);
+    term.scrollTop = term.scrollHeight;
+  }
+  
+  function crownChat(message) {
+    const persona = crownRegistry[currentCrownId]?.persona || "Prime";
+    let reply = `[${persona} Crown] `;
+    if(message.toLowerCase().includes('train')) reply += "I sense a learning impulse. Recorded to RLHF tape.";
+    else if(message.toLowerCase().includes('dream')) reply += "drift into abstract possibilities...";
+    else reply += "received. weaving into crown memory.";
+    const chatDiv = document.getElementById('crownChat');
+    chatDiv.innerHTML += `<div><span style="color:#aaa;">🧑‍💻</span> ${message}</div>`;
+    chatDiv.innerHTML += `<div><span style="color:var(--asx-primary);">👑</span> ${reply}</div>`;
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+    // auto RLHF from chat (gentle learning)
+    saveRLHFTape(`chat: ${message}`, 0.3);
+  }
+  
+  // command handler
+  async function handleCommand(cmdLine) {
+    const parts = cmdLine.trim().split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    if(cmd === 'tunnel') await createTunnel(parts[1] || '8080');
+    else if(cmd === 'dns') await testDNS();
+    else if(cmd === 'kuhul') await executeKuhul(parts.slice(1).join(' ') || '[Pop main]');
+    else if(cmd === 'crown') randomCrownShift();
+    else if(cmd === 'xjson') await startXJSON();
+    else if(cmd === 'status') logTerminal(`Crown: ${currentCrownId} | Persona: ${currentPersona} | tunnels: ${activeTunnels.length}`);
+    else logTerminal(`unknown: ${cmd}`);
+  }
+  
+  // --------------------------------------------------------------
+  //  SERVICE WORKER + MESSAGING
+  // --------------------------------------------------------------
+  if('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      logTerminal('✅ ASX Service Worker registered');
+    }).catch(e => logTerminal('SW reg error: '+e));
+  }
+  navigator.serviceWorker.addEventListener('message', (ev) => {
+    if(ev.data?.type === 'SYNC_COMPLETE') logTerminal('Background sync done');
+    if(ev.data?.type === 'TUNNEL_STATUS') {
+      activeTunnels = ev.data.tunnels || [];
+      document.getElementById('tunnelCount').innerText = activeTunnels.length;
+    }
+  });
+  
+  // populate crown selector
+  function populateCrownSelector() {
+    const sel = document.getElementById('crown-selector');
+    sel.innerHTML = '';
+    for(let id of Object.keys(crownRegistry)) {
+      let opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${id} (${crownRegistry[id].persona})`;
+      if(localStorage.getItem('asx:crown') === id) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.onchange = () => applyCrown(sel.value);
+  }
+  
+  // UI event binding
+  document.getElementById('startXjsonBtn').onclick = startXJSON;
+  document.getElementById('createTunnelBtn').onclick = () => createTunnel('3000');
+  document.getElementById('testDnsBtn').onclick = testDNS;
+  document.getElementById('kuhulExecBtn').onclick = () => executeKuhul('[Pop main] [Wo "Crown Runtime"]');
+  document.getElementById('evolveCrownBtn').onclick = randomCrownShift;
+  document.getElementById('sendChatBtn').onclick = () => {
+    const inp = document.getElementById('chatInput');
+    if(inp.value.trim()) crownChat(inp.value.trim());
+    inp.value = '';
+  };
+  document.getElementById('commandInput').addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') { handleCommand(e.target.value); e.target.value = ''; }
+  });
+  
+  // load saved crown
+  const savedCrown = localStorage.getItem('asx:crown');
+  if(savedCrown && crownRegistry[savedCrown]) applyCrown(savedCrown);
+  else applyCrown('prime');
+  populateCrownSelector();
+  
+  // remove splash
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      if(splash) { splash.style.opacity = '0'; setTimeout(()=>splash.remove(), 500); }
+      document.getElementById('app').style.display = 'block';
+      logTerminal('⚡ ASX PRIME OS v4.0 · Crown + K\'uhul active');
+      logTerminal('💫 commands: tunnel, dns, kuhul, crown, xjson, status');
+      startXJSON(); // auto init
+    }, 1800);
+  });
+  
+  // periodic crown shift based on simulated mood (optional)
+  setInterval(() => {
+    if(Math.random() < 0.03) randomCrownShift();
+  }, 45000);
+</script>
+</body>
+</html>

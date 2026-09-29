@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://khanary.local/schema/code-grammar.schema.json",
+  "title": "Code Grammar artifact",
+  "description": "Shape authority for *.code-grammar.json artifacts, bootstrapped from what the parser consumes today (src/io/code_parser.cpp:parse_with_grammar) and intended to become the contract the generator, parser and validator all model. A checker must never manufacture the authority it verifies: a missing source is reported, never reverse-engineered from the artifact.",
+  "type": "object",
+  "required": ["tokens", "edges"],
+  "properties": {
+    "language": { "type": "string" },
+    "version": { "type": "string" },
+    "tokens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "pattern"],
+        "properties": {
+          "type": { "type": "string" },
+          "pattern": { "type": "string" },
+          "captures": { "type": "array" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from_type", "to_type"],
+        "properties": {
+          "from_type": { "type": "string" },
+          "to_type": { "type": "string" },
+          "kind": { "type": "string" },
+          "condition": { "type": "string" }
+        }
+      }
+    },
+    "adapter_layer": { "type": "string" },
+    "ast_name": { "type": "string" },
+    "downstream_execution_authority": { "type": "string" }
+  },
+  "additionalProperties": true,
+
+  "optional": ["language", "version"],
+  "token_required": ["type", "pattern"],
+  "token_optional": ["captures"],
+  "edge_required": ["from_type", "to_type"],
+  "edge_optional": ["kind", "condition"],
+  "consumed_by": "src/io/code_parser.cpp:parse_with_grammar",
+  "generator": "tools/ebnf_to_code_grammar.py",
+
+  "authored_not_generated": {
+    "note": "Present in every shipped artifact, emitted by no checked-in generator invocation, and consumed by no code in src/, tools/ or data/. Recorded here so the finding is preserved rather than normalised away by a regeneration check.",
+    "keys": ["adapter_layer", "ast_name", "downstream_execution_authority"],
+    "values_observed": {
+      "adapter_layer": "AST",
+      "ast_name": "Abstract Syntax Transpiler",
+      "downstream_execution_authority": "K'UHUL"
+    }
+  },
+  "languages": [
+    {
+      "language": "cpp",
+      "artifact": "data/grammar/cpp.code-grammar.json",
+      "source": "data/grammar/cpp.code-grammar.ebnf",
+      "source_expected": true
+    },
+    {
+      "language": "klsl",
+      "artifact": "data/grammar/klsl.code-grammar.json",
+      "source": "data/grammar/klsl.code-grammar.ebnf",
+      "source_expected": false
+    },
+    {
+      "language": "typescript",
+      "artifact": "data/grammar/typescript.code-grammar.json",
+      "source": "data/grammar/typescript.code-grammar.ebnf",
+      "source_expected": false
+    }
+  ],
+  "source_expected_semantics": "false = absence is a historical repository condition (UNVERIFIED, not a failure). true = Advisor has authored the source, so absence is damage or drift and must fail. Flipping a language to true is a deliberate authority act, performed when Advisor authors its grammar.",
+  "verification_algebra": {
+    "VERIFIED": "shape valid, source present, regeneration matches the generated subset",
+    "INVALID": "schema violation, or a declared source is missing, or regeneration disagrees",
+    "UNVERIFIED": "no canonical source available; absence of proof is representable and is neither PASS nor FAIL"
+  }
+}

@@ -1,5 +1,6 @@
 #include "kv_cache.h"
 #include <stdexcept>
+#include <algorithm>
 
 namespace khanary::inference {
 
@@ -10,6 +11,7 @@ KVCache::KVCache(D3D11Device& dev, uint32_t n_layers, uint32_t d_head, uint32_t 
 {
     k_bufs_.resize(n_layers);
     v_bufs_.resize(n_layers);
+    step_attention_scores_.assign(max_seq_, 0.0f);
     for (uint32_t l = 0; l < n_layers; ++l) {
         TensorDesc desc;
         desc.name       = "kv_k_" + std::to_string(l);
@@ -41,6 +43,8 @@ void KVCache::append(uint32_t layer,
     memcpy(buf.data() + seq_len_ * d_head, v_data, chunk_bytes);
     v_bufs_[layer]->upload(buf.data(), buf.size() * 4);
 
+    for (uint32_t i = 0; i < seq_step && (seq_len_ + i) < max_seq_; ++i)
+        step_attention_scores_[seq_len_ + i] = 1.0f;
     seq_len_ += seq_step;
 }
 
@@ -54,8 +58,21 @@ TensorBuffer* KVCache::v_buf(uint32_t layer) {
     return v_bufs_[layer].get();
 }
 
+std::optional<float> KVCache::attention_score(uint32_t step) const {
+    if (step >= seq_len_ || step >= step_attention_scores_.size()) return std::nullopt;
+    return step_attention_scores_[step];
+}
+
+void KVCache::record_attention_score(float score) {
+    if (seq_len_ == 0 || step_attention_scores_.empty()) return;
+    const uint32_t idx = seq_len_ - 1;
+    if (idx >= step_attention_scores_.size()) return;
+    step_attention_scores_[idx] = std::clamp(score, 0.0f, 1.0f);
+}
+
 void KVCache::clear() {
     seq_len_ = 0;
+    std::fill(step_attention_scores_.begin(), step_attention_scores_.end(), 0.0f);
 }
 
 } // namespace khanary::inference

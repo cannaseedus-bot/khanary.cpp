@@ -18,9 +18,12 @@ add_executable(KHANARY
     src/manifest/scx_resolver.cpp
     src/kuhul/phase_engine.cpp
     src/kuhul/fold_engine.cpp
+    src/kuhul/fold_direction.cpp
     src/kuhul/kuhul_vm.cpp
+    src/kuhul/phase_driver_lock.cpp
     src/kuhul/xcfe_executor.cpp
     src/kuhul/gram_store.cpp
+    src/kuhul/ngram_phase_classes.cpp
     src/klsl/klsl_lexer.cpp
     src/klsl/klsl_parser.cpp
     src/klsl/klsl_ir.cpp
@@ -31,21 +34,31 @@ add_executable(KHANARY
     src/gpu/dml_ops.cpp
     src/gpu/tensor_buffer.cpp
     src/gpu/compute_dispatch.cpp
+    src/gpu/gram_gpu_scorer.cpp
+    src/gpu/svg_compute_runtime.cpp
     src/gpu/dds_loader.cpp
+    src/gpu/sdds_format.cpp
     src/gpu/hot_swap.cpp
     src/inference/tokenizer.cpp
     src/inference/moe_router.cpp
     src/inference/inference_engine.cpp
     src/inference/kv_cache.cpp
     src/inference/sampler.cpp
+    src/inference/fold_map.cpp
     src/micronaut/micronaut_registry.cpp
     src/micronaut/aiml_engine.cpp
     src/micronaut/eliza_operators.cpp
+    src/micronaut/relation_isa.cpp
     src/micronaut/track_loader.cpp
+    src/micronaut/mx2lm-ngram.cpp
     src/micronaut/sandbox_inspector.cpp
     src/micronaut/gravity_field.cpp
+    src/micronaut/greeting_style.cpp
+    src/micronaut/control_flow.cpp
     src/world/world_state.cpp
     src/world/field_dag.cpp
+    src/world/gml_parser.cpp
+    src/world/gyroscope.cpp
     src/micronaut/factory.cpp
     src/memory/perception.cpp
     src/memory/confidence.cpp
@@ -53,10 +66,15 @@ add_executable(KHANARY
     src/memory/scoring.cpp
     src/io/json_rpc_server.cpp
     src/io/mcp_server.cpp
+    src/io/code_parser.cpp
     src/io/jrom.cpp
+    src/io/projection.cpp
+    src/io/runtime_attention.cpp
     src/io/request_router.cpp
     src/util/sha256.cpp
     src/util/json.cpp
+    src/util/schema.cpp
+    src/util/canonical_hash.cpp
     src/util/thread_pool.cpp
 )
 
@@ -92,3 +110,169 @@ endif()
 
 install(TARGETS KHANARY DESTINATION bin)
 install(DIRECTORY data/ DESTINATION data)
+
+# Projection acceptance tests — lightweight, no GPU/D3D deps
+add_executable(KHANARY_PTEST
+    src/tests/test_projection.cpp
+    src/io/projection.cpp
+    src/io/jrom.cpp
+    src/world/gyroscope.cpp
+    src/util/sha256.cpp
+    src/util/json.cpp
+)
+target_include_directories(KHANARY_PTEST PRIVATE src)
+
+add_executable(KHANARY_AIML_TEST
+    src/tests/test_aiml_graph.cpp
+    src/micronaut/aiml_engine.cpp
+    src/micronaut/eliza_operators.cpp
+    src/micronaut/relation_isa.cpp
+    src/util/json.cpp
+)
+target_include_directories(KHANARY_AIML_TEST PRIVATE src)
+
+add_executable(KHANARY_ATTENTION_TEST
+    src/tests/test_runtime_attention.cpp
+    src/io/runtime_attention.cpp
+)
+target_include_directories(KHANARY_ATTENTION_TEST PRIVATE src)
+
+add_executable(KHANARY_ROUTER_TEST
+    src/tests/test_router_policy.cpp
+    src/io/request_router.cpp
+    src/io/runtime_attention.cpp
+    src/micronaut/factory.cpp
+    src/micronaut/micronaut_registry.cpp
+    src/micronaut/relation_isa.cpp
+    src/micronaut/gravity_field.cpp
+    src/memory/perception.cpp
+    src/memory/confidence.cpp
+    src/memory/semantic_graph.cpp
+    src/memory/scoring.cpp
+    src/kuhul/phase_engine.cpp
+    src/util/json.cpp
+)
+target_include_directories(KHANARY_ROUTER_TEST PRIVATE src)
+
+add_executable(KHANARY_NGRAM_TEST
+    src/tests/test_mx2lm_gram_channels.cpp
+    src/micronaut/mx2lm-ngram.cpp
+    src/micronaut/control_flow.cpp
+    src/micronaut/eliza_operators.cpp
+    src/micronaut/relation_isa.cpp
+    src/kuhul/phase_engine.cpp
+    src/kuhul/gram_store.cpp
+    src/kuhul/ngram_phase_classes.cpp
+    src/util/json.cpp
+    src/util/sha256.cpp
+)
+target_include_directories(KHANARY_NGRAM_TEST PRIVATE src)
+
+enable_testing()
+add_test(
+    NAME KHANARY_PTEST
+    COMMAND $<TARGET_FILE:KHANARY_PTEST>
+            "${CMAKE_SOURCE_DIR}/data/projection_abi_v1.json"
+            "${CMAKE_SOURCE_DIR}/data/gyro_abi_v1.json")
+add_test(
+    NAME KHANARY_AIML_TEST
+    COMMAND $<TARGET_FILE:KHANARY_AIML_TEST>)
+add_test(
+    NAME KHANARY_ATTENTION_TEST
+    COMMAND $<TARGET_FILE:KHANARY_ATTENTION_TEST>)
+add_test(
+    NAME KHANARY_ROUTER_TEST
+    COMMAND $<TARGET_FILE:KHANARY_ROUTER_TEST>)
+add_test(
+    NAME KHANARY_NGRAM_TEST
+    COMMAND $<TARGET_FILE:KHANARY_NGRAM_TEST>)
+
+# Shared deterministic verdict ABI for every native suite.
+target_sources(KHANARY_AIML_TEST PRIVATE src/util/sha256.cpp)
+target_sources(KHANARY_ATTENTION_TEST PRIVATE src/util/json.cpp src/util/sha256.cpp)
+target_sources(KHANARY_ROUTER_TEST PRIVATE src/util/sha256.cpp)
+
+add_executable(KHANARY_CONTRACT_TEST
+    src/tests/test_contracts.cpp src/util/json.cpp src/util/schema.cpp src/util/sha256.cpp
+    src/manifest/manifest_registry.cpp src/micronaut/track_loader.cpp
+    src/micronaut/micronaut_registry.cpp src/micronaut/relation_isa.cpp
+    src/micronaut/gravity_field.cpp
+    src/kuhul/phase_engine.cpp src/kuhul/xcfe_executor.cpp)
+target_include_directories(KHANARY_CONTRACT_TEST PRIVATE src)
+add_test(NAME KHANARY_CONTRACT_TEST COMMAND KHANARY_CONTRACT_TEST
+    "${CMAKE_SOURCE_DIR}/data/conformance/contracts.json" "${CMAKE_SOURCE_DIR}/data")
+
+add_executable(KHANARY_CANONICAL_TEST src/tests/test_canonical.cpp
+    src/util/json.cpp src/util/sha256.cpp src/util/canonical_hash.cpp)
+target_include_directories(KHANARY_CANONICAL_TEST PRIVATE src)
+add_test(NAME KHANARY_CANONICAL_TEST COMMAND KHANARY_CANONICAL_TEST "${CMAKE_SOURCE_DIR}/data/conformance/canonical.json")
+
+add_executable(KHANARY_SDDS_TEST src/tests/test_sdds.cpp src/gpu/sdds_format.cpp
+    src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_SDDS_TEST PRIVATE src)
+add_test(NAME KHANARY_SDDS_TEST COMMAND KHANARY_SDDS_TEST)
+
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME KHANARY_SCHEMA_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_contracts.py")
+    add_test(NAME KHANARY_GEOMETRY_ASSET_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_geometry_model.py")
+    # Control-flow grammar: the EBNF control contract must agree with the
+    # runtime-emitted control_flow_row artifact (and the Python mirror).
+    add_test(NAME KHANARY_CONTROLFLOW_GRAMMAR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" control-check)
+    # Fold/phase invariants promised by docs/GLOSSARY.md must match the
+    # implementation (phase geometry, engine arity, formal-model strings).
+    add_test(NAME KHANARY_FOLD_GEOMETRY_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" fold-geometry-check)
+    # The capability-gap artifact must stay current with the operator table and
+    # the tracks' declared capabilities.
+    add_test(NAME KHANARY_CAPABILITY_GAP_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" capability-gap --check)
+    # Code-grammar artifacts: <Source, Freshness, Shape> per artifact, with a
+    # missing canonical source reported as UNVERIFIED rather than invented.
+    add_test(NAME KHANARY_CODE_GRAMMAR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" code-grammar-check)
+    # GML semantic validator: ParsedGraph → VerifiedGraph boundary.
+    # Validates all checks in data/grammar/gml.validator.json against
+    # data/conformance/gml_validator.json fixtures and shipped data/*.gml files.
+    add_test(NAME KHANARY_GML_VALIDATOR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_gml_validator.py")
+    # Episode journal and provenance contract validator.
+    # Checks episode.contract.json structure and scoring/verdict algebraic invariants.
+    add_test(NAME KHANARY_EPISODE_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_episode.py")
+    # Field-vector metadata validator for data/world/field.xml.
+    # Coords/source are hard-checked; tensor and QKV are partial (warn-only).
+    add_test(NAME KHANARY_FIELD_VECTOR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_field_vectors.py")
+    # CSS key-grammar: every ⟁KEY in css.manifest.json must have a compiled
+    # JSONL entry, with expands_to references and inline_css validated.
+    add_test(NAME KHANARY_CSS_GRAMMAR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" css-check)
+endif()
+
+add_executable(KHANARY_KLSL_TEST src/tests/test_klsl.cpp src/klsl/klsl_lexer.cpp
+    src/klsl/klsl_parser.cpp src/klsl/klsl_ir.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_KLSL_TEST PRIVATE src)
+add_test(NAME KHANARY_KLSL_TEST COMMAND KHANARY_KLSL_TEST)
+
+# Key-grammar control flow: sugar -> phase-bound plan -> executable XCFE node.
+add_executable(KHANARY_CONTROLFLOW_TEST src/tests/test_control_flow.cpp
+    src/micronaut/control_flow.cpp src/micronaut/mx2lm-ngram.cpp
+    src/micronaut/eliza_operators.cpp src/micronaut/relation_isa.cpp
+    src/kuhul/phase_engine.cpp src/kuhul/xcfe_executor.cpp
+    src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_CONTROLFLOW_TEST PRIVATE src)
+add_test(NAME KHANARY_CONTROLFLOW_TEST COMMAND KHANARY_CONTROLFLOW_TEST)
+
+# Adaptive salutation / greeting-bank policy — no GPU or Factory deps.
+add_executable(KHANARY_GREETING_TEST src/tests/test_greeting.cpp
+    src/micronaut/greeting_style.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_GREETING_TEST PRIVATE src)
+add_test(NAME KHANARY_GREETING_TEST COMMAND KHANARY_GREETING_TEST
+    "${CMAKE_SOURCE_DIR}/data/grammar/greeting-bank.json")
+add_test(NAME KHANARY_ADVISOR_BOOTSTRAP_TEST
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" advisor-check)
+add_test(NAME KHANARY_PLAN_BOOTSTRAP_TEST
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" plan-check)
+set_tests_properties(KHANARY_KLSL_TEST PROPERTIES TIMEOUT 10)

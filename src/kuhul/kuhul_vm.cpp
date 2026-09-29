@@ -1,4 +1,5 @@
 #include "kuhul_vm.h"
+#include "phase_driver_lock.h"
 #include "../micronaut/sandbox_inspector.h"
 #include <sstream>
 #include <stdexcept>
@@ -90,7 +91,18 @@ VMResult KuhulVM::exec(const std::vector<Instruction>& instructions, const XCFEC
     return r;
 }
 
+void KuhulVM::enforce_phase_driver_lock(Phase phase, const Instruction& ins) {
+    if (!phase_driver_lock_) return;
+    std::string err;
+    if (!phase_driver_lock_->allow_phase(phase, &err)) {
+        const std::string op = ins.opcode.empty() ? std::string(phase_name(phase)) : ins.opcode;
+        if (err.empty()) err = "phase driver lock denied";
+        throw std::runtime_error(op + ": " + err);
+    }
+}
+
 void KuhulVM::exec_pop(const Instruction& ins, const XCFEContext& ctx) {
+    enforce_phase_driver_lock(Phase::Pop, ins);
     pe_.set(Phase::Pop);
     if (!ins.id.empty()) {
         // gramRead enforcement: check sandbox before accessing gram store
@@ -107,6 +119,7 @@ void KuhulVM::exec_pop(const Instruction& ins, const XCFEContext& ctx) {
 }
 
 void KuhulVM::exec_wo(const Instruction& ins, const XCFEContext& ctx) {
+    enforce_phase_driver_lock(Phase::Wo, ins);
     auto r = fe_.vertical_fold(ins.id, Phase::Pop, Phase::Wo);
     if (!r.authorized) throw std::runtime_error("Wo: " + r.error);
     pe_.set(Phase::Wo);
@@ -118,6 +131,7 @@ void KuhulVM::exec_wo(const Instruction& ins, const XCFEContext& ctx) {
 }
 
 void KuhulVM::exec_yax(const Instruction& ins, const XCFEContext& ctx) {
+    enforce_phase_driver_lock(Phase::Yax, ins);
     auto r = fe_.vertical_fold(ins.id, Phase::Wo, Phase::Yax);
     if (!r.authorized) throw std::runtime_error("Yax: " + r.error);
     pe_.set(Phase::Yax);
@@ -130,6 +144,7 @@ void KuhulVM::exec_yax(const Instruction& ins, const XCFEContext& ctx) {
 }
 
 void KuhulVM::exec_sek(const Instruction& ins, const XCFEContext& ctx) {
+    enforce_phase_driver_lock(Phase::Sek, ins);
     auto r = fe_.vertical_fold(ins.id, Phase::Yax, Phase::Sek);
     if (!r.authorized) throw std::runtime_error("Sek: " + r.error);
     pe_.set(Phase::Sek);
@@ -142,6 +157,7 @@ void KuhulVM::exec_sek(const Instruction& ins, const XCFEContext& ctx) {
 }
 
 void KuhulVM::exec_chen(const Instruction& ins, const XCFEContext& ctx) {
+    enforce_phase_driver_lock(Phase::Chen, ins);
     auto r = fe_.vertical_fold(ins.id, Phase::Sek, Phase::Chen);
     if (!r.authorized) throw std::runtime_error("Ch'en: " + r.error);
     pe_.set(Phase::Chen);
@@ -154,6 +170,7 @@ void KuhulVM::exec_chen(const Instruction& ins, const XCFEContext& ctx) {
 }
 
 void KuhulVM::exec_xul(const Instruction& ins, const XCFEContext& ctx) {
+    enforce_phase_driver_lock(Phase::Xul, ins);
     auto r = fe_.vertical_fold(ins.id, Phase::Chen, Phase::Xul);
     if (!r.authorized) throw std::runtime_error("Xul: " + r.error);
     pe_.set(Phase::Xul);

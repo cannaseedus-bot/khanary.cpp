@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DDS Training Architecture — KHANARY Reference</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    /* === ASX ATOMIC CSS SYSTEM === */
+    :root {
+      --asx-bg: #020617; --asx-bg-alt: #050b1c; --asx-bg-panel: #020b12;
+      --asx-bg-panel-alt: #040815; --asx-bg-terminal: #01040a;
+      --asx-border: rgba(148,163,184,0.5); --asx-border-strong: rgba(148,163,184,0.85);
+      --asx-border-glow: rgba(56,189,248,0.9);
+      --asx-primary: #22f2b3; --asx-primary-soft: rgba(34,242,179,0.12);
+      --asx-secondary: #38bdf8; --asx-secondary-soft: rgba(56,189,248,0.12);
+      --asx-accent: #a855f7; --asx-danger: #fb7185; --asx-warning: #facc15;
+      --asx-success: #4ade80; --asx-hazard: #fbbf24;
+      --asx-text: #e5f2ff; --asx-text-soft: #9ca3af; --asx-text-faint: #6b7280;
+      --asx-text-strong: #f9fafb; --asx-text-warning: #facc15;
+      --asx-radius-sm: 0.375rem; --asx-radius-md: 0.75rem; --asx-radius-lg: 1.25rem;
+      --asx-radius-pill: 999px;
+      --asx-shadow-soft: 0 18px 45px rgba(15,23,42,0.85);
+      --asx-shadow-hard: 0 0 40px rgba(34,197,235,0.35);
+      --asx-font-sans: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --asx-font-mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      --asx-gap-xs: 0.25rem; --asx-gap-sm: 0.5rem; --asx-gap-md: 0.75rem;
+      --asx-gap-lg: 1rem; --asx-gap-xl: 1.5rem; --asx-gap-2xl: 2rem;
+      --asx-transition-fast: 120ms ease-out; --asx-transition: 200ms ease-out;
+      --asx-max-width: 1120px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--asx-bg);
+      color: var(--asx-text);
+      font-family: var(--asx-font-sans);
+      line-height: 1.55;
+    }
+    body {
+      min-height: 100vh;
+      display: flex; justify-content: center;
+      padding: 2rem 1.25rem 4rem;
+    }
+    .guide-wrap { width: 100%; max-width: var(--asx-max-width); }
+    .guide-header { margin-bottom: 2rem; border-bottom: 1px solid var(--asx-border); padding-bottom: 1.25rem; }
+    .guide-header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; color: var(--asx-primary); }
+    .guide-header p { margin: 0; color: var(--asx-text-soft); font-size: 0.9rem; }
+    h2 { color: var(--asx-secondary); margin: 2rem 0 0.75rem; font-size: 1.2rem; border-bottom: 1px solid var(--asx-border); padding-bottom: 0.4rem; }
+    h3 { color: var(--asx-text-strong); margin: 1.25rem 0 0.5rem; font-size: 1rem; }
+    p { margin: 0 0 0.75rem; color: var(--asx-text); }
+    code {
+      font-family: var(--asx-font-mono); font-size: 0.85em;
+      background: var(--asx-bg-panel); color: var(--asx-primary);
+      padding: 0.1em 0.35em; border-radius: var(--asx-radius-sm);
+    }
+    pre {
+      background: var(--asx-bg-terminal); border: 1px solid var(--asx-border);
+      border-radius: var(--asx-radius-md); padding: 1rem 1.25rem;
+      overflow-x: auto; font-family: var(--asx-font-mono); font-size: 0.82rem;
+      color: var(--asx-text); margin: 0 0 1rem; line-height: 1.6;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    table { width: 100%; border-collapse: collapse; margin: 0 0 1.25rem; font-size: 0.875rem; }
+    th { background: var(--asx-bg-panel); color: var(--asx-text-strong); padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid var(--asx-border-strong); }
+    td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--asx-border); color: var(--asx-text-soft); vertical-align: top; }
+    td:first-child { color: var(--asx-primary); font-family: var(--asx-font-mono); font-size: 0.82rem; white-space: nowrap; }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.55rem;
+      border-radius: var(--asx-radius-pill); font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-primary { background: var(--asx-primary-soft); color: var(--asx-primary); }
+    .badge-secondary { background: var(--asx-secondary-soft); color: var(--asx-secondary); }
+    .badge-danger { background: rgba(251,113,133,0.12); color: var(--asx-danger); }
+    .badge-warning { background: rgba(250,204,21,0.12); color: var(--asx-warning); }
+    .badge-success { background: rgba(74,222,128,0.12); color: var(--asx-success); }
+    .note {
+      background: var(--asx-bg-panel); border-left: 3px solid var(--asx-secondary);
+      border-radius: 0 var(--asx-radius-md) var(--asx-radius-md) 0;
+      padding: 0.75rem 1rem; margin: 0 0 1rem; font-size: 0.875rem;
+      color: var(--asx-text-soft);
+    }
+    .invariant {
+      background: var(--asx-bg-panel); border: 1px solid var(--asx-border-glow);
+      border-radius: var(--asx-radius-md); padding: 0.85rem 1.1rem;
+      margin: 0 0 1rem; font-family: var(--asx-font-mono); font-size: 0.85rem;
+      color: var(--asx-primary); line-height: 1.7;
+    }
+    .invariant .label {
+      font-family: var(--asx-font-sans); font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--asx-text-faint); margin-bottom: 0.35rem; display: block;
+    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--asx-gap-lg); margin: 0 0 1rem; }
+    .panel {
+      background: var(--asx-bg-panel); border: 1px solid var(--asx-border);
+      border-radius: var(--asx-radius-md); padding: 1rem 1.1rem;
+    }
+    .panel h3 { margin-top: 0; }
+    .pipeline {
+      background: var(--asx-bg-terminal); border: 1px solid var(--asx-border);
+      border-radius: var(--asx-radius-md); padding: 1rem 1.25rem;
+      font-family: var(--asx-font-mono); font-size: 0.82rem; line-height: 1.9;
+      color: var(--asx-text-soft); margin: 0 0 1rem;
+    }
+    .pipeline .phase { color: var(--asx-primary); }
+    .pipeline .arrow { color: var(--asx-text-faint); }
+    .pipeline .label { color: var(--asx-secondary); }
+    .dial {
+      background: var(--asx-bg-panel); border: 1px solid var(--asx-border);
+      border-radius: var(--asx-radius-md); padding: 1rem 1.25rem; margin: 0 0 1rem;
+    }
+    .dial-row { display: flex; align-items: center; gap: var(--asx-gap-md); margin-bottom: 0.6rem; font-size: 0.875rem; }
+    .dial-label { width: 7rem; color: var(--asx-text-faint); font-family: var(--asx-font-mono); font-size: 0.78rem; }
+    .dial-bar { flex: 1; height: 6px; background: rgba(148,163,184,0.12); border-radius: 3px; overflow: hidden; }
+    .dial-fill { height: 100%; border-radius: 3px; }
+    .dial-fill-low  { width: 25%; background: var(--asx-success); }
+    .dial-fill-med  { width: 55%; background: var(--asx-warning); }
+    .dial-fill-high { width: 90%; background: var(--asx-danger); }
+    .dial-desc { color: var(--asx-text-soft); font-size: 0.82rem; }
+    @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="guide-wrap">
+
+    <div class="guide-header">
+      <h1>DDS Training Architecture</h1>
+      <p>Cognitive Offload · XShard Format · Projection ABI · Gyroscope &amp; Governor &mdash; <span id="date"></span></p>
+    </div>
+
+    <div class="note">
+      <strong>Revelation.</strong> KHANARY/K'UHUL now explicitly treats semantic fold math as native runtime law:
+      token as address, <code>Book(token)</code> as bounded distributed context, incidence
+      <code>B</code> for participation topology, separated pattern-strength channel <code>W_E</code>,
+      and independent distributional context-similarity signals.
+    </div>
+
+    <!-- ═══════════════════════════════════════════ §1 OVERVIEW -->
+    <h2>§1 — The Fundamental Division</h2>
+
+    <p>Khanary intelligence is not a single large model. It is the product of a small neural substrate
+    operating on a large symbolic and runtime substrate that has already done the cognitive work.</p>
+
+    <div class="two-col">
+      <div class="panel">
+        <h3 style="color:var(--asx-secondary)">GPU / DDS — Neural Substrate</h3>
+        <table>
+          <tr><td>weights</td><td>quantized DDS shards</td></tr>
+          <tr><td>attention</td><td>QK-norm, scaled dot-product</td></tr>
+          <tr><td>transforms</td><td>tensor operations, FFN</td></tr>
+          <tr><td>logits</td><td>projection to token space</td></tr>
+          <tr><td>generation</td><td>autoregressive token sampling</td></tr>
+        </table>
+      </div>
+      <div class="panel">
+        <h3 style="color:var(--asx-primary)">KHANARY — Symbolic Substrate</h3>
+        <table>
+          <tr><td>AIML</td><td>question / form recognition</td></tr>
+          <tr><td>N-ary grams</td><td>semantic association</td></tr>
+          <tr><td>Micronauts</td><td>specialist / capability routing</td></tr>
+          <tr><td>SCX Books</td><td>semantic neighborhoods</td></tr>
+          <tr><td>F_Q</td><td>bounded active field (ephemeral)</td></tr>
+          <tr><td>Graph query</td><td>deterministic structural evidence</td></tr>
+          <tr><td>XCFE</td><td>reasoning operations / authority</td></tr>
+          <tr><td>Perception</td><td>current-cycle evidence</td></tr>
+          <tr><td>Confidence</td><td>learned persistent confidence</td></tr>
+          <tr><td>IDB / JROM</td><td>persistent state / provenance</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Operational runtime contract (current).</strong>
+      KHANARY <code>infer</code> executes from DDS fold artifacts, not directly from a GGUF file.
+      A Gemma GGUF can be used as model metadata/routing input, but Gemma must be exported to
+      DDS fold assets before it can run through the DDS inference path.
+      <pre>Required:
+  --dds-kson     &lt;model&gt;_folds.kson
+  --dds-manifest folds\model_dds_manifest.json
+  --dds-shards   folds\dds_shards\fold_*.dds
+
+Example defaults in current stack:
+  E:\models\GPT-DDS\GPT-OSS\gpt_oss_20b_folds.kson
+  E:\models\GPT-DDS\GPT-OSS\folds\model_dds_manifest.json
+  E:\models\GPT-DDS\GPT-OSS\folds\dds_shards
+  E:\models\GPT2\gemma_toolcall\gemma_chat_toolcall_q8.gguf</pre>
+    </div>
+
+    <p>The conventional approach asks a large model to figure everything out from a raw question.
+    Khanary constructs much more of the problem first, then delivers a <em>prepared reasoning environment</em>
+    to DDS — not a naked question.</p>
+
+    <div class="pipeline">
+<span class="label">Conventional</span>
+  Q <span class="arrow">→</span> <span class="phase">[MODEL: figure everything out]</span> <span class="arrow">→</span> A
+
+<span class="label">Khanary</span>
+  Q
+  <span class="arrow">→</span> AIML(Q) ⊕ NARY(Q)       <span class="phase">structural + associative embedding</span>
+  <span class="arrow">→</span> F_Q                       <span class="phase">bounded active field</span>
+  <span class="arrow">→</span> Query(F_Q, P) → E_Q        <span class="phase">graph interrogation</span>
+  <span class="arrow">→</span> Yax / µ → XCFE            <span class="phase">routing + reasoning ops</span>
+  <span class="arrow">→</span> JROM_projection            <span class="phase">structured machine thought</span>
+  <span class="arrow">→</span> <span class="phase">[DDS: decode + compose]</span>
+  <span class="arrow">→</span> Reply
+    </div>
+
+    <div class="note">
+      <strong>Key identity:</strong> Knowledge ≠ Weights. Knowledge is distributed across
+      G_semantic + Books + AIML + Grams + IDB + Confidence + µ.
+      DDS supplies the compressed numerical model state necessary for language composition and generalization.
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════ §2 TRAINING BOUNDARY -->
+    <h2>§2 — The Training Boundary</h2>
+
+    <div class="invariant">
+      <span class="label">Core Invariant</span>
+      DDS does not train on the problem Khanary receives.
+      DDS trains on the problem Khanary produces.
+    </div>
+
+    <p>The training pair is:</p>
+
+    <pre>X_DDS  =  P( F_Q, E_Q, X_XCFE, µ )      ← Khanary's prepared projection
+Y_DDS  =  desired linguistic completion    ← target artifact</pre>
+
+    <p>Not:</p>
+
+    <pre>Q_raw → A     ← this trains the model to re-derive structure Khanary already supplies</pre>
+
+    <p>Training on raw Q→A pairs teaches the model to discover structure that Khanary has already resolved
+    deterministically. Those parameters are wasted — they duplicate symbolic work and
+    prevent the neural substrate from shrinking.</p>
+
+    <div class="invariant">
+      <span class="label">Loss function</span>
+      ℒ = − Σ_t log p_θ( y_t | y_&lt;t, P(F_Q, E_Q, X_XCFE) )
+    </div>
+
+    <p>The gradient applies only to the projection → target mapping.
+    Provenance (how Khanary arrived at the projection) is outside ∇θ.</p>
+
+
+    <!-- ═══════════════════════════════════════════ §3 XSHARD FORMAT -->
+    <h2>§3 — XShard Format</h2>
+
+    <p>A training shard is not a conversation record. It is a <em>Khanary cognition record</em>
+    with a hard boundary between what is stored for audit and what crosses the gradient boundary.</p>
+
+    <div class="invariant">
+      <span class="label">Shard identity</span>
+      XShard_i  =  ⟨ Prov_i,  Projection_i^ABI,  Target_i,  Metrics_i ⟩
+
+      Prov_i       =  JROM( CycleID_i )
+      Projection_i =  RequestRouter( CycleID_i )
+      Target_i     =  MCPReply( CycleID_i )
+    </div>
+
+    <p>The JROM window is sealed by <em>cycle identity</em>, not by MCP return time.
+    Concurrent requests with different CycleIDs can never contaminate the same shard.</p>
+
+    <pre>{
+  "cycle_id": "...",
+
+  "provenance": {
+    "query":          "...",
+    "aiml":           ["⟁CONDITIONAL", "⟁EVIDENCE", "⟁IMPLICATION"],
+    "grams":          ["ORGANIC", "ATMOSPHERE", "LIFE", "BIOSIGNATURE"],
+    "micronauts":     ["SCIENCE-µ", "REASON-µ"],
+    "graph_evidence": ["..."],
+    "xcfe":           ["INFER", "COUNTEREXAMPLE", "VERIFY"]
+  },
+
+  "dds_input": {
+    "admitted_field":       "...",
+    "structural_evidence":  "...",
+    "reasoning_projection": "..."
+  },
+
+  "target": "...",
+
+  "metrics": {
+    "field_concepts":   17,
+    "resolved_concepts": 15,
+    "graph_coverage":   0.8824,
+    "arc_coverage":     0.71,
+    "unresolved":       ["⟁EXOPLANET_CHEMISTRY", "⟁ABIOTIC_METHANE"],
+    "projection_abi":   "v1",
+    "projection_mode":  "glyph"
+  }
+}</pre>
+
+    <div class="invariant">
+      <span class="label">Training invariants</span>
+      ∇θ ℒ  =  ∇θ ℒ( M_θ(dds_input), target )
+
+      PROVENANCE IS NOT TRAINING INPUT
+      DDS TRAINS ONLY ON THE KHANARY PROJECTION
+      GLYPHS REQUIRE AN EXPLICITLY LEARNED PROJECTION CONTRACT
+    </div>
+
+    <p>The provenance block can be stored, replayed, audited, and used to reproduce P_K(Q),
+    but it must not leak across the neural training boundary.
+    Otherwise DDS learns Q→F_Q, while Khanary already computes Q→F_Q — wasting parameters
+    duplicating symbolic cognition.</p>
+
+    <h3>JROM: Trace vs Projection</h3>
+
+    <p>The JROM has two distinct views:</p>
+
+    <table>
+      <thead><tr><th>View</th><th>Contents</th><th>Gradient boundary</th></tr></thead>
+      <tbody>
+        <tr><td>JROM_trace</td><td>Complete execution log — timestamps, internal scoring, diagnostics, all tool events</td><td>Outside ∇θ</td></tr>
+        <tr><td>JROM_projection</td><td>Selected machine-thinking state intentionally presented to DDS</td><td>Inside ∇θ</td></tr>
+      </tbody>
+    </table>
+
+    <pre>JROM_trace  →  project( trace, ABI_version, target )  →  JROM_projection  →  DDS</pre>
+
+    <p>The <code>project()</code> function is a versioned, deterministic Khanary-side view over the trace.
+    Changing the projection view definition changes the ABI — it is not a preprocessing step.</p>
+
+    <div class="invariant">
+      <span class="label">Revised training invariant</span>
+      RAW EXECUTION PROVENANCE IS NOT TRAINING INPUT.
+      PROJECTED JROM THOUGHT IS.
+    </div>
+
+    <h3>The Model as Decoder</h3>
+
+    <p>JROM_projection is the machine's thought product. The weights are the projection/translation
+    engine that turns that machine representation into the requested human artifact:</p>
+
+    <pre>Khanary thinks  →  JROM records the thought  →  Model expresses it</pre>
+
+    <p>The projection target determines the output modality:</p>
+
+    <table>
+      <thead><tr><th>ProjectionTarget</th><th>Output</th></tr></thead>
+      <tbody>
+        <tr><td>CHAT</td><td>natural-language conversational response</td></tr>
+        <tr><td>CODE</td><td>source files, functions, implementations</td></tr>
+        <tr><td>PATCH</td><td>diff consistent with existing codebase</td></tr>
+        <tr><td>JSON</td><td>structured data object</td></tr>
+        <tr><td>K'UHUL</td><td>glyph grammar compliant bracket program</td></tr>
+        <tr><td>REPO</td><td>multi-file repository response</td></tr>
+      </tbody>
+    </table>
+
+    <p>Same Khanary cognitive cycle, different decoder target. The symbolic reasoning substrate
+    does not change per target — only the projection rendering changes.</p>
+
+    <h3>YAML as Projection Format</h3>
+
+    <p>YAML gives the model a representation it already has a strong chance of understanding
+    without requiring a new tokenizer or binary interface:</p>
+
+    <pre>thought:
+  field:
+    - organic_compounds
+    - atmosphere
+    - biosignature
+    - life
+
+  evidence:
+    observed:
+      - organic compounds detected
+    unresolved:
+      - biological origin
+
+  operations:
+    - infer
+    - counterexample
+    - verify
+
+  conclusion:
+    certainty: insufficient
+    statement: >
+      Organic compounds are compatible with life,
+      but are not by themselves evidence that life exists.
+
+projection:
+  target: chat
+  style: explanatory</pre>
+
+    <p>For a code projection, the same principle becomes:</p>
+
+    <pre>thought:
+  problem: null pointer during graph traversal
+  evidence:
+    file: src/graph/semantic_graph.cpp
+    function: resolve_book
+    cause: neighbor lookup may return null
+  operations:
+    - verify
+    - patch
+  constraints:
+    - preserve Book(v) semantics
+    - do not mutate graph during lookup
+
+projection:
+  target: code_patch</pre>
+
+
+    <!-- ═══════════════════════════════════════════ §4 PROJECTION ABI -->
+    <h2>§4 — Projection ABI</h2>
+
+    <p>The <code>reasoning_projection</code> field is the interface contract between symbolic Khanary
+    and neural DDS. It is not merely a formatting choice — it is a versioned ABI:</p>
+
+    <div class="invariant">
+      <span class="label">ABI identity</span>
+      ABI_{K→DDS}  =  P( F_Q, E_Q, X_XCFE, µ )
+    </div>
+
+    <p>The projection vocabulary lives in the manifest — making it simultaneously the
+    dictionary, ABI registry, and bootstrap teaching source:</p>
+
+    <pre>{
+  "⟁PROJECTION_ABI": [
+    "version:v1",
+    "⟁FIELD",
+    "⟁EVIDENCE",
+    "⟁INFER",
+    "⟁COUNTEREXAMPLE",
+    "⟁VERIFY",
+    "⟁XUL"
+  ],
+  "⟁INFER":          ["meaning:determine what follows from supplied evidence"],
+  "⟁COUNTEREXAMPLE": ["meaning:test the proposed inference against an alternative case"],
+  "⟁VERIFY":         ["meaning:check the resulting claim against supplied evidence"]
+}</pre>
+
+    <p>One manifest declaration has three simultaneous readings:</p>
+
+    <table>
+      <thead><tr><th>Reading</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>Training annotation</td><td>The <code>meaning:</code> value is the NL expansion for bootstrap stage 2</td></tr>
+        <tr><td>ABI version</td><td><code>"version:v1"</code> is a manifest key — bump it when the contract changes</td></tr>
+        <tr><td>Test oracle</td><td>A model that knows the contract resolves <code>⟁INFER</code> correctly; divergence signals C_ABI failure</td></tr>
+      </tbody>
+    </table>
+
+    <div class="invariant">
+      <span class="label">ABI stability property</span>
+      Khanary implementation  ≠  DDS interface
+
+      Changing AIML patterns, gram routing, graph algorithms, or Micronaut selection
+      does not require retraining DDS — provided the projection ABI version is unchanged.
+    </div>
+
+    <h3>Bootstrap Curriculum — Three Projection Stages</h3>
+
+    <p>A single Khanary cycle can emit all three shard variants by rendering the projection
+    differently. Graph queries, AIML activations, and XCFE trace are computed once;
+    only the serialization of the projection changes.</p>
+
+    <table>
+      <thead><tr><th>Stage</th><th>Mode</th><th>reasoning_projection format</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="badge badge-secondary">NL</span></td>
+          <td>Full natural-language rendering of F_Q + E_Q + XCFE. Works with any pretrained base.</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><span class="badge badge-warning">MIXED</span></td>
+          <td>NL + inline glyph + manifest annotation. Establishes equivalence: <code>⟁INFER meaning:determine what follows…</code></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><span class="badge badge-primary">GLYPH</span></td>
+          <td>Glyph sequence only. Compact. Requires ABI contract to be established from stage 2.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <pre>              KHANARY CYCLE C_i
+                     │
+       ┌─────────────┼─────────────┐
+       │             │             │
+   RenderNL      RenderMixed   RenderGlyph
+       │             │             │
+       ▼             ▼             ▼
+  XShard.NL      XShard.Mixed  XShard.Glyph
+       │             │             │
+       └─────────────┼─────────────┘
+                     │
+               SAME TARGET</pre>
+
+    <p>Once DDS has learned the projection ABI, the expensive expansion disappears from neural input —
+    but Khanary retains <code>Book(⟁INFER)</code> for validation, inspection, versioning, and training.
+    This is semantic compression across the neural boundary.</p>
+
+
+    <!-- ═══════════════════════════════════════════ §5 GYROSCOPE -->
+    <h2>§5 — Gyroscope (Weight Alignment)</h2>
+
+    <p>The gyroscope maintains a reference orientation: what DDS should produce given a well-formed
+    projection. It detects drift when weights start learning to bypass the ABI — for example,
+    re-deriving F_Q from patterns in the projection text rather than decoding the prepared structure.</p>
+
+    <div class="invariant">
+      <span class="label">Gyroscope signal</span>
+      Ω_gyro  =  P_glyph(C)  −  P_NL(C)
+    </div>
+
+    <p>The NL view acts as the inertial reference. The glyph view is the needle.
+    When they diverge, the weights have precessed — they are no longer decoding the compact
+    projection faithfully.</p>
+
+    <table>
+      <thead><tr><th>Observation</th><th>Diagnosis</th></tr></thead>
+      <tbody>
+        <tr><td>Glyph performance ≈ NL performance</td><td>Weights aligned — ABI contract is held</td></tr>
+        <tr><td>Glyph degrades, NL stable</td><td>ABI acquisition failure — C_ABI</td></tr>
+        <tr><td>Both degrade together</td><td>C_composition or C_knowledge — not ABI drift</td></tr>
+      </tbody>
+    </table>
+
+    <div class="invariant">
+      <span class="label">Gyroscope identity</span>
+      Gyroscope  =  alignment
+
+      Governor controls how much work the weights receive.
+      Gyroscope controls whether the weights remain oriented to their contract.
+    </div>
+
+    <p><strong>Alignment check:</strong> periodically evaluate a held-out set of matched
+    (glyph, NL, target) triples from the same cognitive cycle.
+    If glyph fidelity drops below a threshold relative to NL, flag the weights for realignment
+    before the ABI contract degrades silently.</p>
+
+    <h3>Equivalence Regression Test</h3>
+
+    <p>A well-aligned DDS should produce equivalent artifacts from equivalent projections,
+    regardless of which representation was used:</p>
+
+    <div class="invariant">
+      <span class="label">ABI equivalence test</span>
+      P_NL(C)  ≡  P_glyph(C)   (same cognitive cycle, different rendering)
+
+      therefore:   D( M(P_NL(C)),  M(P_glyph(C)) )  ≈  0
+
+      Large divergence  →  DDS is not faithfully interpreting one ABI representation  →  C_ABI failure
+    </div>
+
+    <h3>Information-Flow Leakage Test</h3>
+
+    <p>A stronger regression: verify that <code>project()</code> is fully filtering provenance.
+    If two different Khanary engines produce the same projection, DDS output must be identical:</p>
+
+    <div class="invariant">
+      <span class="label">Leakage test</span>
+      K_A(Q)  ≠  K_B(Q)          (different Khanary internals — AIML-A vs AIML-B, Graph-A vs Graph-B)
+
+      but:  project(K_A(Q))  =  project(K_B(Q))  =  P
+
+      therefore under deterministic decoding:   M(P)_A  =  M(P)_B
+    </div>
+
+    <p>The model cannot know which symbolic engine produced P, because that information was
+    eliminated by <code>project()</code>. If outputs diverge, provenance has leaked through
+    the training boundary — the invariant is violated.</p>
+
+    <div class="note">
+      The gyroscope keeps the weights calibrated at whatever thinking level the governor sets.
+      In low-thinking mode, it prevents weights from drifting toward re-deriving structure
+      Khanary already provides.
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════ §6 GOVERNOR -->
+    <h2>§6 — Governor (Cognitive Load Distribution)</h2>
+
+    <p>The governor is the load control. It measures how much unresolved cognitive work
+    remains after Khanary's symbolic pipeline completes, and sets the <em>thinking level</em>
+    delegated to DDS accordingly.</p>
+
+    <div class="invariant">
+      <span class="label">Governor identity</span>
+      Governor  =  load
+
+      Higher governor offload  →  more Khanary work  →  less DDS thinking required
+      Lower governor offload   →  gaps present       →  more DDS thinking required
+    </div>
+
+    <p>Thinking level is the user-facing abstraction. Governor and gyroscope are the mechanisms underneath:</p>
+
+    <div class="dial">
+      <div class="dial-row">
+        <span class="dial-label">LOW thinking</span>
+        <div class="dial-bar"><div class="dial-fill dial-fill-low"></div></div>
+        <span class="dial-desc">High Khanary symbolic resolution. DDS mostly decodes + projects. Small model sufficient.</span>
+      </div>
+      <div class="dial-row">
+        <span class="dial-label">MED thinking</span>
+        <div class="dial-bar"><div class="dial-fill dial-fill-med"></div></div>
+        <span class="dial-desc">Some unresolved structure. DDS composes + limited inference from latent knowledge.</span>
+      </div>
+      <div class="dial-row">
+        <span class="dial-label">HIGH thinking</span>
+        <div class="dial-bar"><div class="dial-fill dial-fill-high"></div></div>
+        <span class="dial-desc">Significant unresolved structure. DDS needs latent knowledge + inference + compose. Larger model.</span>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>DDS thinking level</th><th>Khanary role</th><th>DDS role</th></tr></thead>
+      <tbody>
+        <tr><td>LOW</td><td>High symbolic resolution — fully prepared</td><td>Decode + project into target artifact</td></tr>
+        <tr><td>MEDIUM</td><td>Some unresolved structure</td><td>Compose + limited inference</td></tr>
+        <tr><td>HIGH</td><td>Significant unresolved structure</td><td>Latent knowledge + inference + compose</td></tr>
+      </tbody>
+    </table>
+
+    <h3>LOW does not mean dumb</h3>
+
+    <p>Low DDS thinking can correspond to an extremely sophisticated Khanary reasoning cycle:</p>
+
+    <pre>AIML → NARY → F_Q → Graph → µ → XCFE → Ch'en</pre>
+
+    <p>It is called <strong>LOW DDS THINKING</strong> because that work has already happened.
+    A fully resolved difficult problem could legitimately produce:</p>
+
+    <pre>governor:
+  thinking: low
+  concept_coverage: 1.0
+  arc_coverage: 1.0
+  unresolved: []
+
+projection:
+  target: patch
+  abi: v1</pre>
+
+    <p>DDS only has to express the solution — the reasoning is complete.</p>
+
+    <div class="invariant">
+      <span class="label">Thinking level definition</span>
+      ThinkingLevel  =  amount of unresolved cognitive work delegated to DDS
+
+      Not:  total intelligence expended on the query
+    </div>
+
+    <h3>G_Q — Governor Signal</h3>
+
+    <p>The governor derives the thinking level from cycle metrics — it is not an arbitrary setting:</p>
+
+    <div class="invariant">
+      <span class="label">Governor formula</span>
+      G_Q  =  f( C_V,  C_E,  U,  κ,  verification )
+
+      C_V          =  concept coverage
+      C_E          =  arc / relationship coverage
+      U            =  unresolved node count
+      κ            =  structural confidence
+      verification =  XCFE Ch'en signal
+    </div>
+
+    <p>High G_Q (governor fully open, Khanary carrying max load) → low DDS thinking.
+    Low G_Q (gaps present) → high DDS thinking. The <code>unresolved</code> list is the governor's
+    state readout — it names exactly which gaps Khanary could not close and is delegating to DDS.</p>
+
+    <h3>ThinkingLevel is Part of the Projection Contract</h3>
+
+    <p>Thinking level is passed into <code>project()</code> — it becomes part of the ABI, not
+    implicit context that DDS has to infer:</p>
+
+    <div class="invariant">
+      <span class="label">Projection signature (updated)</span>
+      P_i  =  project( JROM_i,  ABI_v,  Target,  ThinkingLevel )
+    </div>
+
+    <p>DDS still sees only P_i. The governor's internal computation (C_V, C_E, κ) is provenance —
+    outside ∇θ. Only the resulting ThinkingLevel crosses the boundary as part of the projection.</p>
+
+    <pre>             KHANARY CYCLE
+                  │
+                  ▼
+           JROM_trace
+                  │
+                  ▼
+      GOVERNOR ── G_Q = f(C_V, C_E, U, κ)
+                  │
+        ┌─────────┼─────────┐
+        ▼         ▼         ▼
+       LOW      MEDIUM     HIGH
+        │         │         │
+        └─────────┼─────────┘
+                  ▼
+ project(trace, ABI, target, thinking)
+                  │
+                  ▼
+          JROM_projection
+                  │
+             GYROSCOPE
+                  │
+                  ▼
+                DDS
+                  │
+                  ▼
+         CHAT / CODE / PATCH</pre>
+
+    <h3>Model Routing by Load</h3>
+
+    <p>Thinking level and model size are not synonymous. A tiny model could handle
+    constrained low-thinking projections:</p>
+
+    <pre>PATCH  + LOW    →  tiny DDS
+K'UHUL + LOW    →  tiny DDS
+JSON   + LOW    →  tiny DDS
+
+CHAT   + HIGH   →  larger DDS
+CODE   + HIGH   →  larger DDS</pre>
+
+    <p>Routing therefore becomes:</p>
+
+    <div class="invariant">
+      <span class="label">DDS routing formula</span>
+      DDS  =  Route( Target,  ThinkingLevel,  ABI,  Capacity )
+
+      Not:  BiggestAvailableModel
+    </div>
+
+    <p>Same Khanary stack, same projection ABI, different decoder capacity depending on
+    what the governor reports per cycle.</p>
+
+
+    <!-- ═══════════════════════════════════════════ §7 FAILURE MODES -->
+    <h2>§7 — Three Diagnostic Failure Modes</h2>
+
+    <p>Reducing DDS model size produces three diagnostically distinct failure types.
+    Confusing them leads to wrong conclusions about what needs to grow.</p>
+
+    <table>
+      <thead><tr><th>Mode</th><th>Condition</th><th>Experimental signature</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>C_knowledge</td>
+          <td>P_K(Q) is insufficient — required information absent from F_Q / E_Q</td>
+          <td>Specific factual domains degrade; high graph-coverage tasks remain strong; prepared and raw both miss same facts; Δ_n narrows selectively</td>
+        </tr>
+        <tr>
+          <td>C_composition</td>
+          <td>M_n(P_K(Q)) is insufficient — DDS cannot reliably integrate prepared field into language</td>
+          <td>Coherence degrades across all domains uniformly; even fully supplied answers become malformed; Δ_n approaches floor globally</td>
+        </tr>
+        <tr>
+          <td>C_ABI</td>
+          <td>DDS does not sufficiently understand Khanary's projection language</td>
+          <td>Glyph-mode output degrades while NL-mode output stays stable; model parses projection structure but misinterprets semantic keys</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      Graph/field coverage must be recorded as an experimental variable.
+      Without it, a missing Book can masquerade as a weak DDS.
+    </div>
+
+    <h3>Coverage Metrics</h3>
+
+    <p>Two coverage dimensions — vertex coverage and arc coverage — are both required because
+    having all the concept nodes does not mean Khanary knows how they are related:</p>
+
+    <div class="invariant">
+      <span class="label">Coverage identity</span>
+      Coverage(F_Q)  =  (C_V, C_E)
+
+      C_V  =  |E_Q.nodes_resolved| / |F_Q.activated_concepts|   ← concept coverage
+      C_E  =  |E_Q.arcs_resolved|  / |F_Q.required_relations|   ← relationship coverage
+    </div>
+
+    <p>A field might have C_V = 1.0 while the critical
+    <code>ORGANIC → LIFE</code> arc is absent — giving high node coverage but a reasoning gap.
+    Store both scalars plus the <code>unresolved</code> list, not just a single coverage number.</p>
+
+
+    <!-- ═══════════════════════════════════════════ §8 COLLAPSE EXPERIMENT -->
+    <h2>§8 — The Collapse Experiment</h2>
+
+    <p>The testable hypothesis: keep the entire symbolic side fixed and vary only DDS capacity.
+    Compare Khanary-conditioned output against raw-question output at the same model sizes.</p>
+
+    <pre>K  =  AIML + NARY + µ + Graph + Yax + XCFE     (held constant)
+
+K + M_20B    →  Score(M_20B | P_K(Q))  vs  Score(M_20B | Q)
+K + M_7B     →  Score(M_7B  | P_K(Q))  vs  Score(M_7B  | Q)
+K + M_3B     →  Score(M_3B  | P_K(Q))  vs  Score(M_3B  | Q)
+K + M_1B     →  Score(M_1B  | P_K(Q))  vs  Score(M_1B  | Q)
+K + M_small  →  Score(M_sm  | P_K(Q))  vs  Score(M_sm  | Q)</pre>
+
+    <p>The interesting quantity is the gap:</p>
+
+    <div class="invariant">
+      <span class="label">Gap metric</span>
+      Δ_n  =  Score( M_n | P_K(Q) )  −  Score( M_n | Q )
+    </div>
+
+    <p>The hypothesis predicts Δ_n remains positive farther down the parameter scale under
+    Khanary conditioning, because classification, routing, retrieval, graph interrogation,
+    and reasoning operations have already happened outside the model.</p>
+
+    <h3>Composition Floor by Projection Target</h3>
+
+    <p>The composition floor is not uniform across output modalities. Different targets
+    require different neural capabilities:</p>
+
+    <table>
+      <thead><tr><th>Target</th><th>Neural demand</th><th>Tolerance</th></tr></thead>
+      <tbody>
+        <tr><td>CHAT</td><td>Fluency, coherence, tone</td><td>Higher — tolerates some imprecision</td></tr>
+        <tr><td>CODE</td><td>Syntactic precision, scope correctness</td><td>Lower — structural errors are visible</td></tr>
+        <tr><td>PATCH</td><td>Diff consistency with existing code</td><td>Very constrained — most decisions pre-made</td></tr>
+        <tr><td>K'UHUL</td><td>Glyph grammar compliance</td><td>Highly constrained — close to template</td></tr>
+      </tbody>
+    </table>
+
+    <p>A model that can no longer produce coherent CHAT may still produce valid PATCH output
+    because the projection for a patch is highly constrained — the model is filling in less.
+    C_composition is therefore a vector, not a scalar:</p>
+
+    <div class="invariant">
+      <span class="label">Composition floor vector</span>
+      C⃗_composition  =  ( C_chat,  C_code,  C_patch,  C_kuhul,  … )
+    </div>
+
+    <p>Test at least two targets at each model size to separate these. If CODE collapses later
+    than CHAT as the model shrinks, the model is doing less semantic work on the more constrained
+    target — exactly what the architecture predicts.</p>
+
+    <h3>Two Ultimate Failure Thresholds</h3>
+
+    <div class="two-col">
+      <div class="panel">
+        <h3 style="color:var(--asx-warning)">C_knowledge threshold</h3>
+        <p>Minimum capacity needed to supply missing latent knowledge that F_Q + E_Q did not cover.
+        Determined by graph coverage gaps. If Khanary eventually supplies essentially all
+        task-relevant knowledge, this threshold becomes negligible.</p>
+      </div>
+      <div class="panel">
+        <h3 style="color:var(--asx-danger)">C_composition threshold</h3>
+        <p>Minimum capacity needed to express prepared knowledge coherently as the target artifact.
+        Determined by projection target modality. This is the floor that dominates
+        when Khanary coverage is high.</p>
+      </div>
+    </div>
+
+    <div class="invariant">
+      <span class="label">Ideal end state</span>
+      DDS capacity  ≈  semantic integration
+                     +  language composition
+                     +  generation
+
+      Not:  retrieval + classification + routing + memory + reasoning + generation
+    </div>
+
+    <h3>ABI Regression Test</h3>
+
+    <p>If DDS has only learned <code>JROM_projection → HumanArtifact</code>, then swapping
+    the Khanary symbolic engine (different AIML patterns, different graph, different micronauts)
+    while producing an <em>identical JROM_projection</em> for the same query should produce
+    identical DDS output.</p>
+
+    <p>If the output diverges, the model has learned something about raw provenance that leaked
+    through the training boundary. This test can be automated: generate matched pairs
+    (same projection, different Khanary internals) and measure output divergence as a regression metric.</p>
+
+
+    <!-- ═══════════════════════════════════════════ §9 SUMMARY -->
+    <h2>§9 — Architecture Summary</h2>
+
+    <pre>Q
+│
+├── AIML(Q)         structural embedding
+├── NARY(Q)         associative embedding
+│
+↓
+F_Q                 bounded active field
+│
+├── Graph query
+↓
+E_Q                 structural evidence
+│
+├── XCFE operators / results
+↓
+JROM_trace          complete provenance  →  outside ∇θ
+│
+├── GOVERNOR:  G_Q = f(C_V, C_E, U, κ)
+│             → ThinkingLevel ∈ {LOW, MEDIUM, HIGH}
+│
+↓
+project( trace,  ABI_v,  Target,  ThinkingLevel )
+│
+↓
+JROM_projection     machine thought      →  inside ∇θ
+│
+├── GYROSCOPE: Ω_gyro = P_glyph − P_NL  →  alignment signal
+│
+↓
+Route( Target, ThinkingLevel, ABI, Capacity )
+│
+↓
+DDS
+│
+↓
+Decode( JROM_projection, ProjectionTarget )
+│
+↓
+HumanArtifact
+  (chat / code / patch / json / kuhul / repo)</pre>
+
+    <div class="invariant">
+      <span class="label">Final invariant</span>
+      Khanary's cognition is recorded by XShard,
+      but DDS is trained on its projection — not on how Khanary produced it.
+    </div>
+
+    <!-- ═══════════════════════════════════════════ §10 LOCKED INVARIANTS -->
+    <h2>§10 — Locked Invariants</h2>
+
+    <p>These three control surfaces are distinct. None absorbs another's responsibility.</p>
+
+    <div class="invariant">
+      <span class="label">Three control surfaces</span>
+      Governor   controls cognitive delegation    — how much unresolved work reaches DDS
+      Gyroscope  controls neural alignment        — whether weights remain oriented to their contract
+      project()  controls information exposure    — what crosses the gradient boundary
+    </div>
+
+    <div class="invariant">
+      <span class="label">ThinkingLevel definition (locked)</span>
+      ThinkingLevel  =  unresolved cognitive work delegated to DDS
+
+      LOW thinking can represent a difficult problem where Khanary already completed
+      extensive AIML / N-ary / graph / XCFE processing. DDS merely expresses the solution.
+
+      HIGH thinking means the symbolic system is deliberately handing unresolved work
+      to the weights. The difficulty of the original query is not the measure.
+    </div>
+
+    <div class="invariant">
+      <span class="label">DDS definition (locked)</span>
+      DDS is the learned decoder of Khanary machine thought.
+
+      It can perform additional reasoning when the governor requests it (HIGH thinking),
+      but that is delegated work — not its default architectural responsibility.
+    </div>
+
+    <p>The boundary is executable rather than conceptual:</p>
+
+    <div class="invariant">
+      <span class="label">Canonical pipeline</span>
+      Q
+      → F_Q → E_Q → JROM_trace
+      → Governor  → project( trace, ABI, target, thinking )
+      → JROM_projection
+      → Gyroscope → Route( target, thinking, ABI, capacity )
+      → DDS
+      → HumanArtifact ∈ { CHAT, CODE, PATCH, JSON, K'UHUL, REPO, … }
+
+      JROM_trace         outside ∇θ    (provenance, audit, replay)
+      JROM_projection    inside  ∇θ    (what DDS trains on)
+      ThinkingLevel      inside  P_i   (part of the ABI contract, not raw provenance)
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById('date').textContent = new Date().toISOString().slice(0, 10);
+  </script>
+</body>
+</html>

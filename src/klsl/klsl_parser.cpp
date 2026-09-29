@@ -56,8 +56,22 @@ std::unique_ptr<TensorDecl> KLSLParser::parse_tensor_decl() {
     if (at(TokenType::LBRACKET)) {
         consume();
         while (!at(TokenType::RBRACKET) && !at(TokenType::EOF_TOK)) {
-            if (at(TokenType::NUMBER)) t->dims.push_back((uint32_t)std::stoul(consume().text));
-            if (at(TokenType::COMMA)) consume();
+            if (at(TokenType::NUMBER)) {
+                const auto text = consume().text;
+                if (text.find_first_not_of("0123456789") != std::string::npos) {
+                    errors_.push_back("tensor dimension must be an unsigned integer");
+                } else {
+                    try {
+                        const auto value = std::stoull(text);
+                        if (value == 0 || value > UINT32_MAX) errors_.push_back("tensor dimension out of range");
+                        else t->dims.push_back(static_cast<uint32_t>(value));
+                    } catch (const std::exception&) { errors_.push_back("tensor dimension out of range"); }
+                }
+            } else if (at(TokenType::COMMA)) consume();
+            else {
+                errors_.push_back("expected numeric tensor dimension");
+                consume(); // Invalid dimensions must not stall the parser.
+            }
         }
         expect(TokenType::RBRACKET, "expected ']'");
     }

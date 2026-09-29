@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Power Shell Atomic Experts - Complete Coding Stack</title>
+<style>
+/* ============================================================
+   POWER SHELL ATOMIC DESIGN SYSTEM
+   ============================================================ */
+
+:root {
+  /* Power Shell Theme Colors */
+  --ps-primary: #012456;
+  --ps-secondary: #003399;
+  --ps-accent: #0078d4;
+  --ps-success: #107c10;
+  --ps-warning: #ffb900;
+  --ps-danger: #d13438;
+  --ps-info: #005a9e;
+  
+  /* Terminal Colors */
+  --ps-terminal-bg: #0c0c0c;
+  --ps-terminal-fg: #cccccc;
+  --ps-terminal-green: #16c60c;
+  --ps-terminal-cyan: #3a96dd;
+  --ps-terminal-yellow: #f9f1a5;
+  --ps-terminal-red: #e74856;
+  --ps-terminal-purple: #b4009e;
+  
+  /* Glass Effects */
+  --ps-glass-bg: rgba(12, 12, 12, 0.95);
+  --ps-glass-border: rgba(120, 120, 120, 0.3);
+  --ps-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  
+  /* Spacing */
+  --ps-space-1: 4px;
+  --ps-space-2: 8px;
+  --ps-space-3: 12px;
+  --ps-space-4: 16px;
+  --ps-space-5: 24px;
+  --ps-space-6: 32px;
+  --ps-space-7: 48px;
+  
+  /* Typography */
+  --ps-font-mono: 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+  --ps-font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  color: var(--ps-terminal-fg);
+  font-family: var(--ps-font-ui);
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   POWER SHELL MICRONAUT FACTORY
+   ============================================================ */
+
+.ps-micronaut-factory {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+  gap: var(--ps-space-4);
+  padding: var(--ps-space-4);
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(0, 56, 168, 0.1) 0, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 120, 212, 0.1) 0, transparent 50%);
+}
+
+/* ============================================================
+   SIDEBAR - MICRONAUT LAUNCHPAD
+   ============================================================ */
+
+.ps-sidebar {
+  background: var(--ps-glass-bg);
+  border: 1px solid var(--ps-glass-border);
+  border-radius: 12px;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--ps-glass-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ps-sidebar-header {
+  padding: var(--ps-space-4);
+  border-bottom: 1px solid var(--ps-glass-border);
+  background: linear-gradient(90deg, var(--ps-primary), var(--ps-secondary));
+}
+
+.ps-sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--ps-space-2);
+  font-family: var(--ps-font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+}
+
+.ps-sidebar-title::before {
+  content: 'PS>';
+  color: var(--ps-terminal-green);
+  font-weight: bold;
+}
+
+.ps-micronaut-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ps-space-3);
+}
+
+.ps-micronaut-card {
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(60, 60, 60, 0.5);
+  border-radius: 8px;
+  padding: var(--ps-space-3);
+  margin-bottom: var(--ps-space-2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.ps-micronaut-card:hover {
+  border-color: var(--ps-accent);
+  transform: translateX(4px);
+}
+
+.ps-micronaut-card.active {
+  border-color: var(--ps-terminal-green);
+  background: rgba(0, 56, 168, 0.2);
+}
+
+.ps-micronaut-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ps-micronaut-badge.expert { background: var(--ps-terminal-green); }
+.ps-micronaut-badge.backend { background: var(--ps-terminal-cyan); }
+.ps-micronaut-badge.frontend { background: var(--ps-terminal-yellow); }
+.ps-micronaut-badge.config { background: var(--ps-terminal-purple); }
+
+.ps-micronaut-name {
+  font-family: var(--ps-font-mono);
+  font-weight: 600;
+  color: var(--ps-terminal-fg);
+  margin-bottom: 2px;
+}
+
+.ps-micronaut-desc {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.3;
+}
+
+.ps-sidebar-footer {
+  padding: var(--ps-space-3);
+  border-top: 1px solid var(--ps-glass-border);
+}
+
+.ps-launch-btn {
+  width: 100%;
+  padding: var(--ps-space-2) var(--ps-space-3);
+  background: linear-gradient(90deg, var(--ps-success), #0ea00e);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--ps-font-mono);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ps-launch-btn:hover {
+  background: linear-gradient(90deg, #0ea00e, #0fc30f);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   MAIN WORKSPACE - TERMINAL INTERFACE
+   ============================================================ */
+
+.ps-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-space-4);
+}
+
+.ps-terminal-window {
+  flex: 1;
+  background: var(--ps-terminal-bg);
+  border: 1px solid rgba(60, 60, 60, 0.8);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+}
+
+.ps-terminal-header {
+  background: linear-gradient(90deg, #1a1a1a, #2a2a2a);
+  padding: var(--ps-space-2) var(--ps-space-3);
+  border-bottom: 1px solid rgba(80, 80, 80, 0.8);
+  display: flex;
+  align-items: center;
+  gap: var(--ps-space-2);
+}
+
+.ps-terminal-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.ps-terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.ps-terminal-dot.red { background: #ff5f57; }
+.ps-terminal-dot.yellow { background: #ffbd2e; }
+.ps-terminal-dot.green { background: #28ca42; }
+
+.ps-terminal-title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--ps-font-mono);
+  font-size: 13px;
+  color: #aaa;
+}
+
+.ps-terminal-body {
+  flex: 1;
+  padding: var(--ps-space-4);
+  overflow-y: auto;
+  font-family: var(--ps-font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ps-terminal-line {
+  margin-bottom: 2px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ps-terminal-prompt {
+  color: var(--ps-terminal-green);
+  font-weight: bold;
+}
+
+.ps-terminal-command {
+  color: var(--ps-terminal-fg);
+}
+
+.ps-terminal-output {
+  color: #aaa;
+}
+
+.ps-terminal-error {
+  color: var(--ps-terminal-red);
+}
+
+.ps-terminal-success {
+  color: var(--ps-terminal-green);
+}
+
+.ps-terminal-info {
+  color: var(--ps-terminal-cyan);
+}
+
+.ps-terminal-input {
+  background: transparent;
+  border: none;
+  color: var(--ps-terminal-fg);
+  font-family: var(--ps-font-mono);
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+  caret-color: var(--ps-terminal-green);
+}
+
+.ps-terminal-footer {
+  padding: var(--ps-space-2) var(--ps-space-3);
+  border-top: 1px solid rgba(60, 60, 60, 0.8);
+  background: rgba(20, 20, 20, 0.9);
+  display: flex;
+  align-items: center;
+  gap: var(--ps-space-2);
+}
+
+/* ============================================================
+   MICRONAUT PANELS - EXPERT SYSTEMS
+   ============================================================ */
+
+.ps-micronaut-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--ps-space-4);
+  height: 40%;
+}
+
+.ps-expert-panel {
+  background: var(--ps-glass-bg);
+  border: 1px solid var(--ps-glass-border);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ps-expert-header {
+  padding: var(--ps-space-3);
+  background: linear-gradient(90deg, rgba(0, 56, 168, 0.3), rgba(0, 120, 212, 0.2));
+  border-bottom: 1px solid var(--ps-glass-border);
+  display: flex;
+  align-items: center;
+  gap: var(--ps-space-2);
+}
+
+.ps-expert-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.ps-expert-icon.expert { background: var(--ps-terminal-green); color: black; }
+.ps-expert-icon.backend { background: var(--ps-terminal-cyan); color: black; }
+.ps-expert-icon.frontend { background: var(--ps-terminal-yellow); color: black; }
+.ps-expert-icon.config { background: var(--ps-terminal-purple); color: black; }
+
+.ps-expert-title {
+  flex: 1;
+  font-family: var(--ps-font-mono);
+  font-weight: 600;
+}
+
+.ps-expert-status {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(0, 120, 212, 0.3);
+  color: var(--ps-accent);
+}
+
+.ps-expert-body {
+  flex: 1;
+  padding: var(--ps-space-3);
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.ps-expert-metric {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--ps-space-2);
+  padding-bottom: var(--ps-space-1);
+  border-bottom: 1px solid rgba(60, 60, 60, 0.3);
+}
+
+.ps-expert-metric-label {
+  color: #aaa;
+}
+
+.ps-expert-metric-value {
+  font-family: var(--ps-font-mono);
+  font-weight: 600;
+  color: var(--ps-terminal-fg);
+}
+
+.ps-expert-actions {
+  padding: var(--ps-space-3);
+  border-top: 1px solid var(--ps-glass-border);
+  display: flex;
+  gap: var(--ps-space-2);
+}
+
+.ps-expert-btn {
+  flex: 1;
+  padding: var(--ps-space-1) var(--ps-space-2);
+  background: rgba(60, 60, 60, 0.5);
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  border-radius: 4px;
+  color: var(--ps-terminal-fg);
+  font-size: 11px;
+  font-family: var(--ps-font-mono);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ps-expert-btn:hover {
+  background: rgba(80, 80, 80, 0.7);
+  border-color: var(--ps-accent);
+}
+
+/* ============================================================
+   EXPERT SYSTEM SPECIFIC STYLES
+   ============================================================ */
+
+/* Expert Systems Coding Micronaut */
+.ps-expert-coding .ps-expert-body {
+  font-family: var(--ps-font-mono);
+}
+
+.ps-code-snippet {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(60, 60, 60, 0.5);
+  border-radius: 4px;
+  padding: var(--ps-space-2);
+  margin-bottom: var(--ps-space-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ps-code-keyword { color: var(--ps-terminal-purple); }
+.ps-code-function { color: var(--ps-terminal-cyan); }
+.ps-code-string { color: var(--ps-terminal-green); }
+.ps-code-comment { color: #666; }
+.ps-code-number { color: var(--ps-terminal-yellow); }
+
+/* Backend Configuration Micronaut */
+.ps-backend-config .ps-expert-metric {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ps-config-progress {
+  height: 4px;
+  background: rgba(60, 60, 60, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ps-config-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ps-accent), #0091ff);
+  border-radius: 2px;
+}
+
+/* Frontend Interface Micronaut */
+.ps-frontend-interface .ps-expert-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--ps-space-2);
+}
+
+.ps-ui-component {
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(60, 60, 60, 0.5);
+  border-radius: 4px;
+  padding: var(--ps-space-2);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ps-ui-component:hover {
+  border-color: var(--ps-accent);
+  background: rgba(40, 40, 40, 0.9);
+}
+
+.ps-ui-icon {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto var(--ps-space-1);
+  background: rgba(0, 120, 212, 0.2);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.ps-ui-label {
+  font-size: 10px;
+  color: #aaa;
+}
+
+/* ============================================================
+   POWER SHELL COMMAND PALETTE
+   ============================================================ */
+
+.ps-command-palette {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 600px;
+  max-width: 90vw;
+  background: var(--ps-glass-bg);
+  border: 1px solid var(--ps-glass-border);
+  border-radius: 12px;
+  backdrop-filter: blur(30px);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ps-command-palette.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.ps-command-header {
+  padding: var(--ps-space-4);
+  border-bottom: 1px solid var(--ps-glass-border);
+  display: flex;
+  align-items: center;
+  gap: var(--ps-space-3);
+}
+
+.ps-command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--ps-terminal-fg);
+  font-family: var(--ps-font-mono);
+  font-size: 16px;
+  outline: none;
+  caret-color: var(--ps-terminal-green);
+}
+
+.ps-command-input::placeholder {
+  color: #666;
+}
+
+.ps-command-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: var(--ps-space-2) 0;
+}
+
+.ps-command-item {
+  padding: var(--ps-space-3) var(--ps-space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--ps-space-3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ps-command-item:hover {
+  background: rgba(0, 120, 212, 0.1);
+}
+
+.ps-command-item.selected {
+  background: rgba(0, 120, 212, 0.2);
+  border-left: 3px solid var(--ps-accent);
+}
+
+.ps-command-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(0, 120, 212, 0.2);
+  color: var(--ps-accent);
+}
+
+.ps-command-content {
+  flex: 1;
+}
+
+.ps-command-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: var(--ps-terminal-fg);
+}
+
+.ps-command-desc {
+  font-size: 12px;
+  color: #888;
+}
+
+.ps-command-shortcut {
+  font-family: var(--ps-font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(60, 60, 60, 0.5);
+  border-radius: 4px;
+  color: #aaa;
+}
+
+/* ============================================================
+   POWER SHELL OVERLAY EFFECTS
+   ============================================================ */
+
+.ps-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.ps-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ============================================================
+   POWER SHELL ANIMATIONS
+   ============================================================ */
+
+@keyframes ps-terminal-type {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ps-terminal-line {
+  animation: ps-terminal-type 0.3s ease forwards;
+}
+
+@keyframes ps-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.ps-micronaut-card.active .ps-micronaut-badge {
+  animation: ps-pulse 2s ease infinite;
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  .ps-micronaut-factory {
+    grid-template-columns: 1fr;
+    grid-template-rows: 200px 1fr;
+  }
+  
+  .ps-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  
+  .ps-micronaut-list {
+    display: flex;
+    gap: var(--ps-space-2);
+    padding: var(--ps-space-2);
+  }
+  
+  .ps-micronaut-card {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ps-micronaut-panels {
+    grid-template-columns: 1fr;
+  }
+  
+  .ps-command-palette {
+    width: 95vw;
+  }
+}
+</style>
+</head>
+<body>
+<div class="ps-micronaut-factory">
+  
+  <!-- SIDEBAR: MICRONAUT LAUNCHPAD -->
+  <div class="ps-sidebar">
+    <div class="ps-sidebar-header">
+      <div class="ps-sidebar-title">Power Shell Atomic Experts</div>
+    </div>
+    
+    <div class="ps-micronaut-list">
+      <!-- Expert Systems Coding Micronaut -->
+      <div class="ps-micronaut-card active" data-micronaut="expert-coding">
+        <div class="ps-micronaut-badge expert"></div>
+        <div class="ps-micronaut-name">Expert Systems Coding</div>
+        <div class="ps-micronaut-desc">Advanced AI coding assistant with domain expertise</div>
+      </div>
+      
+      <!-- Backend Configuration Micronaut -->
+      <div class="ps-micronaut-card" data-micronaut="backend-config">
+        <div class="ps-micronaut-badge backend"></div>
+        <div class="ps-micronaut-name">Backend Configuration</div>
+        <div class="ps-micronaut-desc">Server setup, API design, database configuration</div>
+      </div>
+      
+      <!-- Frontend Interface Micronaut -->
+      <div class="ps-micronaut-card" data-micronaut="frontend-interface">
+        <div class="ps-micronaut-badge frontend"></div>
+        <div class="ps-micronaut-name">Frontend Interface</div>
+        <div class="ps-micronaut-desc">UI/UX design, interactive components, responsive layouts</div>
+      </div>
+      
+      <!-- Deployment & DevOps Micronaut -->
+      <div class="ps-micronaut-card" data-micronaut="deployment-devops">
+        <div class="ps-micronaut-badge config"></div>
+        <div class="ps-micronaut-name">Deployment & DevOps</div>
+        <div class="ps-micronaut-desc">CI/CD pipelines, containerization, cloud deployment</div>
+      </div>
+      
+      <!-- Security & Auth Micronaut -->
+      <div class="ps-micronaut-card" data-micronaut="security-auth">
+        <div class="ps-micronaut-badge expert"></div>
+        <div class="ps-micronaut-name">Security & Authentication</div>
+        <div class="ps-micronaut-desc">OAuth, JWT, encryption, security best practices</div>
+      </div>
+      
+      <!-- Performance Optimization Micronaut -->
+      <div class="ps-micronaut-card" data-micronaut="performance-optimization">
+        <div class="ps-micronaut-badge backend"></div>
+        <div class="ps-micronaut-name">Performance Optimization</div>
+        <div class="ps-micronaut-desc">Caching strategies, database optimization, load balancing</div>
+      </div>
+    </div>
+    
+    <div class="ps-sidebar-footer">
+      <button class="ps-launch-btn" onclick="launchMicronaut()">Launch Selected Micronaut</button>
+    </div>
+  </div>
+  
+  <!-- MAIN WORKSPACE -->
+  <div class="ps-workspace">
+    
+    <!-- POWER SHELL TERMINAL -->
+    <div class="ps-terminal-window">
+      <div class="ps-terminal-header">
+        <div class="ps-terminal-dots">
+          <div class="ps-terminal-dot red"></div>
+          <div class="ps-terminal-dot yellow"></div>
+          <div class="ps-terminal-dot green"></div>
+        </div>
+        <div class="ps-terminal-title">Power Shell Atomic Terminal</div>
+      </div>
+      
+      <div class="ps-terminal-body" id="terminal-output">
+        <div class="ps-terminal-line">
+          <span class="ps-terminal-prompt">PS></span>
+          <span class="ps-terminal-command"> Initialize-PowerShellAtomic</span>
+        </div>
+        <div class="ps-terminal-line ps-terminal-success">
+          ✓ Power Shell Atomic Expert System initialized successfully
+        </div>
+        <div class="ps-terminal-line ps-terminal-info">
+          Loading micronaut modules: [Expert Systems, Backend Config, Frontend Interface]
+        </div>
+        <div class="ps-terminal-line">
+          <span class="ps-terminal-prompt">PS></span>
+          <span class="ps-terminal-command"> Get-MicronautStatus</span>
+        </div>
+        <div class="ps-terminal-line ps-terminal-output">
+          Micronaut       Status          Capabilities
+          ---------       ------          -------------
+          Expert Coding   Active          AI Coding, Pattern Recognition
+          Backend Config  Ready           API Design, Database, Server
+          Frontend UI     Ready           React/Vue, UI Components, State
+          Deployment      Standby         Docker, Kubernetes, Cloud
+          Security        Standby         Auth, Encryption, Security
+        </div>
+        <div class="ps-terminal-line">
+          <span class="ps-terminal-prompt">PS></span>
+          <span id="terminal-input-line"></span>
+        </div>
+      </div>
+      
+      <div class="ps-terminal-footer">
+        <span style="color: #666;">Press </span>
+        <span style="color: var(--ps-terminal-yellow); font-weight: bold;">Ctrl+Space</span>
+        <span style="color: #666;"> for command palette</span>
+      </div>
+    </div>
+    
+    <!-- MICRONAUT EXPERT PANELS -->
+    <div class="ps-micronaut-panels">
+      
+      <!-- Expert Systems Coding Panel -->
+      <div class="ps-expert-panel ps-expert-coding">
+        <div class="ps-expert-header">
+          <div class="ps-expert-icon expert">EC</div>
+          <div class="ps-expert-title">Expert Systems Coding</div>
+          <div class="ps-expert-status">Active</div>
+        </div>
+        <div class="ps-expert-body">
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">Code Intelligence</span>
+            <span class="ps-expert-metric-value">98%</span>
+          </div>
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">Pattern Recognition</span>
+            <span class="ps-expert-metric-value">95%</span>
+          </div>
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">Optimization Score</span>
+            <span class="ps-expert-metric-value">92%</span>
+          </div>
+          
+          <div class="ps-code-snippet">
+            <span class="ps-code-keyword">async function</span> 
+            <span class="ps-code-function">optimizeBackend</span>() {<br>
+            &nbsp;&nbsp;<span class="ps-code-comment">// Expert system suggests:</span><br>
+            &nbsp;&nbsp;<span class="ps-code-keyword">const</span> cache = 
+            <span class="ps-code-keyword">await</span> 
+            <span class="ps-code-function">redisCluster</span>();<br>
+            &nbsp;&nbsp;<span class="ps-code-keyword">const</span> optimized = 
+            <span class="ps-code-function">applyPattern</span>(
+            <span class="ps-code-string">'circuit-breaker'</span>);<br>
+            }
+          </div>
+        </div>
+        <div class="ps-expert-actions">
+          <button class="ps-expert-btn" onclick="suggestOptimization()">Suggest Optimization</button>
+          <button class="ps-expert-btn" onclick="generateCode()">Generate Code</button>
+          <button class="ps-expert-btn" onclick="analyzePattern()">Analyze Pattern</button>
+        </div>
+      </div>
+      
+      <!-- Backend Configuration Panel -->
+      <div class="ps-expert-panel ps-backend-config">
+        <div class="ps-expert-header">
+          <div class="ps-expert-icon backend">BC</div>
+          <div class="ps-expert-title">Backend Configuration</div>
+          <div class="ps-expert-status">Ready</div>
+        </div>
+        <div class="ps-expert-body">
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">API Endpoints</span>
+            <span class="ps-expert-metric-value">24 configured</span>
+          </div>
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">Database Connections</span>
+            <span class="ps-expert-metric-value">8 active</span>
+          </div>
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">Server Load</span>
+            <span class="ps-expert-metric-value">42%</span>
+            <div class="ps-config-progress">
+              <div class="ps-config-progress-bar" style="width: 42%"></div>
+            </div>
+          </div>
+          <div class="ps-expert-metric">
+            <span class="ps-expert-metric-label">Response Time</span>
+            <span class="ps-expert-metric-value">128ms avg</span>
+          </div>
+        </div>
+        <div class="ps-expert-actions">
+          <button class="ps-expert-btn" onclick="configureAPI()">Configure API</button>
+          <button class="ps-expert-btn" onclick="setupDatabase()">Setup Database</button>
+          <button class="ps-expert-btn" onclick="monitorPerformance()">Monitor</button>
+        </div>
+      </div>
+      
+      <!-- Frontend Interface Panel -->
+      <div class="ps-expert-panel ps-frontend-interface">
+        <div class="ps-expert-header">
+          <div class="ps-expert-icon frontend">FI</div>
+          <div class="ps-expert-title">Frontend Interface</div>
+          <div class="ps-expert-status">Ready</div>
+        </div>
+        <div class="ps-expert-body">
+          <div class="ps-ui-component" onclick="selectComponent('form')">
+            <div class="ps-ui-icon">📝</div>
+            <div class="ps-ui-label">Form Builder</div>
+          </div>
+          <div class="ps-ui-component" onclick="selectComponent('table')">
+            <div class="ps-ui-icon">📊</div>
+            <div class="ps-ui-label">Data Table</div>
+          </div>
+          <div class="ps-ui-component" onclick="selectComponent('chart')">
+            <div class="ps-ui-icon">📈</div>
+            <div class="ps-ui-label">Charts</div>
+          </div>
+          <div class="ps-ui-component" onclick="selectComponent('modal')">
+            <div class="ps-ui-icon">🪟</div>
+            <div class="ps-ui-label">Modals</div>
+          </div>
+          <div class="ps-ui-component" onclick="selectComponent('nav')">
+            <div class="ps-ui-icon">🧭</div>
+            <div class="ps-ui-label">Navigation</div>
+          </div>
+          <div class="ps-ui-component" onclick="selectComponent('card')">
+            <div class="ps-ui-icon">🃏</div>
+            <div class="ps-ui-label">Cards</div>
+          </div>
+        </div>
+        <div class="ps-expert-actions">
+          <button class="ps-expert-btn" onclick="designUI()">Design UI</button>
+          <button class="ps-expert-btn" onclick="generateComponents()">Components</button>
+          <button class="ps-expert-btn" onclick="testResponsive()">Test Responsive</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMMAND PALETTE OVERLAY -->
+<div class="ps-overlay" id="ps-overlay"></div>
+
+<div class="ps-command-palette" id="ps-command-palette">
+  <div class="ps-command-header">
+    <input type="text" class="ps-command-input" placeholder="Type a command or search..." 
+           id="command-input" autocomplete="off">
+  </div>
+  <div class="ps-command-list" id="command-list">
+    <!-- Commands will be populated by JavaScript -->
+  </div>
+</div>
+
+<script>
+// ============================================================
+// POWER SHELL ATOMIC EXPERT SYSTEM - CORE FUNCTIONALITY
+// ============================================================
+
+// Terminal Simulation
+const terminalOutput = document.getElementById('terminal-output');
+const commandPalette = document.getElementById('ps-command-palette');
+const overlay = document.getElementById('ps-overlay');
+let currentCommand = '';
+
+// Available Micronauts
+const micronauts = {
+  'expert-coding': {
+    name: 'Expert Systems Coding',
+    capabilities: ['AI Code Generation', 'Pattern Recognition', 'Optimization', 'Debugging'],
+    commands: [
+      { cmd: 'Generate-Code', desc: 'Generate optimized code snippets' },
+      { cmd: 'Analyze-Pattern', desc: 'Recognize and apply design patterns' },
+      { cmd: 'Optimize-Performance', desc: 'Suggest performance improvements' },
+      { cmd: 'Debug-Code', desc: 'Identify and fix bugs' }
+    ]
+  },
+  'backend-config': {
+    name: 'Backend Configuration',
+    capabilities: ['API Design', 'Database Setup', 'Server Configuration', 'Security'],
+    commands: [
+      { cmd: 'Configure-API', desc: 'Setup REST/GraphQL endpoints' },
+      { cmd: 'Setup-Database', desc: 'Configure SQL/NoSQL databases' },
+      { cmd: 'Deploy-Server', desc: 'Deploy to cloud/local server' },
+      { cmd: 'Secure-Backend', desc: 'Implement security measures' }
+    ]
+  },
+  'frontend-interface': {
+    name: 'Frontend Interface',
+    capabilities: ['UI/UX Design', 'Component Library', 'State Management', 'Responsive Design'],
+    commands: [
+      { cmd: 'Design-UI', desc: 'Create user interface designs' },
+      { cmd: 'Build-Components', desc: 'Generate reusable components' },
+      { cmd: 'Manage-State', desc: 'Setup state management' },
+      { cmd: 'Test-Responsive', desc: 'Test responsive layouts' }
+    ]
+  }
+};
+
+// Terminal Functions
+function addTerminalLine(text, type = 'output') {
+  const line = document.createElement('div');
+  line.className = `ps-terminal-line ps-terminal-${type}`;
+  line.innerHTML = text;
+  terminalOutput.appendChild(line);
+  terminalOutput.scrollTop = terminalOutput.scrollHeight;
+}
+
+function executeCommand(command) {
+  addTerminalLine(`<span class="ps-terminal-prompt">PS></span> <span class="ps-terminal-command"> ${command}</span>`);
+  
+  // Simulate command execution
+  setTimeout(() => {
+    const responses = {
+      'help': 'Available commands: Get-MicronautStatus, Launch-Micronaut, Configure-Backend, Design-Frontend, Generate-Code',
+      'get-micronautstatus': generateStatusResponse(),
+      'launch-micronaut': 'Launching selected micronaut... Micronaut active and ready.',
+      'configure-backend': 'Backend configuration initiated. Setting up API endpoints and database connections...',
+      'design-frontend': 'Frontend design mode activated. Generating UI components...',
+      'generate-code': 'Code generation started. Analyzing patterns and generating optimized solutions...'
+    };
+    
+    const response = responses[command.toLowerCase()] || 
+      `Command '${command}' executed successfully.`;
+    
+    addTerminalLine(response, 'success');
+  }, 500);
+}
+
+function generateStatusResponse() {
+  return `
+  Micronaut System Status:
+  ------------------------
+  Expert Systems:     ● Active (98% efficiency)
+  Backend Config:     ● Ready (24 endpoints configured)
+  Frontend Interface: ● Ready (12 components loaded)
+  Security Module:    ○ Standby
+  Deployment:         ○ Standby
+  
+  Total Capabilities: 18 active modules
+  System Load: 42%
+  Memory Usage: 1.2GB
+  `.trim();
+}
+
+// Command Palette
+const commands = [
+  { name: 'Launch Micronaut', desc: 'Launch selected expert system', icon: '🚀', shortcut: 'Ctrl+L' },
+  { name: 'Generate Code', desc: 'Generate optimized code snippets', icon: '💻', shortcut: 'Ctrl+G' },
+  { name: 'Configure Backend', desc: 'Setup server and database', icon: '⚙️', shortcut: 'Ctrl+B' },
+  { name: 'Design Frontend', desc: 'Create UI/UX components', icon: '🎨', shortcut: 'Ctrl+F' },
+  { name: 'Analyze Performance', desc: 'Run performance analysis', icon: '📊', shortcut: 'Ctrl+P' },
+  { name: 'Deploy Application', desc: 'Deploy to production', icon: '☁️', shortcut: 'Ctrl+D' },
+  { name: 'Security Scan', desc: 'Run security audit', icon: '🔒', shortcut: 'Ctrl+S' },
+  { name: 'Database Migration', desc: 'Migrate database schema', icon: '🗃️', shortcut: 'Ctrl+M' }
+];
+
+function showCommandPalette() {
+  commandPalette.classList.add('active');
+  overlay.classList.add('active');
+  document.getElementById('command-input').focus();
+  populateCommandList();
+}
+
+function hideCommandPalette() {
+  commandPalette.classList.remove('active');
+  overlay.classList.remove('active');
+}
+
+function populateCommandList(filter = '') {
+  const list = document.getElementById('command-list');
+  list.innerHTML = '';
+  
+  const filtered = commands.filter(cmd => 
+    cmd.name.toLowerCase().includes(filter.toLowerCase()) ||
+    cmd.desc.toLowerCase().includes(filter.toLowerCase())
+  );
+  
+  filtered.forEach((cmd, index) => {
+    const item = document.createElement('div');
+    item.className = 'ps-command-item' + (index === 0 ? ' selected' : '');
+    item.innerHTML = `
+      <div class="ps-command-icon">${cmd.icon}</div>
+      <div class="ps-command-content">
+        <div class="ps-command-name">${cmd.name}</div>
+        <div class="ps-command-desc">${cmd.desc}</div>
+      </div>
+      <div class="ps-command-shortcut">${cmd.shortcut}</div>
+    `;
+    item.addEventListener('click', () => selectCommand(cmd.name));
+    list.appendChild(item);
+  });
+}
+
+function selectCommand(commandName) {
+  addTerminalLine(`Executing command: ${commandName}`);
+  hideCommandPalette();
+  executeCommand(commandName.replace(' ', '-'));
+}
+
+// Micronaut Functions
+function launchMicronaut() {
+  const activeCard = document.querySelector('.ps-micronaut-card.active');
+  if (activeCard) {
+    const micronautId = activeCard.dataset.micronaut;
+    const micronaut = micronauts[micronautId];
+    
+    addTerminalLine(`Launching ${micronaut.name}...`);
+    addTerminalLine(`Capabilities loaded: ${micronaut.capabilities.join(', ')}`, 'info');
+    addTerminalLine(`${micronaut.name} is now active and ready for commands.`, 'success');
+  }
+}
+
+function suggestOptimization() {
+  const optimizations = [
+    'Implement lazy loading for images',
+    'Add Redis caching layer',
+    'Optimize database queries with indexes',
+    'Use CDN for static assets',
+    'Implement pagination for large datasets'
+  ];
+  
+  const randomOpt = optimizations[Math.floor(Math.random() * optimizations.length)];
+  addTerminalLine(`Expert suggestion: ${randomOpt}`, 'info');
+}
+
+function generateCode() {
+  const codeExamples = [
+    '// Optimized React component with memoization\nconst MemoizedComponent = React.memo(({ data }) => (\n  <div>{data.map(item => (\n    <Item key={item.id} {...item} />\n  ))}</div>\n));',
+    '// Efficient database query with indexing\nSELECT * FROM users \nWHERE active = true \nAND created_at > NOW() - INTERVAL \'30 days\'\nORDER BY score DESC \nLIMIT 50;',
+    '// Secure API endpoint with validation\napp.post(\'/api/users\', \n  validateUserInput,\n  authenticateUser,\n  rateLimit({ window: 15*60*1000, max: 100 }),\n  async (req, res) => {\n    const user = await createUser(req.body);\n    res.status(201).json(user);\n  }\n);'
+  ];
+  
+  const randomCode = codeExamples[Math.floor(Math.random() * codeExamples.length)];
+  
+  const codePanel = document.querySelector('.ps-expert-coding .ps-expert-body');
+  const codeSnippet = document.createElement('div');
+  codeSnippet.className = 'ps-code-snippet';
+  codeSnippet.innerHTML = randomCode;
+  codePanel.appendChild(codeSnippet);
+}
+
+function selectComponent(component) {
+  const components = {
+    'form': 'Interactive form builder with validation',
+    'table': 'Sortable, filterable data table',
+    'chart': 'Interactive charts with real-time updates',
+    'modal': 'Accessible modal dialogs',
+    'nav': 'Responsive navigation system',
+    'card': 'Content cards with hover effects'
+  };
+  
+  addTerminalLine(`Frontend: Generating ${component} component - ${components[component]}`, 'info');
+}
+
+// Event Listeners
+document.addEventListener('keydown', (e) => {
+  // Ctrl+Space for command palette
+  if (e.ctrlKey && e.code === 'Space') {
+    e.preventDefault();
+    showCommandPalette();
+  }
+  
+  // Escape to close palette
+  if (e.code === 'Escape') {
+    hideCommandPalette();
+  }
+  
+  // Enter in terminal
+  if (e.code === 'Enter' && document.activeElement.id === 'terminal-input') {
+    const command = document.getElementById('terminal-input').value;
+    if (command.trim()) {
+      executeCommand(command);
+      document.getElementById('terminal-input').value = '';
+    }
+  }
+});
+
+// Micronaut selection
+document.querySelectorAll('.ps-micronaut-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.ps-micronaut-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+  });
+});
+
+// Command palette input filter
+document.getElementById('command-input').addEventListener('input', (e) => {
+  populateCommandList(e.target.value);
+});
+
+// Initialize
+window.addEventListener('load', () => {
+  addTerminalLine('Power Shell Atomic Expert System v2.0 initialized', 'info');
+  addTerminalLine('Type "help" for available commands', 'output');
+  
+  // Set up command palette
+  populateCommandList();
+});
+
+// Overlay click to close
+overlay.addEventListener('click', hideCommandPalette);
+</script>
+</body>
+</html>

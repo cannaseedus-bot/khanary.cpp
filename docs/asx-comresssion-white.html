@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="atomic-unity">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⟁ ASX · XJSON · SCX · Mx2LM — The Unified Semantic Runtime</title>
+  <style>
+    /* ============================================================
+       PRIME ATOMIC UNITY — Complete Integration
+       XJSON + SCX + ASX Runtime + Mx2LM Training
+       ============================================================ */
+    :root {
+      --bg-page: #f0f4f8;
+      --bg-surface: #ffffff;
+      --bg-code: #1a1a2e;
+      --bg-panel: #f8fafc;
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --accent-cyan: #0ea5e9;
+      --accent-emerald: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-gold: #f59e0b;
+      --accent-rose: #ef4444;
+      --border-light: #e2e8f0;
+      --border-code: #334155;
+      --code-fg: #e2e8f0;
+      --radius-card: 20px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+
+    /* Layout: Sidebar + Main */
+    .unified-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .unified-sidebar {
+      width: 300px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-light);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 16px;
+      z-index: 10;
+    }
+
+    .unified-sidebar h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .unified-sidebar .tagline {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .nav-section { margin-bottom: 20px; }
+    .nav-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .nav-link {
+      display: block;
+      padding: 6px 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s;
+    }
+    .nav-link:hover { background: var(--bg-page); color: var(--accent-cyan); }
+
+    /* Main Content */
+    .unified-main {
+      flex: 1;
+      max-width: calc(100% - 300px);
+      padding: 32px 40px;
+    }
+
+    /* Typography */
+    h1 { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
+    h2 { font-size: 24px; font-weight: 600; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border-light); }
+    h3 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; }
+    h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; color: var(--accent-purple); }
+    p { margin: 12px 0; color: var(--text-secondary); line-height: 1.6; }
+
+    /* Code Blocks */
+    pre {
+      background: var(--bg-code);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      overflow-x: auto;
+      margin: 16px 0;
+      border: 1px solid var(--border-code);
+    }
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--bg-code);
+      color: var(--code-fg);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre code { background: transparent; padding: 0; }
+
+    /* Cards / Panels */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .callout {
+      border-left: 4px solid var(--accent-cyan);
+      background: rgba(14, 165, 233, 0.05);
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      margin: 20px 0;
+    }
+    .callout.warning { border-left-color: var(--accent-gold); background: rgba(245, 158, 11, 0.05); }
+    .callout.purple { border-left-color: var(--accent-purple); background: rgba(139, 92, 246, 0.05); }
+    .callout.emerald { border-left-color: var(--accent-emerald); background: rgba(16, 185, 129, 0.05); }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--border-light);
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th { background: var(--bg-page); font-weight: 600; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 20px;
+      margin-right: 6px;
+    }
+    .badge-cyan { background: rgba(14, 165, 233, 0.1); color: var(--accent-cyan); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); }
+    .badge-purple { background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); }
+    .badge-gold { background: rgba(245, 158, 11, 0.1); color: var(--accent-gold); }
+
+    /* Glyph Grid */
+    .glyph-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .glyph-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      text-align: center;
+    }
+    .glyph-symbol {
+      font-size: 24px;
+      font-family: var(--font-mono);
+      font-weight: bold;
+      color: var(--accent-cyan);
+    }
+    .glyph-desc { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+
+    /* Live Demo Panel */
+    .demo-panel {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      margin: 24px 0;
+      color: #e2e8f0;
+    }
+    .demo-panel h3 { color: var(--accent-cyan); margin-top: 0; }
+    .demo-panel input, .demo-panel textarea {
+      width: 100%;
+      background: #0f0f1a;
+      border: 1px solid #334155;
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      color: #e2e8f0;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      margin: 8px 0;
+    }
+    .demo-panel button {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    .demo-output {
+      background: #0f0f1a;
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      margin-top: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      border: 1px solid #334155;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .unified-layout { flex-direction: column; }
+      .unified-sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .unified-main { max-width: 100%; padding: 24px; }
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-page); }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="unified-layout">
+  
+  <!-- SIDEBAR -->
+  <aside class="unified-sidebar">
+    <h1>⟁ ASX · XJSON · SCX</h1>
+    <div class="tagline">Unified Semantic Runtime · PRIME Edition</div>
+    
+    <div class="nav-section">
+      <div class="nav-section-title">Core</div>
+      <a href="#overview" class="nav-link">📖 Unified Overview</a>
+      <a href="#xjson-spec" class="nav-link">📜 XJSON Specification</a>
+      <a href="#scx-guide" class="nav-link">🧠 SCX Compression</a>
+      <a href="#atomic-asx" class="nav-link">⚛️ Atomic ASX Runtime</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Agents & Training</div>
+      <a href="#mx2lm" class="nav-link">🤖 Mx2LM Training</a>
+      <a href="#agent-brains" class="nav-link">🧬 Agent Brain Maps</a>
+      <a href="#scx-grammar" class="nav-link">🔤 SCX Grammar</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Runtime Features</div>
+      <a href="#tape-format" class="nav-link">🎵 Tape / Holotape</a>
+      <a href="#reactive-binding" class="nav-link">📡 Reactive Binding</a>
+      <a href="#effects-system" class="nav-link">⚡ Effects System</a>
+      <a href="#components" class="nav-link">🧩 Components</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Security & Deploy</div>
+      <a href="#security" class="nav-link">🔒 Security Model</a>
+      <a href="#deployment" class="nav-link">☁️ CDN Block Packs</a>
+      <a href="#best-practices" class="nav-link">✅ Best Practices</a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="unified-main">
+    
+    <!-- ==================== OVERVIEW ==================== -->
+    <section id="overview">
+      <h1>⟁ ASX · XJSON · SCX · Mx2LM<br><span style="font-size: 18px; color: var(--text-muted);">The Complete Unified Semantic Runtime</span></h1>
+      
+      <div class="callout emerald">
+        <strong>🎯 The Great Equation:</strong> ASX = XJSON(contracts) + SCX(compression) + Mx2LM(agents) + JS(runtime).<br>
+        One unified system for building apps, games, and OS interfaces — no frameworks, no build steps.
+      </div>
+      
+      <div class="glyph-grid">
+        <div class="glyph-item"><div class="glyph-symbol">⟁HTML</div><div class="glyph-desc">html root</div></div>
+        <div class="glyph-item"><div class="glyph-symbol">⟁BODY</div><div class="glyph-desc">body frame</div></div>
+        <div class="glyph-item"><div class="glyph-symbol">⟁PANEL</div><div class="glyph-desc">card/panel</div></div>
+        <div class="glyph-item"><div class="glyph-symbol">⟁Fcol</div><div class="glyph-desc">flex column</div></div>
+        <div class="glyph-item"><div class="glyph-symbol">⟁Pop</div><div class="glyph-desc">activation phase</div></div>
+        <div class="glyph-item"><div class="glyph-symbol">⟁Sek</div><div class="glyph-desc">execution phase</div></div>
+      </div>
+    </section>
+
+    <!-- ==================== XJSON SPECIFICATION ==================== -->
+    <section id="xjson-spec">
+      <h2>📜 XJSON Specification v2.0</h2>
+      <p>XJSON is a universal AST-JSON language capable of representing HTML, CSS, Logic, state, routing, components, SCX blocks, agents, and OS-level layout — all in one JSON tree.</p>
+      
+      <h3>Core Node Types</h3>
+      <pre><code>{
+  "type": "element",   // HTML/UI element
+  "type": "style",     // CSS/SCX styles
+  "type": "logic",     // JS/PY/PHP logic
+  "type": "control",   // @if/@then/@else flow
+  "type": "component", // Reusable UI
+  "type": "route",     // Navigation
+  "type": "state",     // Application state
+  "type": "agent",     // MX2LM/Mx2Qwen agent
+  "type": "tape"       // Holotape OS
+}</code></pre>
+
+      <div class="callout">
+        <strong>💡 Key Insight:</strong> XJSON is 100% valid JSON. Every node is declarative and combinable. The ASX Runtime interprets it directly — no compilation step.
+      </div>
+    </section>
+
+    <!-- ==================== SCX COMPRESSION ==================== -->
+    <section id="scx-guide">
+      <h2>🧠 SCX Compression Guide</h2>
+      <p>SCX (Symbolic Compression eXtension) replaces repetitive semantic patterns with glyphs, achieving 80-95% size reduction while preserving full meaning.</p>
+      
+      <h3>Core Glyph Catalog</h3>
+      <table>
+        <thead><tr><th>Glyph</th><th>Expansion</th><th>Category</th></tr></thead>
+        <tbody>
+          <tr><td><code>⟁F</code></td><td>display: flex</td><td>Layout</td></tr>
+          <tr><td><code>⟁Fcol</code></td><td>display: flex; flex-direction: column</td><td>Layout</td></tr>
+          <tr><td><code>⟁Acenter</code></td><td>align-items: center</td><td>Layout</td></tr>
+          <tr><td><code>⟁PANEL</code></td><td>background: var(--panel); border-radius: 12px; padding: 20px</td><td>UI</td></tr>
+          <tr><td><code>⟁CARD</code></td><td>⟁PANEL + box-shadow</td><td>UI</td></tr>
+          <tr><td><code>⟁BTN</code></td><td>padding: 8px 16px; border-radius: 8px; cursor: pointer</td><td>UI</td></tr>
+          <tr><td><code>⟁Pop</code></td><td>Activation phase — initialize</td><td>K'uhul</td></tr>
+          <tr><td><code>⟁Sek</code></td><td>Execution phase — compute</td><td>K'uhul</td></tr>
+        </tbody>
+      </table>
+      
+      <h3>Compression Example</h3>
+      <pre><code>// BEFORE (247 bytes)
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: var(--panel);
+  border-radius: 12px;
+}
+
+// AFTER (18 bytes) — 93% reduction
+⟁Fcol ⟁Acenter ⟁Pxl ⟁PANEL</code></pre>
+    </section>
+
+    <!-- ==================== ATOMIC ASX RUNTIME ==================== -->
+    <section id="atomic-asx">
+      <h2>⚛️ Atomic ASX Runtime</h2>
+      <p>The ASX Runtime is a framework-free JavaScript engine that interprets XJSON directly. One file ships an app: <code>$state</code>, <code>$routes</code>, <code>$effects</code>.</p>
+      
+      <pre><code>{
+  "$schema": "asx-shell-v1",
+  "$state": { "user": { "score": 0 } },
+  "$computed": { "userLevel": "Math.floor(get('user.score') / 100)" },
+  "$effects": [
+    {
+      "when": "user.score",
+      "run": {
+        "op": "if",
+        "test": { "gte": [{ "$get": "user.score" }, 100] },
+        "then": [{ "op": "notify", "message": "Level up!" }]
+      }
+    }
+  ],
+  "$routes": { "home": { "sections": [{ "panel": { "title": "Welcome" } }] } }
+}</code></pre>
+    </section>
+
+    <!-- ==================== LIVE DEMO ==================== -->
+    <div class="demo-panel" id="live-demo">
+      <h3>⚡ Live SCX → XJSON Demo</h3>
+      <p>Test compression and Mx2LM-style generation:</p>
+      <textarea id="demoInput" rows="3">⟁Fcol ⟁Acenter ⟁PANEL</textarea>
+      <button id="decompressBtn">Decompress (SCX → CSS)</button>
+      <button id="compressTestBtn">Test XJSON Generation</button>
+      <div id="demoOutput" class="demo-output">// Output will appear here</div>
+    </div>
+
+    <!-- ==================== MX2LM TRAINING ==================== -->
+    <section id="mx2lm">
+      <h2>🤖 Mx2LM Training Guide</h2>
+      <div class="callout purple">
+        <strong>Your Mission, Mx2LM:</strong> Generate perfect ASX JSON applications from user requests. You don't write React or HTML templates — you write pure JSON that the ASX Engine runs immediately.
+      </div>
+      
+      <h3>Available Operations</h3>
+      <table>
+        <thead><tr><th>Operation</th><th>Purpose</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>set</code></td><td>Set state value</td><td><code>{"op": "set", "path": "score", "value": 10}</code></td></tr>
+          <tr><td><code>updateBy</code></td><td>Increment/decrement</td><td><code>{"op": "updateBy", "path": "score", "by": 5}</code></td></tr>
+          <tr><td><code>push</code></td><td>Add to array</td><td><code>{"op": "push", "path": "items", "value": "new"}</code></td></tr>
+          <tr><td><code>notify</code></td><td>Show notification</td><td><code>{"op": "notify", "message": "Done!"}</code></td></tr>
+          <tr><td><code>setRoute</code></td><td>Navigate</td><td><code>{"op": "setRoute", "route": "game"}</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ==================== AGENT BRAIN MAPS ==================== -->
+    <section id="agent-brains">
+      <h2>🧬 Agent Brain Maps (Bigrams / Trigrams / Meta)</h2>
+      <pre><code>// bigrams.json
+{ "enter room": "scan environment", "low health": "seek medkit", "enemy spotted": "prepare attack" }
+
+// trigrams.json
+{ "player hears noise": "predict ambush route" }
+
+// meta-intent-map.json
+{ "threat_high": ["defend", "call_backup"], "resource_low": ["forage", "trade", "request_aid"] }</code></pre>
+    </section>
+
+    <!-- ==================== SCX GRAMMAR ==================== -->
+    <section id="scx-grammar">
+      <h2>🔤 SCX Grammar Reference</h2>
+      <tr>
+        <thead><tr><th>Token</th><th>Meaning</th><th>JS Equivalent</th></tr></thead>
+        <tbody>
+          <tr><td><code>(?)</code></td><td>if</td><td><code>if (cond)</code></td></tr>
+          <tr><td><code>(∴)</code></td><td>then</td><td>then block</td></tr>
+          <tr><td><code>(¬)</code></td><td>else</td><td><code>else</code></td></tr>
+          <tr><td><code>(⊕)</code></td><td>increment</td><td><code>x++ / += 1</code></td></tr>
+          <tr><td><code>(💬>)</code></td><td>message</td><td>notify/log</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ==================== TAPE FORMAT ==================== -->
+    <section id="tape-format">
+      <h2>🎵 Tape / Holotape Format</h2>
+      <p>Each tape is a mini-server: UI, logic, agents, standalone boot.</p>
+      <pre><code>{
+  "type": "tape",
+  "id": "prime-os",
+  "entry": "index.xjson",
+  "agents": ["mx2lm", "mx2qwen"],
+  "routes": ["/", "/api"],
+  "flashram": ["prime.snapshot.001"]
+}</code></pre>
+      <div class="callout purple"><strong>⟁ Every tape is a server. Every tape is a runtime.</strong></div>
+    </section>
+
+    <!-- ==================== REACTIVE BINDING ==================== -->
+    <section id="reactive-binding">
+      <h2>📡 Reactive Binding</h2>
+      <pre><code>&lt;span data-bind="user.score"&gt;&lt;/span&gt;
+&lt;button onclick="Atomic.set('user.score', Atomic.state.user.score + 5)"&gt;Add +5&lt;/button&gt;</code></pre>
+    </section>
+
+    <!-- ==================== EFFECTS SYSTEM ==================== -->
+    <section id="effects-system">
+      <h2>⚡ Effects System</h2>
+      <pre><code>"$effects": [{
+  "when": "player.health",
+  "run": {
+    "op": "if",
+    "test": { "lte": [{ "$get": "player.health" }, 0] },
+    "then": [
+      { "op": "set", "path": "game.gameOver", "value": true },
+      { "op": "notify", "message": "You died!" }
+    ]
+  }
+}]</code></pre>
+    </section>
+
+    <!-- ==================== COMPONENTS ==================== -->
+    <section id="components">
+      <h2>🧩 Component Model</h2>
+      <pre><code>{
+  "type": "component",
+  "id": "card.user",
+  "template": [
+    { "type": "element", "tag": "div", "props": { "scx": "⟁CARD" },
+      "children": [
+        { "type": "slot", "name": "avatar" },
+        { "type": "slot", "name": "name" }
+      ]
+    }
+  ]
+}</code></pre>
+    </section>
+
+    <!-- ==================== SECURITY ==================== -->
+    <section id="security">
+      <h2>🔒 Security Model</h2>
+      <ul>
+        <li><strong>Trust Stamps</strong> — Signed tapes prevent tampering</li>
+        <li><strong>Agent Sandboxing</strong> — Isolated execution contexts</li>
+        <li><strong>No eval()</strong> — Declarative control flow only</li>
+        <li><strong>Cipher Rotation</strong> — SCX tokens remappable per session</li>
+      </ul>
+    </section>
+
+    <!-- ==================== DEPLOYMENT ==================== -->
+    <section id="deployment">
+      <h2>☁️ CDN-fed Block Packs</h2>
+      <pre><code>{
+  "type": "style",
+  "id": "cdn.prime.blocks",
+  "src": "https://cdn.example.com/xjson/prime-blocks.json",
+  "vars": { "spacing.base": "10px", "radius.card": "12px" }
+}</code></pre>
+    </section>
+
+    <!-- ==================== BEST PRACTICES ==================== -->
+    <section id="best-practices">
+      <h2>✅ Best Practices</h2>
+      <ul>
+        <li>Initialize all state; avoid undefined paths</li>
+        <li>Use computed values for derived data</li>
+        <li>Use SCX glyphs for repeated patterns → 90% compression</li>
+        <li>Never use eval() — only parse whitelisted tokens</li>
+        <li>Every guide IS the specification. Every tape IS the runtime.</li>
+      </ul>
+    </section>
+
+    <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border-light); text-align: center; color: var(--text-muted); font-size: 12px;">
+      <p><strong>⟁ ASX · XJSON · SCX · Mx2LM — The Unified Semantic Runtime</strong><br>Every tape is a server. Every guide is the specification. One system, infinite possibilities.</p>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Live Demo: SCX Decompression + XJSON Generation
+  const scxDictionary = {
+    '⟁Fcol': 'display: flex; flex-direction: column;',
+    '⟁Acenter': 'align-items: center;',
+    '⟁Jcenter': 'justify-content: center;',
+    '⟁Pxl': 'padding: 20px;',
+    '⟁PANEL': 'background: var(--panel); border-radius: 12px; border: 1px solid rgba(0,0,0,0.1);',
+    '⟁CARD': 'background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);',
+    '⟁BTN': 'padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600;'
+  };
+
+  function decompressSCX(scxString) {
+    let result = scxString;
+    for (const [glyph, expansion] of Object.entries(scxDictionary)) {
+      result = result.split(glyph).join(expansion);
+    }
+    return result;
+  }
+
+  function generateXJSONFromSCX(scxString) {
+    const tokens = scxString.trim().split(/\s+/);
+    const xjson = {
+      "$schema": "asx-shell-v1",
+      "$metadata": { "name": "Generated from SCX" },
+      "$state": {},
+      "$routes": {
+        "main": {
+          "sections": tokens.map(token => ({
+            "panel": {
+              "title": token,
+              "children": [{ "text": { "text": `Rendered from ${token}` } }]
+            }
+          }))
+        }
+      }
+    };
+    return JSON.stringify(xjson, null, 2);
+  }
+
+  document.getElementById('decompressBtn').addEventListener('click', () => {
+    const input = document.getElementById('demoInput').value;
+    const decompressed = decompressSCX(input);
+    document.getElementById('demoOutput').innerHTML = `<strong>📤 Decompressed CSS:</strong>\n${decompressed}`;
+  });
+
+  document.getElementById('compressTestBtn').addEventListener('click', () => {
+    const input = document.getElementById('demoInput').value;
+    const xjsonOutput = generateXJSONFromSCX(input);
+    document.getElementById('demoOutput').innerHTML = `<strong>📜 Generated XJSON:</strong>\n${xjsonOutput.substring(0, 500)}${xjsonOutput.length > 500 ? '…' : ''}`;
+  });
+</script>
+
+</body>
+</html>

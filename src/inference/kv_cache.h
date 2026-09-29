@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace khanary::inference {
 
@@ -22,6 +23,8 @@ public:
 
     uint32_t seq_len()  const { return seq_len_; }
     uint32_t n_layers() const { return n_layers_; }
+    std::optional<float> attention_score(uint32_t step) const;
+    void record_attention_score(float score);
 
     void clear();
 
@@ -29,6 +32,7 @@ private:
     gpu::D3D11Device& dev_;
     uint32_t n_layers_, d_head_, max_seq_;
     uint32_t seq_len_ = 0;
+    std::vector<float> step_attention_scores_;
 
     // [n_layers] each holding [max_seq * d_head] floats
     std::vector<std::unique_ptr<gpu::TensorBuffer>> k_bufs_, v_bufs_;

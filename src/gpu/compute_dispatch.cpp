@@ -70,4 +70,16 @@ void ComputeDispatch::run(
     run(uavs, srvs, x, y, z);
 }
 
+void ComputeDispatch::run_for_elements(
+    const std::vector<ID3D11UnorderedAccessView*>& uavs,
+    const std::vector<ID3D11ShaderResourceView*>&  srvs,
+    uint32_t element_count,
+    uint32_t threads_per_group)
+{
+    if (threads_per_group == 0u) threads_per_group = 64u;
+    const uint32_t groups_x = (element_count + threads_per_group - 1u) / threads_per_group;
+    if (groups_x == 0u) return;
+    run(uavs, srvs, groups_x, 1u, 1u);
+}
+
 } // namespace khanary::gpu

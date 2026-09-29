@@ -1,0 +1,17 @@
+# Sample distillation spec — run with:
+#   python tools/lfm_factory.py run specs/sample.jsonl --dry-run
+#   python tools/lfm_factory.py run specs/sample.jsonl
+
+{"id":"greeting-pop", "format":"greeting_bank", "phase":"Pop", "kind":"canonical", "count":4, "domain":"technical assistant AI"}
+{"id":"greeting-wo", "format":"greeting_bank", "phase":"Wo", "kind":"learned", "count":3, "domain":"technical assistant AI"}
+{"id":"greeting-xul", "format":"greeting_bank", "phase":"Xul", "kind":"recall", "count":3, "domain":"technical assistant AI"}
+
+{"id":"control-query", "format":"control_flow", "namespace":"control", "domain":"query and retrieval", "count":4}
+{"id":"control-assert", "format":"control_flow", "namespace":"control", "domain":"assertion and state", "count":4}
+
+{"id":"klsl-grammar", "format":"code_grammar", "language":"klsl", "domain":"compute shader kernel language", "count":8}
+
+{"id":"gap-fold-scoring", "format":"capability_gap", "capability":"fold_scoring", "count":3}
+{"id":"gap-gram-routing", "format":"capability_gap", "capability":"gram_gpu_routing", "count":3}
+
+{"id":"track-memory", "format":"track", "track_id":"MEMORY-µ", "phase":"Xul", "domain":"memory recall and retrieval"}

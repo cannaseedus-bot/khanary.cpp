@@ -26,6 +26,13 @@ public:
         const std::vector<TensorBuffer*>& inputs,
         uint32_t x, uint32_t y, uint32_t z);
 
+    // 1-D convenience for kernels written with fixed thread-group size (default 64).
+    void run_for_elements(
+        const std::vector<ID3D11UnorderedAccessView*>& uavs,
+        const std::vector<ID3D11ShaderResourceView*>&  srvs,
+        uint32_t element_count,
+        uint32_t threads_per_group = 64u);
+
     // Update a constant buffer (slot 0)
     void set_constants(const void* data, size_t size);
 

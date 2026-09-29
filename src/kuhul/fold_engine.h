@@ -42,6 +42,11 @@ public:
     // Effective weight for any fold pair
     double effective_weight(Phase from, Phase to) const;
 
+    // Semantic attention gate aligned with runtime W·C·R scoring.
+    double wcr_weighted_score(double static_weight,
+                              double confidence,
+                              double relevance) const;
+
     PhaseEngine& phase_engine() { return pe_; }
 
 private:

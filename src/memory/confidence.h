@@ -2,6 +2,7 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include <vector>
 
 namespace khanary::memory {
 

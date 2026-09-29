@@ -47,6 +47,11 @@ const char* phase_name(Phase p);
 Phase phase_from_name(const std::string& name);
 bool  phase_from_name(const std::string& name, Phase& out);
 
+// Canonical semantic-atom -> phase binding (execution authority).
+// Returns false for unknown atoms.
+bool canonical_phase_for_semantic_atom(const std::string& atom, Phase& out);
+std::string canonical_phase_name_for_semantic_atom(const std::string& atom);
+
 // Phase difference in units of π/3 steps (mod 6, unsigned)
 constexpr int phase_distance(Phase from, Phase to) {
     return ((int)to - (int)from + PHASE_COUNT) % PHASE_COUNT;

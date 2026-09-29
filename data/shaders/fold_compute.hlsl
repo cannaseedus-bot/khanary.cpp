@@ -1,17 +1,24 @@
 // KHANARY fold_compute.hlsl
-// Horizontal fold kernel: elementwise weighted sum across token positions
-// [numthreads(64, 1, 1)] — sized for Intel HD 4600
+// Semantic fold kernel: elementwise weighted sum across fold-aligned semantic channels.
+// [numthreads(64, 1, 1)] — sized for Intel HD 4600.
+//
+// Boundary:
+//   fold_compute = semantic neighborhood/fold computation
+//   attention    = semantic candidate weighting/admission
+//
+// This kernel combines two fold-compatible semantic buffers under arc_weight.
+// It does not perform policy gating or XCFE authorization.
 
 cbuffer FoldConstants : register(b0)
 {
-    uint  seq_len;     // number of tokens
-    uint  d_model;     // embedding dimension
+    uint  seq_len;     // number of semantic records
+    uint  d_model;     // channel dimension per record
     float arc_weight;  // cos(phase_j - phase_i) — precomputed by CPU
     uint  pad;
 };
 
-StructuredBuffer<float>   node_a  : register(t0);  // [seq_len * d_model]
-StructuredBuffer<float>   node_b  : register(t1);  // [seq_len * d_model]
+StructuredBuffer<float>   node_a  : register(t0);  // semantic buffer A: [seq_len * d_model]
+StructuredBuffer<float>   node_b  : register(t1);  // semantic buffer B: [seq_len * d_model]
 RWStructuredBuffer<float> result  : register(u0);  // [seq_len * d_model]
 
 [numthreads(64, 1, 1)]

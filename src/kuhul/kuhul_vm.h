@@ -11,6 +11,7 @@
 namespace khanary::micronaut { class SandboxInspector; }
 
 namespace khanary::kuhul {
+class PhaseDriverLock;
 
 // VM value types on the stack
 struct TensorRef { std::string id; std::string type; };
@@ -44,6 +45,9 @@ public:
     // Call once after construction. Pass nullptr to disable enforcement.
     void set_sandbox(micronaut::SandboxInspector* si) { sandbox_ = si; }
 
+    // Attach optional phase DLL lock policy gate.
+    void set_phase_driver_lock(PhaseDriverLock* lock) { phase_driver_lock_ = lock; }
+
     // Parse and execute a bracket program string
     // e.g. "[Pop] [Wo T1 Tensor] [Yax T1] [Sek MATMUL T1 T2 T3] [Ch'en T3 0.9] [Xul]"
     VMResult run(const std::string& program, const XCFEContext& ctx = {});
@@ -65,8 +69,11 @@ private:
     GramStore&    gs_;
 
     micronaut::SandboxInspector* sandbox_ = nullptr;
+    PhaseDriverLock*             phase_driver_lock_ = nullptr;
 
     std::stack<VMValue> stack_;
+
+    void enforce_phase_driver_lock(Phase phase, const Instruction& ins);
 
     void exec_pop(const Instruction& ins, const XCFEContext& ctx);
     void exec_wo(const Instruction& ins, const XCFEContext& ctx);

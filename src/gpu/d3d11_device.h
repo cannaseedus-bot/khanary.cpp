@@ -21,9 +21,12 @@ public:
     D3D11Device();
     ~D3D11Device();
 
-    // Initialize: enumerate adapters, prefer Intel HD 4600 by description
-    // Falls back to default adapter if preferred not found
-    bool init(const std::string& preferred_adapter_substr = "Intel");
+    // Initialize and choose an adapter.
+    // preferred_adapter_substr:
+    //   - "dedicated"/"auto"/"" => pick adapter with highest dedicated VRAM
+    //   - any other value        => first adapter name containing the hint
+    // Falls back to highest dedicated VRAM, then adapter 0.
+    bool init(const std::string& preferred_adapter_substr = "dedicated");
 
     bool is_valid() const { return device_ != nullptr; }
 

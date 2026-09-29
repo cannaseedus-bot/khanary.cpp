@@ -59,12 +59,22 @@ void WorldState::rebuild() {
 
         TrackWorldNode node;
         node.track_id         = id;
-        node.x                = pos_x(phase);
-        node.y                = pos_y(phase);
-        node.z                = z_slot * 0.5f;
+        if (e->vector_meta.declared) {
+            node.x = e->vector_meta.x;
+            node.y = e->vector_meta.y;
+            node.z = e->vector_meta.z;
+            node.vector_source = e->vector_meta.source;
+        } else {
+            node.x = pos_x(phase);
+            node.y = pos_y(phase);
+            node.z = z_slot * 0.5f;
+            node.vector_source = "phase_default";
+        }
         node.primary_phase    = phase;
         node.active_block     = phase_to_block(phase);
         node.confidence       = e->confidence;
+        node.static_weight    = e->static_weight;
+        node.health           = e->health;
         node.gram_count       = 0;  // wired when GramStore exposes count_ns()
         node.sandbox_violation = has_violation.count(id) > 0;
 
@@ -114,8 +124,11 @@ JsonPtr WorldState::to_json() const {
 
         obj["active_block"]      = json_string(std::string(block_name(node.active_block)));
         obj["confidence"]        = json_number(static_cast<double>(node.confidence));
+        obj["static_weight"]     = json_number(static_cast<double>(node.static_weight));
+        obj["health"]            = json_number(static_cast<double>(node.health));
         obj["gram_count"]        = json_number(static_cast<double>(node.gram_count));
         obj["sandbox_violation"] = json_bool(node.sandbox_violation);
+        obj["vector_source"]     = json_string(node.vector_source);
 
         JsonObject blocks_obj;
         for (uint8_t i = 0; i < static_cast<uint8_t>(AtomicDOMBlock::COUNT); ++i) {

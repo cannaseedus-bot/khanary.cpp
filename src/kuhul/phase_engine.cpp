@@ -1,7 +1,21 @@
 #include "phase_engine.h"
+#include "xcfe_node_class.h"
 #include <stdexcept>
+#include <algorithm>
+#include <cctype>
 
 namespace khanary::kuhul {
+
+namespace {
+
+std::string upper_copy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    return s;
+}
+
+} // namespace
 
 const char* phase_name(Phase p) {
     switch (p) {
@@ -30,6 +44,21 @@ bool phase_from_name(const std::string& name, Phase& out) {
     if (name == "Ch'en" || name == "Chen") { out = Phase::Chen; return true; }
     if (name == "Xul")         { out = Phase::Xul;  return true; }
     return false;
+}
+
+bool canonical_phase_for_semantic_atom(const std::string& atom, Phase& out) {
+    // Promoted into the XCFE Node ISA (src/kuhul/xcfe_node_class.h): the
+    // semantic atom IS the node class, and this is now only its name-based
+    // front door, so the class -> phase authority has a single definition.
+    XcfeNodeClass node_class{};
+    if (!xcfe_node_class_from_name(atom, node_class)) return false;
+    return canonical_phase_for_xcfe_class(node_class, out);
+}
+
+std::string canonical_phase_name_for_semantic_atom(const std::string& atom) {
+    Phase p = Phase::Pop;
+    if (!canonical_phase_for_semantic_atom(atom, p)) return "";
+    return phase_name(p);
 }
 
 PhaseEngine::PhaseEngine() : current_(Phase::Pop) {}
