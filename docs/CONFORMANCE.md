@@ -23,9 +23,11 @@ ctest --test-dir build/conformance -C Release --no-tests=error --output-on-failu
 ```
 
 `build/conformance/conformance-summary.json` is the stable result; the adjacent
-`conformance.log` contains paths, timing and diagnostics. The summary distinguishes
-unexecuted GPU/WGSL/Supernaut work from passing CPU and asset checks. These tests do
-not establish GPU numerical equivalence or full compiler semantics.
+`conformance.log` contains paths, timing and diagnostics. The summary includes
+executed lane verdicts for GPU adapter/device probing and WGSL code generation
+shape checks. Supernaut is an external future addon and is not part of the root
+KHANARY conformance surface. These tests do not establish GPU numerical
+equivalence or full compiler semantics.
 
 ## Admission contracts
 
@@ -99,7 +101,8 @@ never copied into that authority context. `xcfe_authorized` and the legacy
 nonboolean value denies; true cannot override the host. Capability eligibility
 and `MISS_capability` remain separate from authorization.
 
-Driver-lock audit/enforce configuration is unchanged. This is execution-policy
+Driver-lock enforce mode is required at startup and hash-bound to declared phase
+artifacts. This is execution-policy
 provenance, not network authentication. Tests prove the registered handler is not
 called for unbound, forged, denied, malformed or exception-producing policy cases.
 
@@ -118,6 +121,15 @@ two bytes per F16 element. The loader sets stride explicitly. GPU allocation or
 upload failure throws before a shard vector is returned. `validate_crc` delegates
 to the same complete format validation. The separate model `.dds` forward path
 and any SCXQ2 representation are not declared equivalent to SDDS by these checks.
+
+`KHANARY_SDDS_MANIFEST_TEST` promotes the GGUF->SDDS/FoldMap transport path into
+root conformance without requiring a real model file. It generates synthetic
+shards and proves direct-seek `offset_in_file` integrity, split tensor
+reconstruction through contiguous `offset_in_tensor` slices, repeated tensor
+names across shard files, duplicate-name rejection within one SDDS file, and
+FoldMap layer discovery through `layer_NN.attention` IDs. FoldMap remains a
+physical runtime mapping: assigning a tensor to `layer_17.attention` does not
+make the tensor a semantic Fold authority.
 
 ## SCXQ2
 
@@ -145,15 +157,16 @@ Native and Python suites emit one JSON stdout record of kind
 missing fixtures/dependencies or harness error). Cases are sorted by ID. A suite
 hash is SHA-256 of LF-joined `suite|case-id|PASS-or-FAIL` rows, UTF-8 without a
 terminal newline. The aggregate uses sorted `suite|verdict|summary_hash` rows.
-No timings or absolute paths enter either hash. These are result fingerprints,
+No compile timestamps, timings, or absolute paths enter either hash. These are result fingerprints,
 not repository-content digests; errors are distinguished by verdict/exit code.
 
 The root CTest suite covers existing projection/AIML/attention behavior, router
 policy and provenance, schema/native-loader parity, strict JSON rejection,
 canonical byte/hash vectors, SDDS truncation/format rejection, KLSL parsing and IR
-smoke coverage, and geometry asset integrity/schema bindings. The KLSL smoke also
-checks malformed dimensions cannot stall parsing. It does not validate generated
-HLSL/WGSL numerical equivalence; those compiler backends remain Partial.
+smoke coverage, WGSL backend emission shape checks, runtime schema stack hash
+gating, boundary split policy checks, and geometry asset integrity/schema
+bindings. It does not validate generated HLSL/WGSL numerical
+equivalence; compiler backend numerical parity remains Partial.
 
 Geometry checking reproduces packaged asset integrity, not historical hardware
 experiments. The mesh hash and size, KNU glyph/version fields, kernel presence and

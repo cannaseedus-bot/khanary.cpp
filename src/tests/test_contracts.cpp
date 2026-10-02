@@ -3,8 +3,10 @@
 #include "../manifest/manifest_registry.h"
 #include "../micronaut/track_loader.h"
 #include "../kuhul/xcfe_executor.h"
+#include <algorithm>
 #include <fstream>
 #include <iterator>
+#include <vector>
 
 using namespace khanary;
 namespace fs = std::filesystem;
@@ -12,6 +14,9 @@ static util::JsonPtr read(const fs::path& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) throw std::runtime_error("missing fixture " + path.filename().string());
     return util::parse(std::string((std::istreambuf_iterator<char>(file)), {}));
+}
+static bool has_string(const std::vector<std::string>& values, const std::string& target) {
+    return std::find(values.begin(), values.end(), target) != values.end();
 }
 int main(int argc, char** argv) {
     return test::run("contracts", [&](test::Suite& suite) {
@@ -64,6 +69,76 @@ int main(int argc, char** argv) {
             }
             suite.check(id + "/loader", accepted == expected);
         }
+
+        {
+            util::JsonObject route_contract;
+            route_contract["schemes"] = util::json_array({util::json_string("DECISION"), util::json_string("decision")});
+            route_contract["verbs"] = util::json_array({util::json_string("Choose"), util::json_string("choose")});
+            route_contract["aiml_patterns"] = util::json_array({util::json_string("DECISION *")});
+            route_contract["aiml_templates"] = util::json_array({util::json_string("decision://choose")});
+            route_contract["key_patterns"] = util::json_array({
+                util::json_string("decision:choose:*"), util::json_string("decision:choose:*")});
+            route_contract["key_templates"] = util::json_array({util::json_string("decision:result:selected")});
+            route_contract["key_grammar"] = util::json_array({util::json_string("schema:scfml.pattern_learning.v1")});
+
+            util::JsonObject track;
+            track["@no-eval"] = util::json_bool(true);
+            track["id"] = util::json_string("ROUTE-CONTRACT-TEST-µ");
+            track["phase"] = util::json_string("Sek");
+            track["governs"] = util::json_array({util::json_string("decision")});
+            track["route_contract"] = util::json_object(std::move(route_contract));
+            track["tokens"] = util::json_array({util::json_string("Action"), util::json_string("action"), util::json_string("")});
+            util::JsonObject brain;
+            brain["template"] = util::json_string("analyst");
+            brain["projection_only"] = util::json_bool(true);
+            brain["authority_boundary"] = util::json_string("example_only");
+            track["brain_profile"] = util::json_object(std::move(brain));
+            util::JsonObject progression;
+            progression["level"] = util::json_number(5.0);
+            progression["projection_only"] = util::json_bool(true);
+            track["progression"] = util::json_object(std::move(progression));
+
+            const auto schema = data / "schema" / "micronaut-track.schema.json";
+            const auto track_value = util::json_object(std::move(track));
+            suite.check("route_contract_key_grammar_schema",
+                        util::validate_schema_file(*track_value, schema));
+
+            const fs::path path = scratch / "tracks/route-contract-test.semantic-tracks.v1.json";
+            { std::ofstream f(path, std::ios::binary); f << util::stringify(*track_value); }
+            micronaut::MicronautRegistry registry;
+            micronaut::TrackLoader track_loader(registry);
+            const bool loaded = track_loader.load_file(path.string());
+            suite.check("route_contract_key_grammar_loader", loaded);
+            const auto* entry = registry.get("ROUTE-CONTRACT-TEST-µ");
+            suite.check("route_contract_key_grammar_entry", entry != nullptr);
+            if (entry) {
+                suite.check("route_contract_schemes_normalized",
+                            has_string(entry->route_contract.schemes, "decision") &&
+                            entry->route_contract.schemes.size() == 1);
+                suite.check("route_contract_verbs_normalized",
+                            has_string(entry->route_contract.verbs, "choose") &&
+                            entry->route_contract.verbs.size() == 1);
+                suite.check("route_contract_key_patterns_preserved",
+                            has_string(entry->route_contract.key_patterns, "decision:choose:*") &&
+                            entry->route_contract.key_patterns.size() == 1);
+                suite.check("route_contract_key_templates_preserved",
+                            has_string(entry->route_contract.key_templates, "decision:result:selected"));
+                suite.check("route_contract_key_grammar_preserved",
+                            has_string(entry->route_contract.key_grammar, "schema:scfml.pattern_learning.v1"));
+                suite.check("route_contract_tokens_normalized",
+                            has_string(entry->route_contract.tokens, "action") &&
+                            entry->route_contract.tokens.size() == 1);
+                suite.check("profile_projection_loaded",
+                            entry->profile_projection && entry->profile_projection->is_object());
+                if (entry->profile_projection) {
+                    suite.check("profile_projection_boundary",
+                                entry->profile_projection->get_bool("projection_only").value_or(false) &&
+                                entry->profile_projection->get("brain_profile") != nullptr &&
+                                entry->profile_projection->get("progression") != nullptr);
+                }
+            }
+        }
+
         micronaut::MicronautRegistry tracks;
         micronaut::TrackLoader loader(tracks);
         for (const auto& entry : fs::directory_iterator(data / "tracks"))

@@ -1,0 +1,21 @@
+{
+  "id": "phase-driver.xul.v1",
+  "phase": "Xul",
+  "driver_weight": 1.0,
+  "ops": [
+    "compare_and_commit",
+    "gramWrite",
+    "emit_answer",
+    "persist_state"
+  ],
+  "emits": {
+    "data": true,
+    "next_phase_hint": false,
+    "verb": true,
+    "noun": true,
+    "opcode": true,
+    "confidence_delta": true
+  },
+  "default_verb": "@commit",
+  "terminal": true
+}

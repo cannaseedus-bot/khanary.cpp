@@ -63,6 +63,7 @@ This launcher:
 - builds `data\factory_keys.bin` + `data\factory_keys.cachemeta.json` on first run (one-time compile),
 - starts `KHANARY.exe` on RPC/MCP ports if it is not already ready (passing `--gguf-model` from `KHANARY_GGUF_MODEL` and DDS args from `KHANARY_DDS_KSON` / `KHANARY_DDS_MANIFEST` / `KHANARY_DDS_SHARDS`),
 - starts CHAT-µ (LFM2.5-1.2B) and TOOL-µ (gemma-3-1B) llama-server instances — each checks if its default port is free, scans the next 20 if not, and resolves to the first available port,
+- starts a KHANARY single-completion OpenAI-compatible gateway (`tools\khanary_completion_api.py`) that fronts `key_query` and allows phase-gated CHAT-µ/TOOL-µ contributions on one endpoint,
 - writes `data\ports.json` with all resolved live ports so `lfm_factory.py` and `bot.py` connect automatically,
 - serves the custom WebUI from `build\webui` via `--path` when `index.html` is present there,
 - opens the WPF terminal/console shell.
@@ -78,6 +79,20 @@ Every submitted `key_query`/`infer` prompt is now archived into runtime memory/k
 Lexical cues and morphemes are also grounded into canonical semantic atoms (`word_to_atom:*`, `atom:*`) with fixed phase contracts (`atom_phase_contract:*`) for recognition only—this does **not** grant learned associations execution authority over K'UHUL phase algebra.
 The dictionary feed (`data\gram\english-dictionary.jsonl`) now seeds lexical similarity keys (`word_similarity:*`, `synonym:*`) and prompt-time semantic association links (`assoc:semantic:*`) for meaning-preserving alternate wording.
 The runtime now exposes a deterministic **Fold Graph Parser** surface via JSON-RPC (`fold_graph_parse`) and `key_query` triggers (`fgp: ...`, `@fgp ...`, `fold graph parse ...`), producing `atoms/relations/books/candidates/unresolved/provenance` from lexical evidence, with canonical relation typing (`infer_relation_from_lexical`) + relation phase hints, while keeping phase binding canonical.
+
+## JOKE-µ delivery-frame routing
+
+`JOKE-µ` is now a first-class reusable µ-track like `PLAN-µ` and `ADVISOR-µ`. It is not a freeform joke authoring module; it is a humor-frame routing layer that permits ambiguity, pun bridges, metaphor routes, and punchline-compatible sense collapse while preserving the selected semantic key separately from rendered answer text.
+
+The delivery-frame fold is declared in `data/manifest/joke.manifest.json` and governed by `data/tracks/JOKE-u.semantic-tracks.v1.json`:
+
+```text
+wind-up -> frame:joke_setup
+pitch   -> frame:timed_delivery
+swing   -> frame:collapse
+```
+
+The baseball words are surface aliases, not the selected domain. Boundary rules keep the fold structural: frames are declared, beats are phase-typed, roles are schema-bound, collapse is verified, subversion is a declared variant, and surface/key-word co-occurrence cannot promote itself into a frame.
 `key_query` also supports phase-governed lexical rewrites (`synonymize: ...`, `synonym: ...`, `syn: ...`, `@syn ...`) that apply dictionary alternates with a Ch'en semantic-invariance gate before emit.
 When a question still misses local facts, `web_research` dispatch now returns explicit routed-status text instead of mirroring the user query.
 Both utility and web-research payloads carry runtime authority metadata (`governing_track`, `activation`, and `response_phase`) so WPF consumes track/phase state directly from runtime JSON.
@@ -228,12 +243,15 @@ Spec file — one JSON object per line:
 ```jsonc
 {"id":"greet-pop-1","format":"greeting_bank","phase":"Pop","count":5}
 {"id":"ctrl-if-1","format":"control_flow","capability":"if/then/else"}
+{"id":"scfml-1","format":"scfml_pattern_learning","namespace":"plan","track_id":"PLAN-µ","topic":"semantic branch learning"}
 {"id":"klsl-1","format":"code_grammar","language":"klsl","class_name":"KLSL"}
 {"id":"tmpl-1","format":"template_fill","template":"vite-react-ts","name":"MyApp","features":"dark mode,rpc"}
 ```
 
 Supported formats: `greeting_bank`, `key_grammar`, `track`, `capability_gap`, `aiml`,
-`control_flow`, `code_grammar`, `raw_jsonl`, `scaffold`, `template_fill`.
+`control_flow`, `scfml_pattern_learning`, `code_grammar`, `raw_jsonl`, `scaffold`, `template_fill`.
+SCFML rows are emitted as `scfml.branch.v1` plus `scfml.pattern_learning.v1`; generated candidates default
+to `UNKNOWN` and require `SUPPORTED_or_user_verified` before promotion.
 
 The factory reads `data/ports.json` (written by `KHANARY.bat` or `start-lfm.bat`) to auto-connect
 to the live CHAT-µ port — no hard-coded port needed after the server starts.
@@ -292,7 +310,7 @@ instead of the embedded WebUI. KHANARY.bat uses `--path %KHANARY_WEBUI_PATH%` (d
 Two scripts in `data/webui/` wire any ASX kit for live use:
 
 - **`khanary-brand.js`** — floating gear button → settings drawer: title, logo URL, accent/secondary/bg/surface color pickers, template switcher. Reads `/khanary-registry.json` to populate the switcher. Saves to `localStorage` key `khanary_brand`; applies all CSS var name variants simultaneously so any ASX kit responds without modification.
-- **`khanary-chat.js`** — wires `#chat-thread` / `#chat-input` / `#send-btn` in the kit; falls back to an injected floating chat bubble. Streams from `/v1/chat/completions` (same origin) with history (last 20 messages).
+- **`khanary-chat.js`** — wires `#chat-thread` / `#chat-input` / `#send-btn` in the kit; falls back to an injected floating chat bubble. Targets `http://127.0.0.1:17892/v1/chat/completions` by default (override via `localStorage.khanary_completion_api`) and supports both SSE streaming and regular JSON completion responses.
 
 `apply_template_kit()` in the factory injects a `:root` override block for brand tokens,
 appends both scripts before `</body>`, and copies `khanary-registry.json` to the output dir.
@@ -303,13 +321,14 @@ appends both scripts before `</body>`, and copies `khanary-registry.json` to the
 |------|---------|
 | 8764 | MCP gateway (20 tools) |
 | 8787 | JSON-RPC 2.0 |
+| 17892 | KHANARY single completion API (`/v1/chat/completions`) |
 | 17889 | CHAT-µ — LFM2.5-1.2B (default; auto-reassigned if taken) |
 | 17890 | TOOL-µ — gemma-3-1B (default; auto-reassigned if taken) |
 
 `data/ports.json` holds the live resolved ports written at server startup:
 
 ```json
-{"chat_mu": 17889, "tool_mu": 17890, "mcp": 8764, "rpc": 8787}
+{"chat_mu": 17889, "tool_mu": 17890, "completion": 17892, "mcp": 8764, "rpc": 8787}
 ```
 
 ## Bot Command Center (`bot.py`)
@@ -318,9 +337,14 @@ appends both scripts before `</body>`, and copies `khanary-registry.json` to the
 
 ```xml
 <tools>{"tool_calls":[...]}</tools>
+<tools><![CDATA[{"tool_calls":[{"verb":"fold","query":"decision://choose","$agent":"advisor"}]}]]></tools>
 ```
 
-The script parses that block, validates it against the `command_center.allowlist`, and executes local KHANARY MCP/RPC calls.
+The script unwraps standard CDATA, literal `<CDATA>...</CDATA>`, and `<agent>...</agent>` envelopes; the inner payload must still be strict JSON. Optional `$agent`/`agent` fields resolve only against profiles declared in `openai.yaml` (`advisor`, `chat`, `chat_mu`, `tool_mu`) and carry `authority: "config_reference_only"`. The script then validates the call against `command_center.allowlist` before executing local KHANARY MCP/RPC calls.
+
+Typed semantic envelopes are recognized in the same pass. `<route>` and `<decision>` become `micronaut_dispatch` calls, and `<commands>` contributes ordinary allowlisted tool calls. `<think>`, `<reason>`, `<plan>`, `<task>`, `<grammar>`/`<keygrammar>`, `<sql>`, `<memory>`, and `<verify>` return proposal-only metadata; `<commit>` is explicitly blocked without XulGate.
+
+JROM is the runtime tape player / provenance journal for these envelopes: it records `semantic_envelope` events with type, `epistemic_type`, disposition, status, content, and result. Epistemic types are constrained to observation/preference/plan/generated_output/verified_fact/failed_retrieval/capability_metric/execution_trace. JROM does **not** decide truth, execute SQL, or commit state; it preserves routed observations so replay, Ch'en review, and later learning can inspect what was proposed versus what was authorized.
 
 Examples:
 
@@ -357,6 +381,21 @@ If your terminal has repaint/ANSI quirks, set `KHANARY_TUI_SIMPLE_INPUT=1` to fo
 Utility responses return `source: "utility-runtime"` with explicit statuses (`clock_snapshot`,
 `calculation_complete`, `timer_started`, `timer_status`, `knowledge_snapshot`, `style_profile_updated`) so repeated prompts do not replay stale fallback text.
 
+Scheme-addressable micronaut calls are also recognized in `key_query` routing (`math://...`, `time://...`, `date://...`, `plan://...`, `decision://...`, `mx2lm://...`, etc.). Track contracts may declare `schemes`, `verbs`, `aiml_patterns`, `aiml_templates`, `key_patterns`, `key_templates`, `key_grammar`, and `tokens` (top-level or under `route_contract` / `address` / `uri` / `callable`) to seed fast-path resolver selection before normal blend ranking. `key_*` fields are callable/learning surfaces, not fact authority.
+
+Micronaut route contracts have matching transpiler surfaces: `python tools\grammar\mini_transpilers.py micronaut-transpile` writes `data\grammar\micronaut-route-contracts.key-grammar.jsonl`, while the C++ `MicronautTranspiler` projects live registry entries through RPC `micronaut_transpile`. Both normalize semantic data into runtime classes/artifacts; neither executes a micronaut nor grants semantic authority. Each row also carries a `micronaut.class_projection.example.v1` block with identity/cognitive/memory/execution/method examples; that block is explicitly `example_only` and must not be treated as schema law. Optional track fields `brain_profile`, `personality`, `capability_grams`, and `progression` are preserved as `micronaut_profile` projections; they may bias routing/presentation but cannot claim semantic, topology, verification, or commit authority.
+
+`data/grammar/micronaut.runtime-grammar.ebnf` is the standalone Micronaut grammar surface for declarations, profile projections, tensor slots, route contracts, known AIML/SCFML pattern/template declarations, key-grammar bundles, and `semantic_envelope` JROM rows. `tools/check_micronaut_grammar.py` keeps that EBNF aligned with the track schema, JROM `epistemic_type` set, and manifest anchors. Pattern/template declarations are callable/projection surfaces and carry the same non-authority boundary.
+
+Key-grammar rows may now carry an optional `hyperbolic_event` projection (`key_grammar.hyperbolic_event.v1`) with `origin`, `event_role`, `rapidity`/`rapidity_rho`, `direction`/`direction_vector`, `minkowski_interval`, `interval_class`, and `epistemic_state`; standalone rows use `$schema: urn:kuhul:khanary:schema:key-grammar-event:v1` with nested `event_record`, `hyperbolic_metrics`, and `bounds`. These fields describe a candidate continuation on the future sheet; interval classes must match the Minkowski interval sign, and `semantic_authority` must remain `false`. RPC `journal_hyperbolic_event` writes a typed JROM `hyperbolic_event` row with epistemic type `observation`, preserving replay evidence without committing facts.
+
+`decision://choose`, `decision://select`, and `decision://evaluate` route to DECISION-µ. Pass a `decision` object with `branches`, `actions`, `outcomes`, and an explicit `objective` (`maximize_utility` or `minimize_loss`). `expected_utility` requires supplied branch probabilities; if probabilities are unresolved, DECISION-µ either selects the explicit robust model (`maximin`/`minimax`) or returns `decision_unknown` with `required_evidence`. A selected action sets `decision_collapse: true` but always keeps `fact_collapsed: false` when branch facts remain `UNKNOWN`.
+
+Advisor/LFM uncertainty triggers now have dedicated key-grammar + AIML routes:
+- fact-gap phrasing like `I don't know the answer to that question...` triggers `advisor_web_research_trigger` and routes to ADVISOR-µ / WEB-RESEARCH-µ.
+- tool-uncertainty phrasing like `I'm not sure what tool to use...` triggers `lfm_tool_help_trigger` and routes to CHAT-u/LFM assist through advisor templates.
+- both emit `status: "sandbox_candidate"` with `authority: "none"`, `commit_phase: "Ch'en_pending"`, and `learnable_aiml_candidates` so mutation proposals stay sandbox-only until Ch'en/Xul promotion.
+
 Adaptive style profile controls are available through key-query text commands:
 - `set language chinese` / `set language english`
 - `set chat mode random` / `set chat mode neutral`
@@ -392,6 +431,7 @@ When exact/hash/word hits miss, key lookup falls back to a bag-of-words vector-s
 (`tf-idf` weighted cosine over stored keys) before returning a miss.
 Key-store state is persisted to `data/factory_keys.json` at shutdown and restored at startup.
 Successful lookups now increment per-key hit counters and derive a reinforced key confidence score.
+Factory vector tracking frames are persisted in the same state files under `vector_frames` (and binary format v2). `Factory::propose_vector_track()` computes a bounded spherical update to a micronaut's semantic key vector (`vector_meta`), requires monotonic frame ids, caps per-frame drift, and commits only through XulGate scope `micronaut-vector-tracking`. These frames update routing geometry/semantic gravity only; they do not confer semantic or factual authority.
 
 AIML runtime state (`<set>/<get>` variables) is persisted to `data/aiml_state.json`.
 Template expansion now supports `<tool name="...">...</tool>` dispatch for registered host tools
@@ -462,8 +502,199 @@ Mx2LM n-gram responses now include deterministic cross-reference surfaces:
 - `learned_facts` (new subject=>predicate facts learned from non-question clauses)
 - `response_phase` (phase-selected response mode such as neutral, random-chat, learned-slang, locale-language)
 - `governing_track` + `activation` (track authority + on-demand activation contract for utility/research/plan paths)
-- `key_references` (token/ngram/meaning/control keys + manifest expansions)
+- `mx2lm_gram_container` (authoritative `mx2lm.gram_container.v1` with all unigram, bigram, trigram, quadgram, coarse, function, and tool gram channels under the `Mx2LM` namespace)
+- `mx2lm_pattern_container` (authoritative `mx2lm.pattern_container.v1` for cross-micronaut pattern learning: source track, phase, surface, roles, gram-container link, card/outcome)
+- `tensor_projection_container` (derived `tensor.projection_container.v1` emitted by `TENSOR-µ`; projection-only tensor-bundle geometry over the gram/pattern containers, with rank, metric, Jacobian, generation, and `semantic_authority=false` metadata)
+- `vector_projection_container` (legacy/rank-1 `vector.projection_container.v1` emitted by `VECTOR-µ`; still valid as the vector provider under `TENSOR-µ`)
+- `key_references` (key-word/ngram/meaning/control keys + manifest expansions)
 - `ngram_references` (top n-grams, related n-grams, and definition links)
+
+The legacy `bigrams`, `trigrams`, `quadgrams`, `coarse_grams`,
+`function_grams`, `tool_grams`, and `gram_channels` fields remain compatibility
+views. New consumers, including WPF cards, should read
+`mx2lm_gram_container` first. A greeting such as `Hello, hows it going?` may
+activate `GREETING-µ` as the social/card track while the submitted prompt grams
+compile through Mx2LM underneath. Promoted micronauts behave like declared
+employees/agents only after they have a track, sandbox namespace, capabilities,
+and card/view contract; Mx2LM supplies the shared gram evidence and records the
+observed employee/agent work pattern in `mx2lm_pattern_container`.
+
+`TENSOR-µ` is the geometric sidekick for this path. It is a tensor-bundle
+representation learner, not a second semantic authority: Mx2LM/FoldGraph/
+RelationISA own typed semantic structure, while `TENSOR-µ` learns derived
+type-(p,q) projection geometry over that structure. `VECTOR-µ` remains the
+rank-1/vector provider and compatibility container inside the broader
+TENSOR-µ contract. This matters because semantic similarity is only a subset of
+semantic relatedness: `@contradicts`, `@part_of`, and `@causes` can be strongly
+related without meaning “nearby under plain cosine.” The tensor container records
+rank, metric tensor, Jacobian, projection generation, learner version, topology
+version, and alignment metadata so coordinate drift is not mistaken for semantic
+change. Runtime tensors/vectors are rebuildable from the semantic journal and
+should be treated as derived projection/index data.
+
+TENSOR-µ is allowed to model more than a flat embedding. The authoritative
+FoldGraph/GML topology is `B`; TENSOR-µ may learn a derived semantic-manifold
+projection `M_mu` over `B`, local charts `N(k)->T_k(M_mu)`, type-(p,q) tensor
+fields, local metric tensors `g_ij`, Jacobian coordinate transitions, phase/
+relation conditioned metrics `g(F,theta,r)`, and typed path-distance estimates
+`d_M(A,B)`. These are retrieval and relevance geometries only:
+`Delta(M_mu)` or `Delta(TensorField)` does not imply `Delta(B)`, and learned
+curvature, rank, or coordinate drift cannot verify relations or commit topology.
+
+The same boundary now carries a statistical decision layer. GML nodes may carry
+`prior_mass` and `risk_bound`; edges may carry `loss_cost`, `dual_twin`, and
+`mutation`. `vectors.mml` declares `Risk(theta,delta)` and `DeltaF_diff`, while
+`fold.cd.xml` declares the OpenMath symbols (`PriorDistribution`, `Loss`,
+`Risk`, `DecisionRule`, `BayesRisk`, `MinimaxRule`, `DeltaFieldDiff`, and
+related delta symbols). A minimax violation emits `INADMISSIBLE_VECTOR_RULE`,
+which rejects a projection rule before it can be treated as admissible geometry.
+It still does not verify a relation or mutate `B`; Ch'en/XulGate remain the
+semantic/topology commit path.
+
+`vectors.xml` is the tensor/vector/mesh provider registry for that boundary. It
+declares GML as the explicit graph-topology contract between key-books and
+geometry, then lists the projection providers that `TENSOR-µ` may consume:
+the checked GML
+corpus (`khanary_topology`, `hypercube_Q3/Q4`, `ccc_n3/n4`, and `sample`),
+projection/gyro ABI books, formal grammar/law sources (`gml.khanary.ebnf`,
+`gml.validator.json`, `fold.cd.xml`, `vectors.mml`, and `fold_graph.xml`),
+`field.xml` node vectors, the packaged `birdsong_mesh.stb` signal mesh, local
+KLSL mesh-compression surfaces, `src/gpu/dml_ops.*` execution operators, and
+optional external ASX mesh/HLSL shader provenance. `fold.cd.xml` names the Fold
+Graph symbols; `vectors.mml` gives the MathML FoldPair equation
+`FoldPair(S)=<M[Y,X],C[Y,X]^T>` and locks the invariant that co-occurrence mass
+`M` is not the WCR static weight `W_Y`. This keeps the
+order strict: key-books declare compressed semantics, GML preserves typed graph
+shape, and mesh/STB/shader surfaces provide derived geometry for representation
+learning.
+
+`METRIC-µ` is the parent measurement abstraction for this layer. It learns
+derived relevance and traversal geometry inside admitted track compartments,
+not one global metric over all Mx2LM semantics. Its contract is declared in
+`metric_graph.xml`, `data\metric_graph.gml`, `data\grammar\metric_graph.mml`,
+and `data\manifest\metric.manifest.json`. Each track is treated as
+`Track_tau=<G_tau,N_tau,R_tau>`: track-owned grams, local neighborhoods, and
+track-local relations. Cross-track comparison requires an explicit
+`Bridge_alpha_beta`; otherwise the candidate is not comparable. TENSOR-µ,
+VECTOR-µ, SDR, graph paths, and SCX key-books are providers under METRIC-µ. Mesh nodes
+permit discovery between compartments, not execution; WCR/Yax still consumes
+the resulting `R`, and Ch'en/Xul remain the verification and topology commit
+path.
+
+The METRIC-µ training objective is now explicit in `metric_graph.xml` and
+`data\grammar\metric_graph.mml`. Provider scoring is local and conditioned by
+track, relation, phase, fold context, and provider:
+
+```text
+score_tau(Q,K|r,F,theta,provider)
+  = -ProviderDistance(Q,K|tau,r,F,theta,provider) / T_tau
+```
+
+The contrastive term admits positives from GOOD FoldDelta evidence, admitted
+RelationISA edges, or declared key-book neighborhoods, while negatives are
+same-track hard negatives plus explicitly admitted bridge negatives:
+
+```text
+L_contrast =
+  -log(exp(score_pos) / (exp(score_pos) + sum_{K- in Neg_tau} exp(score_neg)))
+```
+
+Cross-track loss is only defined through an admitted bridge:
+
+```text
+d_alpha_beta(Q,K) = d_alpha(Q,m) + L_m + d_beta(m,K)
+```
+
+Differential comparison and decision risk are separate penalties:
+
+```text
+L_diff = ||Projection(DeltaG) - DeltaF||^2
+L_risk = max(0, Risk(theta,delta) - risk_bound)^2
+L_total = alpha*L_contrast + beta*L_bridge + gamma*L_diff + eta*L_risk
+```
+
+That objective trains derived metric geometry and provider indexes only. It
+does not promote a relation, verify GOOD/BAD, or commit FoldGraph topology.
+
+The same TENSOR-µ contract now admits continuous-field provider geometry over
+the discrete FoldGraph `B`. `data\grammar\gml.khanary.ebnf` accepts quantum
+graph and flow-field attributes such as `boundary_type`, `vertex_pot`, `length`,
+`potential`, `refractive`, `wave_number`, `frequency`, `vx/vy/vz`,
+`divergence`, `singularity`, `text_boundary`, `boundary_token`,
+`tensor_rank_p`, `tensor_rank_q`, `is_smooth_section`, `g_00/g_01/g_10/g_11`,
+`jacobian_w`, `jacobian_determinant`, and `riemann_curvature_scalar`.
+`data\grammar\fold.cd.xml` declares the corresponding OpenMath symbols:
+`GraphHamiltonian`, `FluxConservation`, `PlaneWaveSuperposition`,
+`ScatteringMatrix`, `GradientFlow`, `LieBracket`, `EulerCharacteristic`, and
+`StructuralBoundaryReset`, plus `TensorField`, `MetricTensor`,
+`JacobianMatrix`, `InverseJacobian`, and `TensorTransform`.
+`data\grammar\vectors.mml` binds those symbols to the Hamiltonian, flux, wave,
+scattering, flow, field-index, tensor-transform, and boundary-reset equations.
+The shipped `data\quantum_field_boundaries.gml` and `data\tensor_field.gml`
+assets are small conformance surfaces for this layer.
+
+This does not turn n-grams into a flat book-length stream. Structural markers
+such as `◄s►`, `◄/s►`, `◄par►`, and `◄art►` are declared field boundaries and
+local sinks/sources. They reset local n-gram context unless an admitted boundary
+transition exists, so sentence, paragraph, article, and section structure becomes
+part of the topology that TENSOR-µ/METRIC-µ may project. It remains projection
+geometry: Ch'en/Xul still decide verification and topology commit.
+
+Differentiable curves add the bridge from flat n-gram streams to continuous
+provider geometry. A token, sentence, paragraph, or article stream may be
+projected as `gamma:I->X`; its tangent velocity `V(t)=d gamma(t)/dt` records
+local semantic drift, and `DeltaF_curve=int_gamma V(s) dot ds` records the
+derived displacement. `curvature` marks structural-scale inflection: a sentence
+is a low-variance arc, a paragraph break is a controlled bend, and an article
+boundary is a terminal sink/reset. These are TENSOR-µ/METRIC-µ provider features
+over `B`, not semantic authority.
+
+Flat Euclidean gradient fields are the initial fast path. In that provider,
+`field_kind "euclidean_gradient"` treats `vx/vy/vz` as the partial derivatives
+of `grad f`, `scalar_potential` stores the projection-side potential value, and
+`potential_delta` records `f(gamma(b))-f(gamma(a))`. If `curl_x/curl_y/curl_z`
+are declared, the validator requires them to be zero; this certifies the
+conservative projection path and lets Factory choose the cheap flat-space route
+before using Riemannian, quantum, or mesh providers.
+
+Training gradients are now explicit, but they live one level lower than
+FoldDelta. `TrainingGradient:g_phi=grad_phi L_total` tunes projection-provider
+parameters `phi`, where `L_total` can be the METRIC-µ objective
+`alpha*L_contrast + beta*L_bridge + gamma*L_diff + eta*L_risk`. The update law
+is `phi_next = phi - eta*clip(g_phi,c)`, carried by `learning_rate`,
+`gradient_clip`, `grad_norm`, `loss_value`, `provider_id`, and `parameter_id`
+telemetry in GML. This can update TENSOR-µ/METRIC-µ provider geometry or indexes;
+it is not FoldDelta, not Ch'en proof, and not Xul commit.
+
+Entropy gradients add uncertainty geometry. `local_entropy` stores
+`H(x)=-sum_w P(w|x)logP(w|x)`, `eh_x/eh_y/eh_z` store projected components of
+`grad H`, and `entropy_spike` marks sudden structural uncertainty jumps. Optional
+`entropy_bound` gates high-uncertainty paths; exceeding it emits
+`ENTROPY_BOUND_EXCEEDED`. The free-energy provider combines relevance and
+uncertainty as `V(x)=-grad f(x)+beta^-1*grad H(x)`, with
+`diffusion_beta_inv` carrying `beta^-1`. This supports exploration, repair, and
+hallucination-risk gating in projection space only.
+
+Inscribed triangular mesh geometry is now carried by the entropic-well contract
+as projection metadata. `inscribed_mesh_geometry` records `circumradius_R`,
+`inradius_r`, `circumcenter_coord`, and `triangular_entropy_h_delta` for local
+3-node simplicial loops. The MathML contract enforces Euler's triangle bound
+`R_circum >= 2*r_in`, so the holographic circumcircle cannot collapse beneath
+the incircle compression core. These dual-circle measurements can mask, rank, or
+flag warped projection neighborhoods; they cannot verify relations or commit
+FoldGraph topology.
+
+The packaged `models/khanary-geometry-v0.3.0` model is the local geometry
+provider behind the birdsong signal mesh. Its `compiler.py` projects the canary
+WAV into spectrogram ridges, a Delaunay graph, CSR adjacency, geometric MoE
+expert ids, and `.brain`/`.stb` tensor artifacts. `brain1` is the earlier
+10,168-node / 30,491-edge compile run; `brain2` is the packaged 30,628-node /
+91,863-edge run mirrored as `data/birdsong_mesh.stb`; `brain3` is the
+current-system normalized proof run packed from the same verified tensor sidecar
+contract with `tools/pack_geometry_brain_stb.py`. These files are registered as
+provenance sidecars under the `birdsong-stb` provider and checked by
+`tools/check_geometry_model.py`, including STB0 tensor payload alignment. They
+remain projection evidence, not semantic authority.
 
 Question-like misses (for example unresolved `what is ...?`) now fall through to MISS handling, which maps to `web_research` dispatch (`WEB-RESEARCH-µ` via Librarian) instead of returning mirrored fallback text.
 
@@ -475,7 +706,10 @@ python ngram_builder.py --input data\alice\mx2lm.aiml --output data\mx2lm\mx2lm_
 python ngram_builder.py --text "Paris is capital of France" --binary-out data\mx2lm\mx2lm.ngram.bin --pretty
 ```
 
-Builder output now also includes `coarse_bigrams`/`coarse_trigrams`,
+Builder output now also includes `mx2lm_gram_container`,
+`mx2lm_pattern_container`,
+`vector_projection_container`,
+`coarse_bigrams`/`coarse_trigrams`,
 `relation_templates` (e.g., `capital of -> is_capital_of`), `compositional_signatures`,
 `word_sense_candidates`, and explicit `content_words`/`function_words` with
 `content_function_profile` (ratios + interleaving/binding metrics), plus
@@ -486,6 +720,29 @@ operations (similarity kernel behavior), not executable control logic.
 `--binary-out` writes a snapshot-only coarse/lexical n-gram prior file
 (`mx2lm.ngram.bin`) for faster runtime loading; semantic authority remains
 in definitions/relations.
+
+For larger corpus ingestion, declare external and repo-local sources in
+`data\ingest\khanary_dataset_sources.json`, then compile derived evidence:
+
+```powershell
+python tools\build_dataset_ingestion.py --sources data\ingest\khanary_dataset_sources.json --max-rows 200 --top-k 512 --binary-top-k 50000
+python tools\check_dataset_ingestion.py
+```
+
+The generated lane writes `data\mx2lm\dataset_gram_container.json`,
+`data\mx2lm\dataset_pattern_container.json`,
+`data\mx2lm\dataset_vector_projection.json`,
+`data\mx2lm\dataset_ngram_summary.json`,
+`data\mx2lm\dataset.ngram.bin`,
+`data\grammar\dataset.key-grammar.candidates.jsonl`, and
+`data\ingest\dataset_ingestion_manifest.json`. External joke/chat/reasoning
+rows are candidate evidence only (`semantic_authority=false`); dictionary
+key-grammar sources remain authority references. The JSON artifacts are review
+capped by `--top-k`; the MX2NGRAM binary has its own `--binary-top-k` cap and
+reports observed-versus-emitted section counts. The manifest reports
+`lexical_units` because this is key-word/gram extraction, not model-token
+tokenization. Use `--max-rows 0` only for a full streaming pass once the
+bootstrap artifacts are verified.
 
 For code, use the dedicated grammar lane (`code_gram.py`) so code can be kept as
 atomic `<code>...</code>` blocks while still preserving structure:
@@ -527,6 +784,26 @@ Current theory pack:
 Track schema now supports structured compare/contrast and QA semantics via
 `contrast_sets`, `has_a_hierarchy`, `truth_semantics`, and `qa_profile`
 (`data\schema\micronaut-track.schema.json` + `data\schema\micronaut-track-types.schema.json`).
+
+Unified tensor registry RPC is available for Phase 1 KXC execution contracts:
+`tensor_register`, `tensor_info`, `tensor_list`, `tensor_stats`, and `tensor_gemm`.
+`UnifiedTensor` carries shape/dtype/layout/device/lifecycle/backend/CSO identity above
+`TensorBuffer` and `DMLOps`; tensor lifecycle labels are execution states, not K'UHUL semantic phases.
+GEMM currently uses the existing DMLOps/D3D11 path when available and falls back to CPU with
+`backend: "cpu-fallback"`.
+
+Inline GPU kernel manifests can carry raw HLSL in CDATA, but validation must run before compilation:
+`kernel_source` / `shader_source` CDATA requires `cso_id` (or `@id`) equal to `cso://SHA256(unwrapped_source)`.
+The reusable check lives in `src/gpu/cso_integrity.cpp`; GML validator rule `H1` fails closed with
+`CSO_INTEGRITY_MISMATCH`. This is an execution-integrity gate, not semantic authority.
+
+Lorentz frame transitions now have matching contracts: `gml.validator.json` rules `LB1`-`LB3` validate finite
+rows, bounded controls, and identity-when-disabled; `fold.cd.xml` declares `LorentzBoostTensor`; and
+`GramGpuScorer::LorentzBoostRows::make_pure()` builds the host-side 4x4 rows for the existing
+`LorentzTransitionTensor` shader cbuffer at register `b1` (not `b0`). During `infer`, the projection/prompt and
+projection/completion gyro residuals install a bounded transition on `InferenceEngine`; prompt GramStore
+candidates are then scored through `GramGpuScorer::score_batch()` with deterministic vector overrides. The
+`semantic_attention` response/JROM block is projection-only evidence and does not change semantic authority.
 
 `data\shaders\svg_compute.hlsl` is the SVG-3D tensor projection kernel:
 it maps typed tensor channels (activation/confidence/relevance/pattern) to geometric buffers,

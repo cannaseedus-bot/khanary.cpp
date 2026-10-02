@@ -171,6 +171,133 @@ uint32_t width_from_gram_text(const std::string& gram) {
     return width;
 }
 
+std::string phase_for_gram_class(const std::string& gram_class) {
+    if (gram_class == "unigram") return "Pop";
+    if (gram_class == "coarse_gram" || gram_class == "function_gram") return "Yax";
+    if (gram_class == "tool_gram") return "Sek";
+    return "Wo";
+}
+
+std::vector<std::string> pattern_roles_from_container(
+    const Mx2LmGramContainer& gram_container,
+    const std::string& source_track)
+{
+    std::vector<std::string> roles;
+    std::unordered_set<std::string> seen;
+    auto push = [&](const std::string& role) {
+        if (role.empty()) return;
+        if (!seen.insert(role).second) return;
+        roles.push_back(role);
+    };
+
+    push("pattern_observation");
+    push("track:" + (source_track.empty() ? std::string("Mx2LM") : source_track));
+    for (const auto& g : gram_container.grams) {
+        push(g.role);
+        if (g.gram_class == "tool_gram") push("tool_dispatch_pattern");
+        if (g.gram_class == "function_gram") push("function_word_pattern");
+        if (g.gram_class == "coarse_gram") push("structural_shape_pattern");
+        if (roles.size() >= 12) break;
+    }
+    return roles;
+}
+
+std::uint64_t fnv1a64(const std::string& value) {
+    std::uint64_t h = 1469598103934665603ull;
+    for (unsigned char ch : value) {
+        h ^= static_cast<std::uint64_t>(ch);
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
+float signed_component(std::uint64_t h, unsigned shift) {
+    const auto part = static_cast<std::uint32_t>((h >> shift) & 0xffffu);
+    return (static_cast<float>(part) / 32767.5f) - 1.0f;
+}
+
+void mix_projection_seed(const std::string& seed,
+                         float weight,
+                         float& x,
+                         float& y,
+                         float& z)
+{
+    if (seed.empty() || weight <= 0.0f) return;
+    const auto h0 = fnv1a64(seed);
+    const auto h1 = fnv1a64("y:" + seed);
+    const auto h2 = fnv1a64("z:" + seed);
+    x += signed_component(h0, 0) * weight;
+    y += signed_component(h1, 8) * weight;
+    z += signed_component(h2, 16) * weight;
+}
+
+std::string vector_key_safe(std::string value) {
+    std::string out;
+    out.reserve(value.size());
+    bool last_sep = false;
+    for (unsigned char ch : value) {
+        if (std::isalnum(ch) != 0) {
+            out.push_back(static_cast<char>(std::tolower(ch)));
+            last_sep = false;
+        } else if (!last_sep) {
+            out.push_back('_');
+            last_sep = true;
+        }
+        if (out.size() >= 64) break;
+    }
+    while (!out.empty() && out.back() == '_') out.pop_back();
+    return out.empty() ? "projection" : out;
+}
+
+Mx2LmVectorProjection project_event_geometry(
+    const Mx2LmPatternEvent& event,
+    const Mx2LmGramContainer& gram_container)
+{
+    Mx2LmVectorProjection row;
+    row.source_key = event.gram_container_key.empty()
+        ? gram_container.key
+        : event.gram_container_key;
+    row.source_track = event.source_track.empty() ? "Mx2LM" : event.source_track;
+    row.source_phase = event.source_phase.empty() ? "Wo" : event.source_phase;
+    row.key = "vector:projection:" +
+              vector_key_safe(row.source_track) + ":" +
+              vector_key_safe(row.source_phase) + ":" +
+              vector_key_safe(event.surface);
+
+    mix_projection_seed("surface:" + event.surface, 1.0f, row.x, row.y, row.z);
+    mix_projection_seed("track:" + row.source_track, 0.75f, row.x, row.y, row.z);
+    mix_projection_seed("phase:" + row.source_phase, 0.50f, row.x, row.y, row.z);
+    for (const auto& role : event.roles)
+        mix_projection_seed("role:" + role, 0.40f, row.x, row.y, row.z);
+
+    size_t grams_seen = 0;
+    for (const auto& gram : gram_container.grams) {
+        const float width = std::max(1.0f, static_cast<float>(gram.width));
+        const float weight = std::min(1.0f, static_cast<float>(gram.count) / width);
+        mix_projection_seed("gram:" + gram.gram_class + ":" + gram.gram,
+                            0.25f * weight,
+                            row.x,
+                            row.y,
+                            row.z);
+        if (++grams_seen >= 32) break;
+    }
+
+    const float n = std::sqrt(row.x * row.x + row.y * row.y + row.z * row.z);
+    if (std::isfinite(n) && n > 1e-6f) {
+        row.x /= n;
+        row.y /= n;
+        row.z /= n;
+        row.norm = 1.0f;
+    } else {
+        row.x = 1.0f;
+        row.y = 0.0f;
+        row.z = 0.0f;
+        row.norm = 1.0f;
+    }
+    row.semantic_authority = false;
+    return row;
+}
+
 } // namespace
 
 std::vector<std::string> Mx2LmNGram::tokenize(std::string_view text) {
@@ -300,6 +427,7 @@ std::vector<Mx2LmTypedGram> Mx2LmNGram::typed_grams(
             row.gram = gram;
             row.gram_class = gram_class;
             row.role = role;
+            row.phase = phase_for_gram_class(gram_class);
             row.count = count;
             row.width = (default_width > 0) ? default_width : width_from_gram_text(gram);
             row.tokens = tokenize(gram);
@@ -315,6 +443,84 @@ std::vector<Mx2LmTypedGram> Mx2LmNGram::typed_grams(
     append_class(taxonomy.function_grams, "function_gram", "function_word_structure", 0);
     append_class(taxonomy.tool_grams, "tool_gram", "tool_dispatch_intent", 0);
     return out;
+}
+
+Mx2LmGramContainer Mx2LmNGram::compile_gram_container(
+    const Mx2LmGramTaxonomy& taxonomy,
+    size_t top_k_per_class)
+{
+    Mx2LmGramContainer c;
+    c.grams = typed_grams(taxonomy, top_k_per_class);
+    c.unigram_count = static_cast<uint32_t>(taxonomy.unigrams.size());
+    c.bigram_count = static_cast<uint32_t>(taxonomy.bigrams.size());
+    c.trigram_count = static_cast<uint32_t>(taxonomy.trigrams.size());
+    c.quadgram_count = static_cast<uint32_t>(taxonomy.quadgrams.size());
+    c.coarse_gram_count = static_cast<uint32_t>(taxonomy.coarse_grams.size());
+    c.function_gram_count = static_cast<uint32_t>(taxonomy.function_grams.size());
+    c.tool_gram_count = static_cast<uint32_t>(taxonomy.tool_grams.size());
+
+    uint32_t observations = 0;
+    for (const auto& g : c.grams) observations += g.count;
+    c.total_observations = observations;
+    return c;
+}
+
+Mx2LmGramContainer Mx2LmNGram::compile_gram_container(
+    std::string_view text,
+    size_t top_k_per_class)
+{
+    return compile_gram_container(classify_gram_taxonomy(text), top_k_per_class);
+}
+
+Mx2LmPatternContainer Mx2LmNGram::compile_pattern_container(
+    std::string_view surface,
+    const Mx2LmGramContainer& gram_container,
+    const std::string& source_track,
+    const std::string& source_phase,
+    const std::string& outcome_kind,
+    const std::string& card,
+    bool accepted)
+{
+    Mx2LmPatternContainer c;
+    Mx2LmPatternEvent event;
+    event.source_track = source_track.empty() ? "Mx2LM" : source_track;
+    event.source_phase = source_phase.empty() ? "Wo" : source_phase;
+    event.target_namespace = c.namespace_id;
+    event.surface = std::string(surface);
+    event.roles = pattern_roles_from_container(gram_container, event.source_track);
+    event.gram_container_key = gram_container.key;
+    event.outcome_kind = outcome_kind.empty() ? "pattern_observed" : outcome_kind;
+    event.outcome_status = accepted ? "accepted" : "rejected";
+    event.card = card;
+    event.accepted = accepted;
+    c.events.push_back(std::move(event));
+    c.event_count = static_cast<uint32_t>(c.events.size());
+    return c;
+}
+
+Mx2LmVectorProjectionContainer Mx2LmNGram::compile_vector_projection_container(
+    const Mx2LmGramContainer& gram_container,
+    const Mx2LmPatternContainer& pattern_container)
+{
+    Mx2LmVectorProjectionContainer c;
+    c.source_semantic_container = pattern_container.key.empty()
+        ? std::string("mx2lm:pattern_container:v1")
+        : pattern_container.key;
+
+    for (const auto& event : pattern_container.events)
+        c.projections.push_back(project_event_geometry(event, gram_container));
+
+    if (c.projections.empty() && !gram_container.grams.empty()) {
+        Mx2LmPatternEvent event;
+        event.source_track = "Mx2LM";
+        event.source_phase = gram_container.phase.empty() ? "Wo" : gram_container.phase;
+        event.surface = "mx2lm:gram_container:v1";
+        event.roles = pattern_roles_from_container(gram_container, event.source_track);
+        event.gram_container_key = gram_container.key;
+        c.projections.push_back(project_event_geometry(event, gram_container));
+    }
+
+    return c;
 }
 
 std::vector<Mx2LmControlBinding> Mx2LmNGram::resolve_control_bindings(

@@ -1,5 +1,6 @@
 #pragma once
 #include "../kuhul/phase_engine.h"
+#include "../util/json.h"
 #include "gravity_field.h"
 #include "sandbox.h"
 #include <string>
@@ -43,6 +44,19 @@ struct TrackVectorMeta {
     std::string source = "phase_default";
 };
 
+// Scheme-bound callable surface for a micronaut endpoint.
+// Example schemes: math, time, date, plan, mx2lm, eliza, tools, memory.
+struct RouteContract {
+    std::vector<std::string> schemes;
+    std::vector<std::string> verbs;
+    std::vector<std::string> aiml_patterns;
+    std::vector<std::string> aiml_templates;
+    std::vector<std::string> key_patterns;
+    std::vector<std::string> key_templates;
+    std::vector<std::string> key_grammar;
+    std::vector<std::string> tokens;
+};
+
 // Map a relation token to its dominant K'uhul phase.
 kuhul::Phase verb_to_phase(const std::string& verb);
 
@@ -56,6 +70,8 @@ struct MicronautEntry {
     std::vector<RelationEntry>    relations;        // typed relational verb edges
     std::vector<FoldSpec>         folds;            // phase-typed fold capability declarations
     std::unordered_set<std::string> governs;        // token domain
+    RouteContract               route_contract;   // scheme/verb/pattern/template/token callable surface
+    util::JsonPtr                 profile_projection; // optional brain/personality/progression projection; non-authoritative
     TrackVectorMeta               vector_meta;      // semantic Key vector metadata (K in W·C·cos(Q,K))
     float                         static_weight = 1.0f; // deterministic routing prior [0,1]
     float                         health = 1.0f;        // liveness/availability signal [0,1]

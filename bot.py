@@ -640,6 +640,37 @@ def _strip_code_fence(text: str) -> str:
     return s.strip()
 
 
+def _unwrap_payload_markup(text: str) -> str:
+    """Unwrap standard XML CDATA, literal <CDATA> wrappers, and <agent> wrappers.
+
+    The command-center contract remains JSON-first: markup is only a transport
+    envelope, and the unwrapped payload still has to parse as strict JSON.
+    """
+    s = _strip_code_fence(text)
+    while True:
+        s = s.strip()
+        if s.startswith("<![CDATA[") and s.endswith("]]>"):
+            s = s[9:-3]
+            continue
+        m = re.fullmatch(
+            r"<(?P<tag>CDATA|cdata)\b[^>]*>\s*(?P<body>.*?)\s*</(?P=tag)>",
+            s,
+            re.DOTALL,
+        )
+        if m:
+            s = m.group("body")
+            continue
+        m = re.fullmatch(
+            r"<agent\b[^>]*>\s*(?P<body>.*?)\s*</agent>",
+            s,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if m:
+            s = m.group("body")
+            continue
+        return _strip_code_fence(s)
+
+
 def extract_tool_calls(content: str, tool_tag: str = "tools") -> tuple[list[dict], str, list[str]]:
     pattern = re.compile(
         rf"<{re.escape(tool_tag)}>\s*(.*?)\s*</{re.escape(tool_tag)}>",
@@ -652,7 +683,7 @@ def extract_tool_calls(content: str, tool_tag: str = "tools") -> tuple[list[dict
     calls: list[dict] = []
     errors: list[str] = []
     for i, m in enumerate(matches):
-        blob = _strip_code_fence(m.group(1))
+        blob = _unwrap_payload_markup(m.group(1))
         try:
             parsed = json.loads(blob)
         except Exception as exc:
@@ -683,6 +714,42 @@ def extract_tool_calls(content: str, tool_tag: str = "tools") -> tuple[list[dict
     return calls, cleaned, errors
 
 
+def _resolve_agent_reference(resolved: dict, cfg: dict) -> dict | None:
+    """Resolve optional $agent/agent metadata against openai.yaml profiles.
+
+    The payload may name an existing profile or supply non-endpoint overrides.
+    It cannot introduce a new base_url or bypass command_center allowlists.
+    """
+    marker = resolved.pop("$agent", resolved.pop("agent", None))
+    if marker is None:
+        return None
+
+    profile = ""
+    overrides: dict = {}
+    if isinstance(marker, str):
+        profile = marker.strip()
+    elif isinstance(marker, dict):
+        profile = str(marker.get("profile", marker.get("name", ""))).strip()
+        overrides = dict(marker)
+    else:
+        raise ValueError("agent reference must be a profile string or object")
+
+    if not profile:
+        raise ValueError("agent reference missing profile")
+    if profile not in cfg or not isinstance(cfg[profile], dict):
+        raise ValueError(f"unknown agent profile '{profile}' in openai.yaml")
+
+    endpoint = cfg[profile]
+    return {
+        "profile": profile,
+        "model": endpoint.get("model", ""),
+        "temperature": overrides.get("temperature", endpoint.get("temperature")),
+        "max_tokens": overrides.get("max_tokens", endpoint.get("max_tokens")),
+        "description": endpoint.get("description", ""),
+        "authority": "config_reference_only",
+    }
+
+
 def _normalize_center_call(call: dict, cfg: dict) -> dict:
     cc = _center_cfg(cfg)
     verbs = cc.get("verbs", {})
@@ -691,6 +758,7 @@ def _normalize_center_call(call: dict, cfg: dict) -> dict:
         raise ValueError("tool call must be an object")
 
     resolved = dict(call)
+    agent = _resolve_agent_reference(resolved, cfg)
     verb = str(resolved.get("verb", "")).strip().lower()
     verb_cfg = {}
     if verb:
@@ -730,6 +798,7 @@ def _normalize_center_call(call: dict, cfg: dict) -> dict:
         "params": params,
         "verb": verb if verb else None,
         "track": verb_cfg.get("track"),
+        "agent": agent,
     }
 
 
@@ -747,6 +816,7 @@ def _execute_center_call(call: dict, cfg: dict, dry_run: bool = False) -> dict:
     method = call["method"]
     params = call["params"]
     track = call.get("track")
+    agent = call.get("agent")
 
     if not _is_allowed_call(surface, method, cfg):
         return {
@@ -756,6 +826,7 @@ def _execute_center_call(call: dict, cfg: dict, dry_run: bool = False) -> dict:
             "method": method,
             "params": params,
             "track": track,
+            "agent": agent,
             "error": "method not in command_center allowlist",
         }
 
@@ -767,6 +838,7 @@ def _execute_center_call(call: dict, cfg: dict, dry_run: bool = False) -> dict:
             "method": method,
             "params": params,
             "track": track,
+            "agent": agent,
         }
 
     base_url = _base_url(cfg, surface)
@@ -783,6 +855,7 @@ def _execute_center_call(call: dict, cfg: dict, dry_run: bool = False) -> dict:
             "method": method,
             "params": params,
             "track": track,
+            "agent": agent,
             "response": response,
         }
     except Exception as exc:
@@ -792,8 +865,205 @@ def _execute_center_call(call: dict, cfg: dict, dry_run: bool = False) -> dict:
             "method": method,
             "params": params,
             "track": track,
+            "agent": agent,
             "error": str(exc),
         }
+
+
+SEMANTIC_ENVELOPE_TAGS = (
+    "think", "reason", "plan", "task", "commands", "sql",
+    "grammar", "keygrammar", "route", "decision", "memory",
+    "verify", "commit",
+)
+_EXECUTABLE_ENVELOPES = {"commands", "route", "decision"}
+
+
+def extract_semantic_envelopes(content: str) -> tuple[list[dict], str, list[str]]:
+    """Extract typed semantic envelopes, leaving ordinary assistant text.
+
+    Envelope bodies may be plain text or JSON wrapped in CDATA. Extraction is
+    intentionally non-authoritative: callers decide which envelopes become calls.
+    """
+    tags = "|".join(re.escape(tag) for tag in SEMANTIC_ENVELOPE_TAGS)
+    pattern = re.compile(
+        rf"<(?P<tag>{tags})\b[^>]*>(?P<body>.*?)</(?P=tag)>",
+        re.IGNORECASE | re.DOTALL,
+    )
+    envelopes: list[dict] = []
+    errors: list[str] = []
+    for i, match in enumerate(pattern.finditer(content)):
+        kind = match.group("tag").lower()
+        if kind == "keygrammar":
+            kind = "grammar"
+        raw = match.group("body")
+        body = _unwrap_payload_markup(raw)
+        parsed: Any = body
+        error = ""
+        stripped = body.strip()
+        if stripped.startswith(("{", "[")):
+            try:
+                parsed = json.loads(stripped)
+            except Exception as exc:
+                error = f"{kind}[{i}] json parse error: {exc}"
+                errors.append(error)
+        envelopes.append({
+            "type": kind,
+            "content": parsed,
+            "raw": body,
+            "parse_error": error,
+        })
+    cleaned = pattern.sub("", content).strip()
+    return envelopes, cleaned, errors
+
+
+def _envelope_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    return json.dumps(content, ensure_ascii=False, separators=(",", ":"))
+
+
+def _envelope_slug(content: Any, fallback: str) -> str:
+    text = _envelope_text(content)
+    words = re.findall(r"[a-zA-Z0-9_-]+", text.lower())
+    return "-".join(words[:5]) or fallback
+
+
+def _semantic_envelope_epistemic_type(kind: str) -> str:
+    mapping = {
+        "think": "generated_output",
+        "reason": "generated_output",
+        "plan": "plan",
+        "task": "plan",
+        "commands": "execution_trace",
+        "sql": "plan",
+        "grammar": "plan",
+        "route": "execution_trace",
+        "decision": "execution_trace",
+        "memory": "observation",
+        "verify": "observation",
+        "commit": "execution_trace",
+    }
+    return mapping.get(kind, "generated_output")
+
+
+def _semantic_envelope_result(envelope: dict) -> dict:
+    kind = envelope["type"]
+    content = envelope.get("content")
+    slug = _envelope_slug(content, kind)
+    base = {
+        "ok": True,
+        "type": kind,
+        "epistemic_type": _semantic_envelope_epistemic_type(kind),
+        "proposal_only": True,
+        "fact_authority": False,
+        "observation_authority": False,
+        "content": content,
+    }
+    if envelope.get("parse_error"):
+        base.update({"ok": False, "status": "parse_error", "error": envelope["parse_error"]})
+        return base
+    if kind == "think":
+        base.update({"status": "scratch_observed", "phase": "Wo", "authority": "none"})
+    elif kind == "reason":
+        base.update({"status": "hypothesis_candidate", "phase": "Yax",
+                     "route_hint": f"reason://{slug}", "commit_phase": "Ch'en_pending"})
+    elif kind in {"plan", "task"}:
+        base.update({"status": f"{kind}_candidate", "phase": "Wo",
+                     "route_hint": f"plan://{slug}", "commit_phase": "Ch'en_pending"})
+    elif kind == "grammar":
+        base.update({"status": "pattern_learning_candidate", "phase": "Ch'en",
+                     "route_hint": "scfml.pattern_learning",
+                     "requires": "SUPPORTED_or_user_verified"})
+    elif kind == "sql":
+        base.update({"status": "sql_proposal_blocked", "phase": "Sek",
+                     "requires": "sql_executor_policy"})
+    elif kind == "memory":
+        base.update({"status": "memory_candidate", "phase": "Pop",
+                     "route_hint": "memory://journal", "commit_phase": "Ch'en_pending"})
+    elif kind == "verify":
+        base.update({"status": "verification_request", "phase": "Ch'en",
+                     "route_hint": f"verify://{slug}"})
+    elif kind == "commit":
+        base.update({"ok": False, "status": "commit_blocked", "phase": "Xul",
+                     "requires": "XulGate", "blocked": True})
+    else:
+        base.update({"status": "proposal", "authority": "none"})
+    return base
+
+
+def _calls_from_semantic_envelope(envelope: dict) -> tuple[list[dict], str]:
+    kind = envelope["type"]
+    content = envelope.get("content")
+    if envelope.get("parse_error"):
+        return [], envelope["parse_error"]
+
+    if kind == "commands":
+        if isinstance(content, dict):
+            if isinstance(content.get("tool_calls"), list):
+                return [c for c in content["tool_calls"] if isinstance(c, dict)], ""
+            if isinstance(content.get("calls"), list):
+                return [c for c in content["calls"] if isinstance(c, dict)], ""
+            return [content], ""
+        if isinstance(content, list):
+            return [c for c in content if isinstance(c, dict)], ""
+        calls = []
+        for line in str(content).splitlines():
+            line = line.strip().lstrip("/")
+            if not line:
+                continue
+            verb, _, query = line.partition(" ")
+            calls.append({"verb": verb, "query": query.strip()})
+        return calls, ""
+
+    if kind == "route":
+        query = content.get("query", "") if isinstance(content, dict) else str(content)
+        query = query.strip()
+        if not query:
+            return [], "route envelope requires query"
+        return [{"surface": "rpc", "method": "micronaut_dispatch", "params": {"query": query}}], ""
+
+    if kind == "decision":
+        if not isinstance(content, dict):
+            return [], "decision envelope requires a JSON object"
+        query = str(content.get("query", "decision://choose"))
+        decision = content.get("decision", content)
+        return [{"surface": "rpc", "method": "micronaut_dispatch",
+                 "params": {"query": query, "decision": decision}}], ""
+
+    return [], ""
+
+
+def _journal_semantic_envelopes(envelopes: list[dict], cfg: dict) -> list[dict]:
+    """Best-effort JROM audit writes for semantic envelopes.
+
+    Journaling is host-side provenance, not model authority. Failures are returned
+    as journal errors and never change routing or execution decisions.
+    """
+    cc = _center_cfg(cfg)
+    if not cc.get("journal_semantic_envelopes", True):
+        return []
+    if not envelopes:
+        return []
+
+    base_url = _base_url(cfg, "rpc")
+    results: list[dict] = []
+    for envelope in envelopes:
+        params = {
+            "type": envelope.get("type", "unknown"),
+            "epistemic_type": envelope.get("epistemic_type") or
+                              _semantic_envelope_epistemic_type(envelope.get("type", "unknown")),
+            "disposition": envelope.get("disposition", "proposal_only"),
+            "status": envelope.get("result", {}).get("status", "observed")
+                      if isinstance(envelope.get("result"), dict) else "observed",
+            "content": envelope.get("content"),
+            "result": envelope.get("result"),
+        }
+        try:
+            response = rpc_call("journal_semantic_envelope", params, base_url=base_url)
+            results.append({"ok": True, "type": params["type"], "response": response})
+        except Exception as exc:
+            results.append({"ok": False, "type": params["type"], "error": str(exc)})
+    return results
 
 
 def _command_center_system(cfg: dict) -> str:
@@ -823,7 +1093,11 @@ def _command_center_system(cfg: dict) -> str:
         "You are KHANARY Command Center. "
         "Plan deterministic local MCP/RPC calls for this repository.\n"
         f"When tool actions are needed, emit exactly one <{tool_tag}>...</{tool_tag}> block with strict JSON:\n"
-        '{"tool_calls":[{"surface":"rpc|mcp","method":"name","params":{},"verb":"optional","query":"optional"}]}\n'
+        '{"tool_calls":[{"surface":"rpc|mcp","method":"name","params":{},"verb":"optional","query":"optional","$agent":"optional openai.yaml profile"}]}\n'
+        "The JSON may be wrapped in <![CDATA[...]]> when markup embedding is needed.\n"
+        "Typed envelopes are also recognized: <route>scheme://call</route>, "
+        "<decision>{...}</decision>, <commands>{...}</commands>, plus proposal-only "
+        "<think>, <reason>, <plan>, <task>, <grammar>, <sql>, <memory>, <verify>, <commit>.\n"
         "Do not emit methods outside the allowlist.\n"
         f"Max tool calls: {max_calls}\n"
         f"Allowed RPC: {allow_rpc}\n"
@@ -852,7 +1126,11 @@ def command_center(prompt: str,
             "assistant_message": "",
             "tool_calls": [],
             "tool_results": [],
+            "semantic_envelopes": [],
+            "semantic_results": [],
+            "journal_results": [],
             "parse_errors": [],
+            "envelope_errors": [],
             "normalize_errors": [],
             "truncated_to_max_tool_calls": False,
             "raw_response": "",
@@ -860,6 +1138,23 @@ def command_center(prompt: str,
         }
     tool_tag = cc.get("tool_tag", "tools")
     raw_calls, assistant_text, parse_errors = extract_tool_calls(raw, tool_tag=tool_tag)
+    envelopes, assistant_text, envelope_errors = extract_semantic_envelopes(assistant_text)
+    parse_errors.extend(envelope_errors)
+
+    semantic_results: list[dict] = []
+    for envelope in envelopes:
+        calls, call_error = _calls_from_semantic_envelope(envelope)
+        if call_error:
+            envelope_errors.append(call_error)
+        if calls:
+            envelope["disposition"] = "routed"
+            start = len(raw_calls)
+            raw_calls.extend(calls)
+            envelope["call_indices"] = list(range(start, len(raw_calls)))
+        else:
+            envelope["disposition"] = "proposal_only"
+            envelope["result"] = _semantic_envelope_result(envelope)
+            semantic_results.append(envelope["result"])
 
     max_calls = int(cc.get("max_tool_calls", 8))
     truncated = len(raw_calls) > max_calls
@@ -879,7 +1174,22 @@ def command_center(prompt: str,
         for call in normalized:
             results.append(_execute_center_call(call, cfg, dry_run=dry_run))
 
-    ok = not parse_errors and not normalize_errors and all(r.get("ok", False) for r in results)
+    for envelope in envelopes:
+        indices = envelope.get("call_indices", [])
+        if indices:
+            envelope["result"] = {
+                "ok": all(results[i].get("ok", False) for i in indices if i < len(results)),
+                "status": "routed",
+                "call_results": [results[i] for i in indices if i < len(results)],
+            }
+
+    journal_results: list[dict] = []
+    if execute and not dry_run:
+        journal_results = _journal_semantic_envelopes(envelopes, cfg)
+
+    ok = (not parse_errors and not envelope_errors and not normalize_errors and
+          all(r.get("ok", False) for r in results) and
+          all(r.get("ok", False) for r in semantic_results))
     return {
         "ok": ok,
         "profile": chosen_profile,
@@ -887,7 +1197,11 @@ def command_center(prompt: str,
         "assistant_message": assistant_text,
         "tool_calls": normalized,
         "tool_results": results,
+        "semantic_envelopes": envelopes,
+        "semantic_results": semantic_results,
+        "journal_results": journal_results,
         "parse_errors": parse_errors,
+        "envelope_errors": envelope_errors,
         "normalize_errors": normalize_errors,
         "truncated_to_max_tool_calls": truncated,
         "raw_response": raw,

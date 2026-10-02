@@ -7,6 +7,7 @@
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
@@ -152,6 +153,70 @@ bool TrackLoader::load_file(const std::string& path) {
             if (c->is_string()) entry.capabilities.push_back(c->as_string());
     }
 
+    auto parse_str_array = [&](const util::JsonValue* node,
+                               const char* key,
+                               std::vector<std::string>& out) {
+        if (!node || !node->is_object()) return;
+        const auto* arr = node->get(key);
+        if (!arr || !arr->is_array()) return;
+        for (const auto& v : arr->as_array())
+            if (v && v->is_string()) out.push_back(v->as_string());
+    };
+
+    // Optional per-micronaut URI/scheme callable surface contract.
+    // Accepts either top-level arrays or nested objects:
+    //   route_contract / address / uri / callable.
+    parse_str_array(root.get(), "schemes", entry.route_contract.schemes);
+    parse_str_array(root.get(), "verbs", entry.route_contract.verbs);
+    parse_str_array(root.get(), "aiml_patterns", entry.route_contract.aiml_patterns);
+    parse_str_array(root.get(), "aiml_templates", entry.route_contract.aiml_templates);
+    parse_str_array(root.get(), "key_patterns", entry.route_contract.key_patterns);
+    parse_str_array(root.get(), "key_templates", entry.route_contract.key_templates);
+    parse_str_array(root.get(), "key_grammar", entry.route_contract.key_grammar);
+    parse_str_array(root.get(), "tokens", entry.route_contract.tokens);
+
+    const std::array<const char*, 4> kContractNodes = {
+        "route_contract",
+        "address",
+        "uri",
+        "callable"
+    };
+    for (const char* key : kContractNodes) {
+        const auto* node = root->get(key);
+        if (!node || !node->is_object()) continue;
+        parse_str_array(node, "schemes", entry.route_contract.schemes);
+        parse_str_array(node, "verbs", entry.route_contract.verbs);
+        parse_str_array(node, "aiml_patterns", entry.route_contract.aiml_patterns);
+        parse_str_array(node, "aiml_templates", entry.route_contract.aiml_templates);
+        parse_str_array(node, "key_patterns", entry.route_contract.key_patterns);
+        parse_str_array(node, "key_templates", entry.route_contract.key_templates);
+        parse_str_array(node, "key_grammar", entry.route_contract.key_grammar);
+        parse_str_array(node, "tokens", entry.route_contract.tokens);
+    }
+
+    // Optional profile/brain/progression projection. Preserve declared values as
+    // a non-authoritative projection; runtime authority remains schema + phase gates.
+    {
+        util::JsonObject profile;
+        bool any = false;
+        for (const char* key : {"brain_profile", "personality", "capability_grams", "progression"}) {
+            const auto* node = root->get(key);
+            if (!node || !node->is_object()) continue;
+            try {
+                profile[key] = util::parse(util::stringify(*node));
+                any = true;
+            } catch (...) {
+                // Malformed profile projections are ignored rather than promoted.
+            }
+        }
+        if (any) {
+            profile["projection_only"] = util::json_bool(true);
+            profile["authority_boundary"] = util::json_string(
+                "profile_projection_may_bias_routing_not_truth_or_commit");
+            entry.profile_projection = util::json_object(std::move(profile));
+        }
+    }
+
     // Plain delegation targets (legacy — no verb)
     const auto* sm = root->get("sub_micronauts");
     if (sm && sm->is_array())
@@ -236,14 +301,14 @@ bool TrackLoader::load_file(const std::string& path) {
         if (auto co = sb_node->get_bool("coordinator"))  sb.coordinator = *co;
         else sb.coordinator = false;
 
-        auto parse_str_array = [&](const char* key, std::vector<std::string>& out) {
+        auto parse_sb_str_array = [&](const char* key, std::vector<std::string>& out) {
             const auto* arr = sb_node->get(key);
             if (arr && arr->is_array())
                 for (const auto& v : arr->as_array())
                     if (v->is_string()) out.push_back(v->as_string());
         };
-        parse_str_array("manifest_access", sb.manifest_access);
-        parse_str_array("effects",         sb.effects);
+        parse_sb_str_array("manifest_access", sb.manifest_access);
+        parse_sb_str_array("effects",         sb.effects);
 
         const auto* ports_node = sb_node->get("ports");
         if (ports_node && ports_node->is_array())

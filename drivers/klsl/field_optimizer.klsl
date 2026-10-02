@@ -1,0 +1,170 @@
+# ================================================================
+# field_optimizer.klsl — Win2D-parallel physics-based optimizer
+# ================================================================
+#
+# Port of field_optimizer.hlsl
+# Physics fields map to K'UHUL gravity:
+#   gravity_scale = 0.0  →  ⟁AntiGrav⟁  (debug/telemetry, no update)
+#   gravity_scale = 1.0  →  ⟁Grav⟁      (normal field dynamics)
+#   gravity_scale = 2.0  →  ⟁HeavyGrav⟁ (loss head, stronger well)
+#
+# Fields:
+#   attraction_well   → gravity toward loss minimum
+#   scroll_inertia    → momentum accumulation
+#   wind_field        → learning rate directional push
+#   navigation_force  → arrival steering (cosine decay near target)
+# ================================================================
+
+⟁ shader field_optimizer
+  ⟁Wo⟁ stage "compute"
+  ⟁Wo⟁ threads [256, 1, 1]
+  ⟁Wo⟁ shader_model "5.0"
+
+  # ----------------------------------------------------------------
+  # CONSTANT BUFFER — Field Parameters
+  # ----------------------------------------------------------------
+
+  ⟁Wo⟁ ConstantBuffer FieldParams : register(b0) {
+    float lr;                # base learning rate
+    float beta1;             # scroll_inertia decay (default 0.9)
+    float beta2;             # scroll_inertia 2nd moment decay (default 0.999)
+    float epsilon;           # attraction_well epsilon (default 1e-8)
+    float weight_decay;      # wind_field strength (L2 regularization)
+    float grad_clip;         # max gradient magnitude (attraction_well bound)
+    float target_loss;       # navigation_force target (arrival behavior)
+    float current_loss;      # current loss for navigation_force
+    float gravity_scale;     # K'UHUL gravity: 0=AntiGrav, 1=Grav, 2=HeavyGrav
+    float step;              # current training step (for bias correction)
+    float wind_direction;    # wind_field: 1.0=forward, -1.0=reverse
+    float inertia_friction;  # scroll_inertia friction (arrival deceleration)
+    uint  N;                 # parameter count (bounds check)
+  }
+
+  # ----------------------------------------------------------------
+  # BUFFERS
+  # ----------------------------------------------------------------
+
+  ⟁Wo⟁ RWStructuredBuffer<float> params_buf : register(u0)  # model weights
+  ⟁Wo⟁ RWStructuredBuffer<float> grads_buf  : register(u1)  # gradients
+  ⟁Wo⟁ RWStructuredBuffer<float> m1_buf     : register(u2)  # scroll_inertia m1
+  ⟁Wo⟁ RWStructuredBuffer<float> m2_buf     : register(u3)  # scroll_inertia m2
+
+  # ================================================================
+  # FIELD FUNCTIONS
+  # ================================================================
+
+  # ── scroll_inertia_field ──────────────────────────────────────
+  # Momentum with friction and decay (replaces Adam m1/m2)
+  ⟁Wo⟁ fn scroll_inertia(g : float, m1 : float, m2 : float) -> float2 {
+    ⟁Sek⟁ new_m1 = beta1 * m1 + (1.0 - beta1) * g
+    ⟁Sek⟁ new_m2 = beta2 * m2 + (1.0 - beta2) * g * g
+    ⟁Kumk'u⟁ return float2(new_m1, new_m2)
+  }
+
+  # ── attraction_well_field ─────────────────────────────────────
+  # Gravity well pulling params toward loss minimum
+  # Falloff: strong when far, gentle near convergence
+  ⟁Wo⟁ fn attraction_well(m1_hat : float, m2_hat : float, g_scale : float) -> float {
+    ⟁Sek⟁ well_strength = g_scale
+    ⟁Sek⟁ update = well_strength * lr * m1_hat / (sqrt(m2_hat) + epsilon)
+    ⟁Kumk'u⟁ return clamp(update, -grad_clip, grad_clip)
+  }
+
+  # ── wind_field ────────────────────────────────────────────────
+  # Constant directional force (LR as wind direction + L2 reg)
+  ⟁Wo⟁ fn wind_field(param : float, wd : float) -> float {
+    ⟁Kumk'u⟁ return wind_direction * wd * weight_decay * param
+  }
+
+  # ── navigation_force_field ────────────────────────────────────
+  # Arrival steering: full speed far, decelerate near target_loss
+  # Replaces cosine LR decay with physics-based arrival
+  ⟁Wo⟁ fn navigation_force_scale() -> float {
+    ⟁Sek⟁ if (target_loss <= 0.0) {
+      ⟁Kumk'u⟁ return 1.0
+    }
+
+    ⟁Sek⟁ dist = max(0.0, current_loss - target_loss)
+    ⟁Sek⟁ arrival_radius = target_loss * 2.0
+
+    ⟁Sek⟁ if (dist < arrival_radius && arrival_radius > 0.0) {
+      ⟁Sek⟁ t = dist / arrival_radius
+      ⟁Kumk'u⟁ return max(0.1, t)
+    }
+
+    ⟁Kumk'u⟁ return 1.0
+  }
+
+  # ================================================================
+  # MAIN OPTIMIZER KERNEL
+  # ================================================================
+
+  ⟁Pop CSMain⟁ (id : SV_DispatchThreadID)
+    ⟁Sek⟁ i = id.x
+    ⟁Sek⟁ if (i >= N) {
+      ⟁Kumk'u⟁ return
+    }
+
+    ⟁Sek⟁ g = grads_buf[i]
+    ⟁Sek⟁ p = params_buf[i]
+
+    # ── Antigravity bypass (⟁AntiGrav⟁: debug/telemetry) ────────
+    ⟁Sek⟁ if (gravity_scale < 0.001) {
+      ⟁Sek⟁ grads_buf[i] = 0.0
+      ⟁Kumk'u⟁ return
+    }
+
+    # ── Gradient clamp (attraction_well bound — NaN guard) ──────
+    ⟁Sek⟁ if (isnan(g) || isinf(g)) {
+      ⟁Sek⟁ grads_buf[i] = 0.0
+      ⟁Kumk'u⟁ return
+    }
+    ⟁Sek⟁ g = clamp(g, -grad_clip, grad_clip)
+
+    # ── scroll_inertia: update momentum buffers ─────────────────
+    ⟁Sek⟁ inertia = scroll_inertia(g, m1_buf[i], m2_buf[i])
+    ⟁Sek⟁ m1_buf[i] = inertia.x
+    ⟁Sek⟁ m2_buf[i] = inertia.y
+
+    # ── Bias correction (Adam standard) ─────────────────────────
+    ⟁Sek⟁ bc1 = 1.0 - pow(beta1, step)
+    ⟁Sek⟁ bc2 = 1.0 - pow(beta2, step)
+    ⟁Sek⟁ m1_hat = inertia.x / max(bc1, 1e-8)
+    ⟁Sek⟁ m2_hat = inertia.y / max(bc2, 1e-8)
+
+    # ── navigation_force: arrival scale (decelerate near target) ─
+    ⟁Sek⟁ nav_scale = navigation_force_scale()
+
+    # ── attraction_well: gravity-scaled update ──────────────────
+    ⟁Sek⟁ update = attraction_well(m1_hat, m2_hat, gravity_scale)
+
+    # ── wind_field: L2 regularization push ──────────────────────
+    ⟁Sek⟁ wind = wind_field(p, 1.0)
+
+    # ── Final parameter update ──────────────────────────────────
+    # Physics: p_new = p - nav_scale * (attraction_well + wind)
+    ⟁Sek⟁ params_buf[i] = p - nav_scale * (update + wind)
+
+    # Zero gradient after update (cleared for next backward pass)
+    ⟁Sek⟁ grads_buf[i] = 0.0
+  [Xul]
+
+  # ================================================================
+  # GRADIENT ACCUMULATION KERNEL (Win2D parallel reduce)
+  # ================================================================
+
+  ⟁Pop GradAccumCS⟁ (id : SV_DispatchThreadID)
+    ⟁Sek⟁ i = id.x
+    ⟁Sek⟁ if (i >= N) {
+      ⟁Kumk'u⟁ return
+    }
+
+    ⟁Sek⟁ g = grads_buf[i]
+    ⟁Sek⟁ if (isnan(g) || isinf(g)) {
+      ⟁Sek⟁ grads_buf[i] = 0.0
+    } ⟁Sek⟁ else {
+      ⟁Sek⟁ grads_buf[i] = clamp(g, -grad_clip, grad_clip)
+    }
+  [Xul]
+
+[Xul]

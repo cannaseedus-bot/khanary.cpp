@@ -44,7 +44,13 @@ khanary_rpc:
 # Command-center planner/executor settings for bot.py "center" mode.
 # The model emits:
 #   <tools>{"tool_calls":[...]}</tools>
-# and bot.py executes allowed local MCP/RPC calls.
+# optionally wrapping the JSON payload as:
+#   <tools><![CDATA[{"tool_calls":[...]}]]></tools>
+# A call may reference an existing profile with "$agent":"advisor" (or chat/chat_mu/tool_mu).
+# Agent references resolve only against this file and never bypass the allowlist.
+# Typed envelopes are also recognized: <route>, <decision>, and <commands> may route;
+# <think>, <reason>, <plan>, <task>, <grammar>, <sql>, <memory>, <verify>, and <commit>
+# are proposal-only unless a separate authorized executor is configured.
 command_center:
   profile: "advisor"
   tool_tag: "tools"
@@ -57,6 +63,14 @@ command_center:
       - resolve_manifest
       - fold_query
       - micronaut_dispatch
+      - micronaut_transpile
+      - journal_semantic_envelope
+      - journal_hyperbolic_event
+      - tensor_register
+      - tensor_info
+      - tensor_list
+      - tensor_stats
+      - tensor_gemm
       - list_keys
       - record_key
       - infer

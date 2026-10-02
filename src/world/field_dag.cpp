@@ -6,10 +6,15 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace khanary::world {
+
+uint64_t FieldDag::next_substrate_id_ = 0;
 
 namespace {
 
@@ -397,6 +402,36 @@ void FieldDag::load_gml(const std::string& path) {
         fn.coordinator = false;
         if (!gn.label.empty()) fn.category = gn.label;
 
+        // field geometry from GML overlay
+        if (gn.has_local_entropy)    fn.local_entropy    = static_cast<float>(gn.local_entropy);
+        if (gn.has_geodesic_entropy) fn.geodesic_entropy = static_cast<float>(gn.geodesic_entropy);
+        if (gn.has_unruh_temp)       fn.unruh_temp       = static_cast<float>(gn.unruh_temp);
+        if (gn.has_divergence)       fn.divergence       = static_cast<float>(gn.divergence);
+        if (gn.has_circumradius_R)   fn.circumradius_R   = static_cast<float>(gn.circumradius_R);
+        if (gn.has_inradius_r)       fn.inradius_r       = static_cast<float>(gn.inradius_r);
+        if (!gn.singularity.empty()) {
+            if      (gn.singularity == "source")  fn.singularity_type = 1u;
+            else if (gn.singularity == "sink")    fn.singularity_type = 2u;
+            else if (gn.singularity == "saddle")  fn.singularity_type = 3u;
+            else                                  fn.singularity_type = 0u;
+        }
+
+        if (!gn.provider_id.empty()) {
+            fn.provider_id  = gn.provider_id;
+            fn.parameter_id = gn.parameter_id;
+
+            // Upsert a projection-only TensorSubstrate per unique provider identity.
+            // Does NOT create a MicronautEntry — geometry source, not semantic authority.
+            if (substrates_.find(gn.provider_id) == substrates_.end()) {
+                TensorSubstrate ts;
+                ts.tensor_id         = next_substrate_id_++;
+                ts.provider_identity = gn.provider_id;
+                ts.dtype             = DataType::FLOAT32;
+                ts.residency         = DeviceResidency::HOST_RAM;
+                substrates_[gn.provider_id] = std::move(ts);
+            }
+        }
+
         if (gn.has_x && gn.has_y) {
             fn.x = static_cast<float>(gn.x);
             fn.y = static_cast<float>(gn.y);
@@ -427,6 +462,14 @@ void FieldDag::load_gml(const std::string& path) {
         fe.weight        = ge.has_weight ? static_cast<float>(ge.weight) : 1.0f;
         fe.delta_theta   = 0.0f;
         fe.xcfe_required = false;
+        // field geometry
+        if (ge.has_length) fe.length = static_cast<float>(ge.length);
+        if (ge.has_vx)     fe.vx     = static_cast<float>(ge.vx);
+        if (ge.has_vy)     fe.vy     = static_cast<float>(ge.vy);
+        if (ge.has_vz)     fe.vz     = static_cast<float>(ge.vz);
+        if (ge.has_eh_x)   fe.eh_x   = static_cast<float>(ge.eh_x);
+        if (ge.has_eh_y)   fe.eh_y   = static_cast<float>(ge.eh_y);
+        if (ge.has_eh_z)   fe.eh_z   = static_cast<float>(ge.eh_z);
 
         const std::string relation_raw = !ge.verb.empty() ? ge.verb : ge.label;
         if (!relation_raw.empty()) {
@@ -826,6 +869,7 @@ std::string FieldDag::to_svg(const FieldSvgProjection* projection) const {
     std::ostringstream os;
     os << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     os << "<svg xmlns=\"http://www.w3.org/2000/svg\""
+       << " xmlns:k=\"https://khanary.io/tensor\""
        << " width=\"1024\" height=\"768\" viewBox=\"0 0 1024 768\">\n";
     os << "<title>KHANARY K-CUBE Semantic Field</title>\n";
     if (has_projection && projection->gpu_projected)
@@ -901,9 +945,16 @@ std::string FieldDag::to_svg(const FieldSvgProjection* projection) const {
             std::snprintf(buf, sizeof(buf),
                 "  <path d=\"%s\" stroke=\"%s\" stroke-width=\"%.1f\""
                 " fill=\"none\" stroke-dasharray=\"%s\""
-                " opacity=\"%.2f\" class=\"ge\"/>\n",
+                " opacity=\"%.2f\" class=\"ge\"",
                 path.c_str(), col, sw, dash, op);
-            os << buf;
+            os << buf
+               << " k:edge_from=\""   << xml_escape(e.from)   << "\""
+               << " k:edge_to=\""     << xml_escape(e.to)     << "\""
+               << " k:verb=\""        << xml_escape(e.verb)   << "\""
+               << " k:fold_type=\""   << xml_escape(e.type)   << "\""
+               << " k:weight=\""      << e.weight             << "\""
+               << " k:delta_theta=\"" << e.delta_theta        << "\""
+               << "/>\n";
         }
     }
     os << "</g>\n";
@@ -969,12 +1020,27 @@ std::string FieldDag::to_svg(const FieldSvgProjection* projection) const {
             continue;
         }
 
-        // Outer ring
+        // Outer ring with k:* semantic attributes for SVG-Tensor round-trip
         std::snprintf(buf, sizeof(buf),
             "  <circle cx=\"%.1f\" cy=\"%.1f\" r=\"18\" fill=\"none\""
-            " stroke=\"%s\" stroke-width=\"1.5\" opacity=\"0.7\" class=\"fn\"/>\n",
+            " stroke=\"%s\" stroke-width=\"1.5\" opacity=\"0.7\" class=\"fn\"",
             p.x, p.y, col);
-        os << buf;
+        os << buf
+           << " k:track_id=\""   << xml_escape(n.track_id)   << "\""
+           << " k:phase=\""      << xml_escape(n.phase_name) << "\""
+           << " k:kind=\""       << xml_escape(n.kind)       << "\""
+           << " k:entropy=\""    << n.local_entropy          << "\""
+           << " k:geodesic_entropy=\"" << n.geodesic_entropy << "\""
+           << " k:unruh_temp=\""  << n.unruh_temp            << "\""
+           << " k:divergence=\""  << n.divergence            << "\""
+           << " k:circumradius_R=\"" << n.circumradius_R     << "\""
+           << " k:inradius_r=\""  << n.inradius_r            << "\""
+           << " k:x=\""          << n.x                      << "\""
+           << " k:y=\""          << n.y                      << "\""
+           << " k:z=\""          << n.z                      << "\""
+           << " k:weight=\""     << n.static_weight          << "\""
+           << " k:confidence=\"" << n.confidence             << "\""
+           << "/>\n";
         // Inner dot
         std::snprintf(buf, sizeof(buf),
             "  <circle cx=\"%.1f\" cy=\"%.1f\" r=\"5\" fill=\"%s\"/>\n",
@@ -1024,6 +1090,435 @@ std::string FieldDag::to_svg(const FieldSvgProjection* projection) const {
 
     os << "</svg>\n";
     return os.str();
+}
+
+// ── GPU geodesic propagator ────────────────────────────────────────────────────
+
+namespace {
+
+// C++ mirrors of the HLSL structs in geodesic_propagator.hlsl.
+// Sizes must match exactly: FieldNode=52 bytes, FieldEdge=40 bytes.
+#pragma pack(push, 4)
+struct GpuFieldNode {
+    float    x, y, z;           // float3 position
+    float    confidence;
+    float    static_weight;
+    float    local_entropy;
+    float    geodesic_entropy;
+    float    unruh_temp;
+    float    divergence;
+    float    circumradius_R;
+    float    inradius_r;
+    uint32_t singularity_type;
+    float    pad0;              // pad to 52 bytes
+};
+static_assert(sizeof(GpuFieldNode) == 52, "GpuFieldNode must be 52 bytes");
+
+struct GpuFieldEdge {
+    uint32_t source_id;
+    uint32_t target_id;
+    float    weight;
+    float    length;
+    float    vx, vy, vz;        // float3 velocity
+    float    eh_x, eh_y, eh_z;  // float3 entropy_gradient
+};
+static_assert(sizeof(GpuFieldEdge) == 40, "GpuFieldEdge must be 40 bytes");
+
+struct PropagatorConstants {
+    float    kb_boltzmann;
+    float    beta_diffusion_inv;
+    uint32_t total_node_count;
+    uint32_t total_edge_count;
+};
+#pragma pack(pop)
+
+// Create a D3D11_RESOURCE_MISC_BUFFER_STRUCTURED buffer with an SRV.
+static bool make_structured_srv(
+    ID3D11Device* d,
+    const void* data, uint32_t elem_count, uint32_t stride,
+    ID3D11Buffer** out_buf,
+    ID3D11ShaderResourceView** out_srv)
+{
+    D3D11_BUFFER_DESC bd{};
+    bd.ByteWidth           = stride * elem_count;
+    bd.Usage               = D3D11_USAGE_DEFAULT;
+    bd.BindFlags           = D3D11_BIND_SHADER_RESOURCE;
+    bd.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    bd.StructureByteStride = stride;
+    D3D11_SUBRESOURCE_DATA init{data, 0, 0};
+    if (FAILED(d->CreateBuffer(&bd, data ? &init : nullptr, out_buf))) return false;
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC sd{};
+    sd.Format                   = DXGI_FORMAT_UNKNOWN;
+    sd.ViewDimension            = D3D11_SRV_DIMENSION_BUFFEREX;
+    sd.BufferEx.NumElements     = elem_count;
+    return SUCCEEDED(d->CreateShaderResourceView(*out_buf, &sd, out_srv));
+}
+
+// Create a D3D11_RESOURCE_MISC_BUFFER_STRUCTURED RW buffer with a UAV.
+static bool make_structured_uav(
+    ID3D11Device* d,
+    uint32_t elem_count, uint32_t stride,
+    ID3D11Buffer** out_buf,
+    ID3D11UnorderedAccessView** out_uav)
+{
+    D3D11_BUFFER_DESC bd{};
+    bd.ByteWidth           = stride * elem_count;
+    bd.Usage               = D3D11_USAGE_DEFAULT;
+    bd.BindFlags           = D3D11_BIND_UNORDERED_ACCESS;
+    bd.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    bd.StructureByteStride = stride;
+    if (FAILED(d->CreateBuffer(&bd, nullptr, out_buf))) return false;
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC ud{};
+    ud.Format              = DXGI_FORMAT_UNKNOWN;
+    ud.ViewDimension       = D3D11_UAV_DIMENSION_BUFFER;
+    ud.Buffer.NumElements  = elem_count;
+    return SUCCEEDED(d->CreateUnorderedAccessView(*out_buf, &ud, out_uav));
+}
+
+static bool ensure_dynamic_hyperbolic_attention_srv(
+    ID3D11Device* d,
+    uint32_t required_records,
+    uint32_t extra_capacity_records,
+    HyperbolicAttentionGpuBuffer& out)
+{
+    if (!d || required_records == 0) return false;
+
+    if (out.structured_buffer && out.srv &&
+        out.capacity_records >= required_records &&
+        out.stride_bytes == sizeof(HyperbolicAttentionRecord64)) {
+        return true;
+    }
+
+    const uint32_t headroom =
+        (std::numeric_limits<uint32_t>::max() - required_records > extra_capacity_records)
+            ? extra_capacity_records
+            : 0u;
+    const uint32_t capacity = required_records + headroom;
+    if (capacity == 0 ||
+        capacity > std::numeric_limits<uint32_t>::max() / sizeof(HyperbolicAttentionRecord64)) {
+        return false;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11Buffer> new_buffer;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> new_srv;
+
+    D3D11_BUFFER_DESC bd{};
+    bd.ByteWidth           = capacity * static_cast<UINT>(sizeof(HyperbolicAttentionRecord64));
+    bd.Usage               = D3D11_USAGE_DYNAMIC;
+    bd.BindFlags           = D3D11_BIND_SHADER_RESOURCE;
+    bd.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+    bd.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    bd.StructureByteStride = static_cast<UINT>(sizeof(HyperbolicAttentionRecord64));
+    if (FAILED(d->CreateBuffer(&bd, nullptr, &new_buffer))) return false;
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC sd{};
+    sd.Format               = DXGI_FORMAT_UNKNOWN;
+    sd.ViewDimension        = D3D11_SRV_DIMENSION_BUFFEREX;
+    sd.BufferEx.FirstElement = 0;
+    sd.BufferEx.NumElements = capacity;
+    if (FAILED(d->CreateShaderResourceView(new_buffer.Get(), &sd, &new_srv)))
+        return false;
+
+    out.structured_buffer = new_buffer;
+    out.srv = new_srv;
+    out.capacity_records = capacity;
+    out.stride_bytes = static_cast<uint32_t>(sizeof(HyperbolicAttentionRecord64));
+    return true;
+}
+
+static float map_lookup_or(const std::unordered_map<std::string, float>& map,
+                           const std::string& key,
+                           float fallback) {
+    const auto it = map.find(key);
+    return it == map.end() ? fallback : it->second;
+}
+
+} // anonymous namespace
+
+bool FieldDag::upload_hyperbolic_attention_records(
+    gpu::D3D11Device& dev,
+    const std::vector<HyperbolicAttentionRecord64>& records,
+    HyperbolicAttentionGpuBuffer& out,
+    uint32_t extra_capacity_records)
+{
+    out.record_count = 0;
+    if (!dev.is_valid() || records.empty()) return false;
+
+    auto* d = dev.GetDevice();
+    auto* ctx = dev.GetContext();
+    if (records.size() > std::numeric_limits<uint32_t>::max()) return false;
+    const uint32_t count = static_cast<uint32_t>(records.size());
+
+    if (!ensure_dynamic_hyperbolic_attention_srv(d, count, extra_capacity_records, out))
+        return false;
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(ctx->Map(out.structured_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return false;
+
+    const size_t copy_bytes = records.size() * sizeof(HyperbolicAttentionRecord64);
+    std::memcpy(mapped.pData, records.data(), copy_bytes);
+
+    const size_t capacity_bytes =
+        static_cast<size_t>(out.capacity_records) * sizeof(HyperbolicAttentionRecord64);
+    if (capacity_bytes > copy_bytes) {
+        auto* spare = static_cast<unsigned char*>(mapped.pData) + copy_bytes;
+        std::memset(spare, 0, capacity_bytes - copy_bytes);
+    }
+
+    ctx->Unmap(out.structured_buffer.Get(), 0);
+    out.record_count = count;
+    return true;
+}
+
+bool FieldDag::upload_hyperbolic_trajectories(
+    gpu::D3D11Device& dev,
+    const std::vector<HyperbolicEventVector>& events,
+    const std::unordered_map<std::string, float>& wcr_w_map,
+    const std::unordered_map<std::string, float>& wcr_c_map,
+    const std::unordered_map<std::string, float>& wcr_r_map,
+    HyperbolicAttentionGpuBuffer& out,
+    uint32_t extra_capacity_records)
+{
+    out.record_count = 0;
+    if (!dev.is_valid() || events.empty()) return false;
+
+    auto* d = dev.GetDevice();
+    auto* ctx = dev.GetContext();
+    if (events.size() > std::numeric_limits<uint32_t>::max()) return false;
+    const uint32_t count = static_cast<uint32_t>(events.size());
+
+    if (!ensure_dynamic_hyperbolic_attention_srv(d, count, extra_capacity_records, out))
+        return false;
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(ctx->Map(out.structured_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return false;
+
+    auto* dest = static_cast<HyperbolicAttentionRecord64*>(mapped.pData);
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto& event = events[i];
+        dest[i] = make_hyperbolic_attention_record(
+            event,
+            map_lookup_or(wcr_w_map, event.key, 1.0f),
+            map_lookup_or(wcr_c_map, event.key, 1.0f),
+            map_lookup_or(wcr_r_map, event.key, 0.5f));
+    }
+
+    if (out.capacity_records > count) {
+        std::memset(dest + count, 0,
+                    static_cast<size_t>(out.capacity_records - count) *
+                    sizeof(HyperbolicAttentionRecord64));
+    }
+
+    ctx->Unmap(out.structured_buffer.Get(), 0);
+    out.record_count = count;
+    return true;
+}
+
+PropagatorDispatchResult FieldDag::dispatch_geodesic_propagator(
+    gpu::D3D11Device& dev, ID3DBlob* cso, float beta_inv, float kb_boltzmann)
+{
+    PropagatorDispatchResult res;
+    if (!dev.is_valid() || !cso || nodes_.empty()) return res;
+
+    auto* d   = dev.GetDevice();
+    auto* ctx = dev.GetContext();
+    const uint32_t N = static_cast<uint32_t>(nodes_.size());
+
+    // ── Build node index ──────────────────────────────────────────────────────
+    std::unordered_map<std::string, uint32_t> idx;
+    idx.reserve(N);
+    for (uint32_t i = 0; i < N; ++i) idx[nodes_[i].track_id] = i;
+
+    // ── Pack GpuFieldNode ─────────────────────────────────────────────────────
+    std::vector<GpuFieldNode> gnodes(N);
+    for (uint32_t i = 0; i < N; ++i) {
+        const auto& n   = nodes_[i];
+        GpuFieldNode& g = gnodes[i];
+        g.x = n.x; g.y = n.y; g.z = n.z;
+        g.confidence      = n.confidence;
+        g.static_weight   = n.static_weight;
+        g.local_entropy   = n.local_entropy;
+        g.geodesic_entropy = n.geodesic_entropy;
+        g.unruh_temp      = n.unruh_temp;
+        g.divergence      = n.divergence;
+        g.circumradius_R  = n.circumradius_R;
+        g.inradius_r      = n.inradius_r;
+        g.singularity_type = n.singularity_type;
+        g.pad0 = 0.0f;
+    }
+
+    // ── Pack GpuFieldEdge (skip edges with unknown node ids) ──────────────────
+    std::vector<GpuFieldEdge> gedges;
+    gedges.reserve(edges_.size());
+    for (const auto& e : edges_) {
+        auto si = idx.find(e.from);
+        auto ti = idx.find(e.to);
+        if (si == idx.end() || ti == idx.end()) continue;
+        GpuFieldEdge ge;
+        ge.source_id = si->second;
+        ge.target_id = ti->second;
+        ge.weight    = e.weight;
+        ge.length    = e.length;
+        ge.vx = e.vx; ge.vy = e.vy; ge.vz = e.vz;
+        ge.eh_x = e.eh_x; ge.eh_y = e.eh_y; ge.eh_z = e.eh_z;
+        gedges.push_back(ge);
+    }
+    const uint32_t E = static_cast<uint32_t>(gedges.size());
+
+    // ── Create shader ─────────────────────────────────────────────────────────
+    Microsoft::WRL::ComPtr<ID3D11ComputeShader> cs;
+    if (FAILED(d->CreateComputeShader(
+            cso->GetBufferPointer(), cso->GetBufferSize(), nullptr, &cs)))
+        return res;
+
+    // ── NodeIn (t0): read-only structured buffer ──────────────────────────────
+    Microsoft::WRL::ComPtr<ID3D11Buffer>             node_in_buf;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> node_in_srv;
+    if (!make_structured_srv(d, gnodes.data(), N, sizeof(GpuFieldNode),
+                             &node_in_buf, &node_in_srv))
+        return res;
+
+    // ── EdgeIn (t1): read-only structured buffer ──────────────────────────────
+    Microsoft::WRL::ComPtr<ID3D11Buffer>             edge_in_buf;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> edge_in_srv;
+    if (E > 0) {
+        if (!make_structured_srv(d, gedges.data(), E, sizeof(GpuFieldEdge),
+                                 &edge_in_buf, &edge_in_srv))
+            return res;
+    }
+
+    // ── NodeOut (u0): RW structured buffer — pre-loaded with NodeIn data ──────
+    Microsoft::WRL::ComPtr<ID3D11Buffer>              node_out_buf;
+    Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> node_out_uav;
+    if (!make_structured_uav(d, N, sizeof(GpuFieldNode),
+                             &node_out_buf, &node_out_uav))
+        return res;
+    ctx->CopyResource(node_out_buf.Get(), node_in_buf.Get());
+
+    // ── PropagatorConstants cbuffer (b0) ──────────────────────────────────────
+    PropagatorConstants pc;
+    pc.kb_boltzmann       = kb_boltzmann;
+    pc.beta_diffusion_inv = beta_inv;
+    pc.total_node_count   = N;
+    pc.total_edge_count   = E;
+
+    Microsoft::WRL::ComPtr<ID3D11Buffer> cbuf;
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth      = (sizeof(PropagatorConstants) + 15u) & ~15u; // 16-byte align
+        bd.Usage          = D3D11_USAGE_DYNAMIC;
+        bd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        D3D11_SUBRESOURCE_DATA init{&pc, 0, 0};
+        if (FAILED(d->CreateBuffer(&bd, &init, &cbuf))) return res;
+    }
+
+    // ── Dispatch ──────────────────────────────────────────────────────────────
+    ctx->CSSetShader(cs.Get(), nullptr, 0);
+    ctx->CSSetConstantBuffers(0, 1, cbuf.GetAddressOf());
+
+    ID3D11ShaderResourceView* srvs[] = {node_in_srv.Get(),
+                                        E > 0 ? edge_in_srv.Get() : nullptr};
+    ctx->CSSetShaderResources(0, 2, srvs);
+
+    const uint32_t INITIAL_COUNT = 0xFFFFFFFFu;
+    ctx->CSSetUnorderedAccessViews(0, 1, node_out_uav.GetAddressOf(), &INITIAL_COUNT);
+
+    ctx->Dispatch((N + 63u) / 64u, 1u, 1u);
+
+    // ── Unbind resources ──────────────────────────────────────────────────────
+    ID3D11ShaderResourceView* null_srvs[2] = {nullptr, nullptr};
+    ctx->CSSetShaderResources(0, 2, null_srvs);
+    ID3D11UnorderedAccessView* null_uav = nullptr;
+    ctx->CSSetUnorderedAccessViews(0, 1, &null_uav, nullptr);
+    ctx->CSSetShader(nullptr, nullptr, 0);
+
+    // ── Readback via staging buffer ───────────────────────────────────────────
+    Microsoft::WRL::ComPtr<ID3D11Buffer> staging;
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth           = sizeof(GpuFieldNode) * N;
+        bd.Usage               = D3D11_USAGE_STAGING;
+        bd.CPUAccessFlags      = D3D11_CPU_ACCESS_READ;
+        bd.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        bd.StructureByteStride = sizeof(GpuFieldNode);
+        if (FAILED(d->CreateBuffer(&bd, nullptr, &staging))) return res;
+    }
+    ctx->CopyResource(staging.Get(), node_out_buf.Get());
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(ctx->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) return res;
+
+    const auto* out_nodes = static_cast<const GpuFieldNode*>(mapped.pData);
+    res.geodesic_entropy.resize(N);
+    for (uint32_t i = 0; i < N; ++i)
+        res.geodesic_entropy[i] = out_nodes[i].geodesic_entropy;
+    ctx->Unmap(staging.Get(), 0);
+
+    // ── Write updated geodesic_entropy back onto FieldNodes ───────────────────
+    for (uint32_t i = 0; i < N; ++i)
+        nodes_[i].geodesic_entropy = res.geodesic_entropy[i];
+
+    // ── Promote substrate descriptors to GPU_VRAM_D3D11 ───────────────────────
+    // The D3D11 buffers are temporaries this dispatch; physical_buffer_allocation
+    // stays null.  Residency flag records that the mesh has been GPU-processed.
+    for (auto& [pid, ts] : substrates_) {
+        ts.residency = DeviceResidency::GPU_VRAM_D3D11;
+        ts.shape     = { static_cast<uint32_t>(N), sizeof(GpuFieldNode) / 4 };
+    }
+
+    res.gpu_ran = true;
+    return res;
+}
+
+// ── Ch'en Raychaudhuri gate ───────────────────────────────────────────────────
+// Integrates a discrete approximation of dH_G/dt = Σ(R_μν u^μ u^ν + ⅓θ²) along
+// the path.  Approximation: rate_e ≈ H_G_avg * (1 + div_avg/3) per step, where
+// div < 0 (sink focusing) suppresses the rate and div > 0 (source expansion) amplifies it.
+// Ch'en drops the branch when the integral exceeds hg_max.
+
+bool FieldDag::check_raychaudhuri_gate(
+    const std::vector<std::string>& path, float hg_max) const
+{
+    if (path.empty()) return true;
+
+    std::unordered_map<std::string, size_t> idx;
+    idx.reserve(nodes_.size());
+    for (size_t i = 0; i < nodes_.size(); ++i)
+        idx[nodes_[i].track_id] = i;
+
+    float integral = 0.0f;
+    for (size_t k = 0; k + 1 < path.size(); ++k) {
+        auto ai = idx.find(path[k]);
+        auto bi = idx.find(path[k + 1]);
+        if (ai == idx.end() || bi == idx.end()) continue;
+        const auto& na = nodes_[ai->second];
+        const auto& nb = nodes_[bi->second];
+        // Average H_G and divergence (expansion scalar θ ≈ div V) over the step.
+        const float hg_avg  = 0.5f * (na.geodesic_entropy + nb.geodesic_entropy);
+        const float div_avg = 0.5f * (na.divergence        + nb.divergence);
+        // dH_G/dt ≈ H_G * (1 + θ/3); Δt = 1 per discrete step.
+        integral += hg_avg * (1.0f + div_avg / 3.0f);
+    }
+    return integral <= hg_max;
+}
+
+// ── DirectionStore → cbuffer feed ─────────────────────────────────────────────
+// Translates a co-occurrence delta ΔM into an updated β⁻¹ for PropagatorConstants.
+// Higher |ΔM| → more diffusion → higher β⁻¹ (more exploration).
+// tanh saturates the adjustment so β⁻¹ cannot grow unboundedly.
+// The decay factor reduces sensitivity as the training step count grows,
+// stabilising the geometry when the provider has already converged.
+
+float FieldDag::compute_beta_inv_from_delta_m(
+    float delta_m, float base_beta_inv, uint32_t step)
+{
+    const float decay = 1.0f / (1.0f + static_cast<float>(step) * 0.01f);
+    return base_beta_inv * (1.0f + std::tanh(delta_m * decay));
 }
 
 } // namespace khanary::world

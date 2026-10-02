@@ -71,7 +71,10 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/gpu/tensor_buffer.cpp/h` | R32_UINT/R32_FLOAT buffer alloc, staging, upload/readback |
 | `src/gpu/compute_dispatch.cpp/h` | CS dispatch, barrier management, UAV binding |
 | `src/gpu/dds_loader.cpp/h` | DDS shard streaming: SDDS magic, INT8 tensor records, CRC |
+| `src/gpu/sdds_format.cpp/h` | SDDS chunk reader + `sdds_crc32`; shared by STBMap |
 | `src/gpu/hot_swap.cpp/h` | Resident weight eviction within 1792 MB ceiling |
+| `src/gpu/gram_gpu_scorer.cpp/h` | GPU batch scoring of GramStore via `attention.hlsl`; geodesic gramVector packing |
+| `src/gpu/stb_map.cpp/h` | STBMap binary format (magic "STBM"): Field/Fold/Gram/Geodesic sections; CRC32 per section; parallel to SDDS |
 
 ### Inference Engine
 | File | Purpose |
@@ -100,6 +103,14 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/memory/semantic_graph.cpp/h` | G_semantic topology; (⟁EVOLVE⟁)-gated node/arc mutation |
 | `src/memory/scoring.cpp/h` | S_µ(Q) = W_µ · C_µ · R_µ(Q); ΔZ = ΔG_semantic ⊕ ΔC_earned |
 
+### World Graph
+| File | Purpose |
+|---|---|
+| `src/world/field_dag.cpp/h` | Semantic field DAG: `FieldNode`/`FieldEdge`/`FieldDag`; GML overlay; `to_svg()` (emits `k:*` attrs); geodesic propagator dispatch |
+| `src/world/gml_parser.cpp/h` | Hand-rolled GML text parser → `GmlGraph`; `provider_id` + geometry fields |
+| `src/world/vector_projection.cpp/h` | `VectorProjectionContainer` gen1: GML topology → overlay JSON at `data/world/vector_projection.json` |
+| `src/world/tensor_substrate.h` | `TensorSubstrate` descriptor: shape, dtype, residency, `provider_identity`; `VectorMuMicronaut` projection operator |
+
 ### I/O & Servers
 | File | Purpose |
 |---|---|
@@ -107,6 +118,8 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/io/mcp_server.cpp/h` | MCP gateway on 8764; 20 tools incl. kuhul_forge/code_parse/semantic_fold |
 | `src/io/jrom.cpp/h` | JROM audit journal; append log at `data/journal/tool-events.jsonl` |
 | `src/io/request_router.cpp/h` | Route incoming requests → phase dispatch → micronaut |
+| `src/io/svg_tensor.cpp/h` | SVG-Tensor source loader: `parse_svg_tensor()` / `load_svg_tensor()` → `SVGTensorGraph`; scans `k:*` namespace attributes without XML library |
+| `src/io/stb_map_convert.cpp/h` | Converter chain: `svg_tensor_to_stb_map()` + `field_vectors_to_stb_map()` + `field_dag_to_stb_map()` inline wrapper |
 
 ### Utilities
 | File | Purpose |

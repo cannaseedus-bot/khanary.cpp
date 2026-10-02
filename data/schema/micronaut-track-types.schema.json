@@ -215,6 +215,15 @@
       },
       "additionalProperties": false
     },
+    "ProjectionOnlyObject": {
+      "type": "object",
+      "description": "Profile/brain/progression projection metadata. This object may bias presentation or routing diagnostics, but it is not semantic or execution authority.",
+      "properties": {
+        "projection_only": { "const": true },
+        "authority_boundary": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
     "Sandbox": {
       "type": "object",
       "properties": {

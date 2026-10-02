@@ -2,7 +2,7 @@
 """
 KHANARY key-grammar mini transpilers.
 
- Six small, dependency-free transpilers over the key-grammar surfaces:
+ Small, dependency-free transpilers over the key-grammar surfaces:
 
   ebnf-sync            Extract the runtime EBNF strings (kAimlEbnf,
                        kKeyGrammarJsonEbnf) from src/main.cpp and regenerate
@@ -33,6 +33,21 @@ KHANARY key-grammar mini transpilers.
 
   plan-check             Replay generated plan AIML and verify PLAN-µ/task-card
                        bindings.
+
+  micronaut-transpile    Compile every semantic track's route contract
+                       (schemes/verbs/patterns/templates/key grammar/tokens)
+                       into micronaut-route-contracts.key-grammar.jsonl.
+
+  micronaut-transpile-check
+                       Verify the micronaut route-contract artifact is current.
+
+  joke-bootstrap-compile
+                       Compile data/grammar/joke-bootstrap.json into joke.aiml
+                       and typed humor-frame grammar rows. The JSON contract is
+                       authoritative; AIML is only the projection surface.
+
+  joke-check             Replay generated joke AIML and verify JOKE-µ,
+                       delivery-frame, and card bindings.
 
   validate             Validate key-grammar JSONL rows against the v2 EBNF
                        contract: required fields, gram classes, roles, phase
@@ -73,6 +88,16 @@ KHANARY key-grammar mini transpilers.
                        the glossary, the machine-readable definitions, and
                        phase_engine/fold_engine/FieldDag disagree.
 
+  relational-graph-compile
+                       Compile the XSLT/SDM-style graph surface into an SDM XML
+                       projection plus key-grammar relational events. Every node
+                       lowers to a Micronaut instance and every edge lowers to a
+                       typed relational verb.
+
+  relational-graph-check
+                       Verify the relational SDM/key-grammar artifacts are
+                       current and graph endpoints/verbs satisfy the contract.
+
 Usage:
   py -3 tools\\grammar\\mini_transpilers.py <command> [--repo-root <path>]
 
@@ -86,6 +111,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 
 # CTest may launch Python with the Windows cp1252 console encoding. Contract
 # diagnostics contain K-UHUL symbols, so make stdout deterministic UTF-8.
@@ -93,6 +119,8 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from syntax_compiler import compile_relational_graph, render_relational_sdm_xml
 
 # ── Gram channel contract (mirrors record_prompt_gram_channels + the v2 EBNF) ──
 
@@ -299,6 +327,259 @@ def typed_gram_channels(text, provenance):
             rows.append(row)
         channels[channel] = rows
     return channels
+
+
+# ── micronaut route-contract transpiler ─────────────────────────────────────
+
+MICRONAUT_ROUTE_CONTRACT_KEYS = (
+    "schemes",
+    "verbs",
+    "aiml_patterns",
+    "aiml_templates",
+    "key_patterns",
+    "key_templates",
+    "key_grammar",
+    "tokens",
+)
+MICRONAUT_ROUTE_ARTIFACT = Path("data") / "grammar" / "micronaut-route-contracts.key-grammar.jsonl"
+
+
+def _dedupe_values(values, lower=False):
+    out = []
+    seen = set()
+    for value in values or []:
+        if not isinstance(value, str):
+            continue
+        item = value.strip()
+        if not item:
+            continue
+        if lower:
+            item = item.lower()
+        marker = item.lower()
+        if marker in seen:
+            continue
+        seen.add(marker)
+        out.append(item)
+    return out
+
+
+def _micronaut_safe_word(track_id):
+    safe = re.sub(r"[^a-z0-9_-]+", "-", track_id.lower()).strip("-")
+    return safe or "micronaut"
+
+
+def build_micronaut_class_projection(track: dict, contract: dict) -> dict:
+    """Build the optional Micronaut Class projection for a track.
+
+    The projection is deliberately example-shaped. It exposes useful runtime
+    fields where they exist, while example defaults remain marked as examples and
+    never become schema law or execution authority.
+    """
+    track_id = str(track.get("id", ""))
+    folds = track.get("folds", []) if isinstance(track.get("folds"), list) else []
+    fold_ops = [str(f.get("op")) for f in folds if isinstance(f, dict) and f.get("op")]
+    return {
+        "schema": "micronaut.class_projection.example.v1",
+        "example_only": True,
+        "authority_boundary": "example_projection_not_law; runtime authority remains track schema + XCFE + Ch'en + Xul",
+        "identity": {
+            "name": track_id,
+            "role": track.get("description", track.get("category", "")),
+            "version": track.get("version"),
+            "lineage": track.get("lineage", []),
+            "birth_time": track.get("birth_time"),
+        },
+        "cognitive_state": {
+            "declared": track.get("cognitive_state", {}),
+            "example_defaults": {
+                "context_window": {"size": 4096, "attention_focus": 0.0},
+                "temperature": {"current": 0.7, "min": 0.0, "max": 2.0, "adaptive": True},
+                "response_flare": {
+                    "enthusiasm": 0.5,
+                    "certainty": 0.5,
+                    "verbosity": 0.5,
+                    "empathy": 0.5,
+                },
+                "learning_parameters": {
+                    "learning_rate": 0.01,
+                    "curiosity": 0.5,
+                    "forgetting_curve": "exponential",
+                    "consolidation_frequency": 3600,
+                },
+            },
+        },
+        "memory_system": {
+            "declared_patterns": track.get("memory_patterns", []),
+            "jrom_role": "provenance_only",
+            "example_types": {
+                "working": "active context items",
+                "episodic": "timestamped experiences",
+                "semantic": "knowledge graph concepts",
+                "procedural": "learned execution procedures",
+            },
+        },
+        "execution_engine": {
+            "primary_phase": track.get("phase", ""),
+            "fold_ops": fold_ops,
+            "schemes": contract.get("schemes", []),
+            "verbs": contract.get("verbs", []),
+            "scheduler": "phase_gated_runtime",
+        },
+        "capabilities": track.get("capabilities", []),
+        "methods": {
+            "execute": "host_handler_or_executor; never implied by this projection",
+            "learn": "Factory/Xul-gated proposal path only",
+            "update_context": "runtime attention/JROM observation path",
+            "adjust_temperature": "model profile concern, not routing authority",
+            "modulate_flare": "style projection concern, not fact authority",
+            "remember": "memory surfaces are proposal/recall evidence",
+            "forget": "requires explicit policy and authority",
+            "communicate": "typed envelopes over RPC/MCP with allowlists",
+        },
+    }
+
+
+def build_micronaut_profile_projection(track: dict) -> dict | None:
+    """Collect declared profile/brain/progression fields without inventing them."""
+    profile = {}
+    for key in ("brain_profile", "personality", "capability_grams", "progression"):
+        value = track.get(key)
+        if isinstance(value, dict):
+            profile[key] = value
+    if not profile:
+        return None
+    profile["projection_only"] = True
+    profile["authority_boundary"] = "profile_projection_may_bias_routing_not_truth_or_commit"
+    return profile
+
+
+@dataclass
+class MicronautTranspiler:
+    """Compile micronaut track route contracts into key-grammar rows.
+
+    This is an AST/transpiler surface in the KHANARY sense: it normalizes an
+    authored track declaration into runtime-consumable grammar evidence. It does
+    not mutate the registry and does not grant fact authority.
+    """
+
+    repo_root: Path
+    artifact: Path = MICRONAUT_ROUTE_ARTIFACT
+
+    def track_paths(self):
+        tracks_dir = self.repo_root / "data" / "tracks"
+        if not tracks_dir.is_dir():
+            return []
+        return sorted(tracks_dir.glob("*.semantic-tracks.v1.json"))
+
+    def artifact_path(self):
+        return self.repo_root / self.artifact
+
+    @staticmethod
+    def contract_from(track):
+        contract = {key: [] for key in MICRONAUT_ROUTE_CONTRACT_KEYS}
+
+        def absorb(node):
+            if not isinstance(node, dict):
+                return
+            for key in MICRONAUT_ROUTE_CONTRACT_KEYS:
+                values = node.get(key)
+                if isinstance(values, list):
+                    contract[key].extend(values)
+
+        absorb(track)
+        for key in ("route_contract", "address", "uri", "callable"):
+            absorb(track.get(key))
+
+        for key in ("schemes", "verbs", "tokens"):
+            contract[key] = _dedupe_values(contract[key], lower=True)
+        for key in ("aiml_patterns", "aiml_templates", "key_patterns", "key_templates", "key_grammar"):
+            contract[key] = _dedupe_values(contract[key], lower=False)
+        return contract
+
+    def row_for(self, track, source_path):
+        track_id = str(track.get("id", "")).strip()
+        if not track_id:
+            return None
+        safe_word = _micronaut_safe_word(track_id)
+        contract = self.contract_from(track)
+        summary = (
+            f"schemes={','.join(contract['schemes']) or 'none'}; "
+            f"verbs={','.join(contract['verbs']) or 'none'}; "
+            f"patterns={len(contract['aiml_patterns']) + len(contract['key_patterns'])}; "
+            f"templates={len(contract['aiml_templates']) + len(contract['key_templates'])}; "
+            f"key_grammar={len(contract['key_grammar'])}; "
+            f"tokens={','.join(contract['tokens']) or 'none'}"
+        )
+        row = {
+            "schema": "key.grammar.micronaut_route.v1",
+            "word": f"{safe_word}-route",
+            "key": f"MICRONAUT:{safe_word.upper()}:ROUTE",
+            "unit": "route_contract",
+            "class": "MICRONAUT_ROUTE",
+            "book": f"Book({safe_word.upper()})",
+            "definition": f"{track_id} callable route contract: {summary}",
+            "lexicon_source": str(source_path.relative_to(self.repo_root)),
+            "track": track_id,
+            "phase": track.get("phase", ""),
+            "route_contract": contract,
+            "micronaut_class": build_micronaut_class_projection(track, contract),
+            "fact_authority": False,
+            "authority_boundary": "route_contract_declares_callable_surface_not_fact",
+            "gram_channels": typed_gram_channels(
+                f"{track_id} {summary}", "micronaut_route_contract"),
+        }
+        profile = build_micronaut_profile_projection(track)
+        if profile is not None:
+            row["micronaut_profile"] = profile
+        return row
+
+    def compile_rows(self):
+        rows = []
+        for path in self.track_paths():
+            try:
+                track = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            row = self.row_for(track, path)
+            if row is not None:
+                rows.append(row)
+        rows.sort(key=lambda row: row["track"])
+        return rows
+
+    @staticmethod
+    def render(rows):
+        return "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows)
+
+    def compile(self):
+        rows = self.compile_rows()
+        path = self.artifact_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.render(rows), encoding="utf-8", newline="\n")
+        return rows, path
+
+    def check(self):
+        rows = self.compile_rows()
+        path = self.artifact_path()
+        expected = self.render(rows)
+        if not path.exists():
+            return False, f"missing artifact {path.relative_to(self.repo_root)}"
+        actual = path.read_text(encoding="utf-8")
+        if actual != expected:
+            return False, f"stale artifact {path.relative_to(self.repo_root)}"
+        return True, f"{len(rows)} micronaut route contract rows current"
+
+
+def cmd_micronaut_transpile(repo_root):
+    transpiler = MicronautTranspiler(repo_root)
+    rows, path = transpiler.compile()
+    print(f"PASS | micronaut-transpile: {len(rows)} route contract rows → {path.relative_to(repo_root)}")
+    return 0
+
+
+def cmd_micronaut_transpile_check(repo_root):
+    ok, message = MicronautTranspiler(repo_root).check()
+    print(f"{'PASS' if ok else 'FAIL'} | micronaut-transpile-check: {message}")
+    return 0 if ok else 1
 
 
 # ── ebnf-sync ────────────────────────────────────────────────────────────────
@@ -589,7 +870,308 @@ def cmd_plan_check(repo_root):
     return 1 if failures else 0
 
 
+# ── joke-bootstrap-compile / joke-check ─────────────────────────────────────
+
+def cmd_joke_bootstrap_compile(repo_root):
+    source_path = repo_root / "data" / "grammar" / "joke-bootstrap.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    if source.get("schema") != "key.grammar.joke_bootstrap.v1" or source.get("track") != "JOKE-µ":
+        print("FAIL: joke source must declare key.grammar.joke_bootstrap.v1 and JOKE-µ")
+        return 1
+    routes = source.get("routes", [])
+    if not routes:
+        print("FAIL: joke source has no routes")
+        return 1
+    card = source.get("card", {})
+    fields = ",".join(card.get("fields", []))
+    policy = source.get("policy", {})
+    admit = ",".join(policy.get("admit", []))
+    preserve = ",".join(policy.get("preserve", []))
+    lines = [
+        "<aiml version=\"1.0.1\">",
+        "  <!-- GENERATED by tools/grammar/mini_transpilers.py joke-bootstrap-compile",
+        "       from data/grammar/joke-bootstrap.json — do not edit by hand;",
+        "       rerun the transpiler after changing the authored JOKE-µ contract. -->",
+        "  <category>",
+        "    <pattern>JOKE BANK</pattern>",
+        f"    <template><mx2lm>joke: track=JOKE-µ phase=Yax card_view=true authority=none fields={fields} admit={admit} preserve={preserve}</mx2lm></template>",
+        "  </category>",
+    ]
+    for route in sorted(routes, key=lambda r: -len(aiml_normalize_pattern(r["pattern"]).split())):
+        phase = route.get("phase", "Yax")
+        next_phase = route.get("next", "Ch'en")
+        frame = route["frame"]
+        lines.extend([
+            "  <category>",
+            f"    <pattern>{aiml_normalize_pattern(route['pattern'])}</pattern>",
+            f"    <template><mx2lm>joke: track=JOKE-µ phase={phase} next={next_phase} frame={frame} card_view=true authority=none prompt=<star/></mx2lm></template>",
+            "  </category>",
+        ])
+    lines.append("</aiml>")
+    aiml_path = repo_root / "data" / "alice" / "joke.aiml"
+    aiml_path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    print(f"PASS | wrote {aiml_path.relative_to(repo_root)} ({len(routes) + 1} categories)")
+
+    semantic_note = (
+        "JOKE-µ is a first-class reusable humor-frame routing track like "
+        "PLAN-µ and ADVISOR-µ; it grants ambiguity permission, not freeform "
+        "joke authoring."
+    )
+    jsonl_path = repo_root / "data" / "grammar" / "joke-bootstrap.key-grammar.jsonl"
+    with jsonl_path.open("w", encoding="utf-8", newline="\n") as out:
+        for index, route in enumerate(routes, start=1):
+            phase = route.get("phase", "Yax")
+            next_phase = route.get("next", "Ch'en")
+            frame = route["frame"]
+            definition = (
+                f"{route['pattern']} -> JOKE-µ "
+                f"({phase}->{next_phase}) "
+                f"frame={frame} policy=ambiguity_permission "
+                "pun_bridge_allowed punchline_compatible_sense_selection "
+                "boundary=declared_frame_policy"
+            )
+            out.write(json.dumps({
+                "word": f"joke-{index}",
+                "key": f"JOKE:{frame}:{index}",
+                "unit": "unigram",
+                "class": "JOKE",
+                "book": "Book(JOKE)",
+                "definition": definition,
+                "lexicon_source": "data/grammar/joke-bootstrap.json",
+                "semantic_note": semantic_note,
+                "gram_channels": typed_gram_channels(definition, "joke_route"),
+            }, ensure_ascii=False, separators=(",", ":")) + "\n")
+    print(f"PASS | wrote {jsonl_path.relative_to(repo_root)} ({len(routes)} rows)")
+    return 0
+
+
+def cmd_joke_check(repo_root):
+    source_path = repo_root / "data" / "grammar" / "joke-bootstrap.json"
+    aiml_path = repo_root / "data" / "alice" / "joke.aiml"
+    track_path = repo_root / "data" / "tracks" / "JOKE-u.semantic-tracks.v1.json"
+    manifest_path = repo_root / "data" / "manifest" / "joke.manifest.json"
+    jsonl_path = repo_root / "data" / "grammar" / "joke-bootstrap.key-grammar.jsonl"
+    registry_path = repo_root / "micronauts.xml"
+    if not all(p.exists() for p in (source_path, aiml_path, track_path, manifest_path, jsonl_path)):
+        print("FAIL | joke-check: source, generated AIML, JOKE-µ track, manifest, or JSONL missing")
+        return 1
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    track = json.loads(track_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    content = aiml_path.read_text(encoding="utf-8")
+    try:
+        ET.fromstring(content)
+    except ET.ParseError as exc:
+        print(f"FAIL | joke-check: XML not well-formed: {exc}")
+        return 1
+
+    failures = 0
+    routes = source.get("routes", [])
+    if track.get("id") != source.get("track"):
+        print("FAIL | joke-check: source/track id mismatch"); failures += 1
+    if track.get("ui", {}).get("card") != source.get("card", {}).get("symbol"):
+        print("FAIL | joke-check: source/track card mismatch"); failures += 1
+    for key in ("JOKE-µ", "frame:delivery", "boundary:declared_frames", "collapse:verify"):
+        if key not in manifest:
+            print(f"FAIL | joke-check: manifest missing {key}"); failures += 1
+    if "delivery_frame_routing" not in track.get("capabilities", []):
+        print("FAIL | joke-check: track missing delivery_frame_routing capability"); failures += 1
+    if "punchline_compatible_sense_selection" not in track.get("capabilities", []):
+        print("FAIL | joke-check: track missing punchline-compatible sense capability"); failures += 1
+
+    if registry_path.exists():
+        try:
+            registry_root = ET.parse(registry_path).getroot()
+        except ET.ParseError as exc:
+            print(f"FAIL | joke-check: micronauts.xml not well-formed: {exc}"); failures += 1
+            registry_root = None
+        if registry_root is not None:
+            illegal_fused = [e.tag for e in registry_root.iter()
+                             if e.tag.startswith("semantic_folding_model_")]
+            if illegal_fused:
+                print(f"FAIL | joke-check: fused semantic_folding_model tag(s): {illegal_fused}"); failures += 1
+            semantic_models = [e for e in registry_root.iter()
+                               if e.tag == "semantic_folding_model"]
+            if not any(e.get("axis") for e in semantic_models):
+                print("FAIL | joke-check: semantic_folding_model must carry an axis attribute"); failures += 1
+
+            joke_node = next((e for e in registry_root.findall(".//micronaut")
+                              if e.get("id") == "JOKE-µ"), None)
+            if joke_node is None:
+                print("FAIL | joke-check: micronauts.xml missing JOKE-µ micronaut element"); failures += 1
+            else:
+                if joke_node.get("phase") != "Yax":
+                    print("FAIL | joke-check: micronauts.xml JOKE-µ phase must be Yax"); failures += 1
+                if joke_node.get("ngram_tier") != "wsd_admission":
+                    print("FAIL | joke-check: micronauts.xml JOKE-µ ngram_tier must be wsd_admission"); failures += 1
+            tier_members = {}
+            for tier in registry_root.findall(".//ngram_tier_index/tier"):
+                tier_members[tier.get("name")] = [
+                    (member.text or "").strip()
+                    for member in tier.findall("member")
+                ]
+            if "JOKE-µ" not in tier_members.get("wsd_admission", []):
+                print("FAIL | joke-check: micronauts.xml wsd_admission tier must include JOKE-µ"); failures += 1
+            if "JOKE-µ" in tier_members.get("bigram", []):
+                print("FAIL | joke-check: micronauts.xml bigram tier must not include JOKE-µ"); failures += 1
+
+    rows = [json.loads(line) for line in jsonl_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if len(rows) != len(routes):
+        print(f"FAIL | joke-check: JSONL route count {len(rows)} != source route count {len(routes)}"); failures += 1
+    valid_channels = set(GRAM_CLASSES)
+    valid_roles = set(GRAM_ROLES)
+    for row in rows:
+        for channel, grams in row.get("gram_channels", {}).items():
+            if channel not in valid_channels:
+                print(f"FAIL | joke-check: invalid gram channel {channel!r} in {row.get('key')}"); failures += 1
+            for gram in grams:
+                if gram.get("role") not in valid_roles:
+                    print(f"FAIL | joke-check: invalid gram role {gram.get('role')!r} in {row.get('key')}"); failures += 1
+
+    cats = _parse_aiml_categories(content)
+    for route in routes:
+        got = _aiml_match(cats, route["pattern"].replace("*", "example"))
+        wanted = f"frame={route['frame']}"
+        if "track=JOKE-µ" not in got or wanted not in got or "authority=none" not in got or "card_view=true" not in got:
+            print(f"FAIL | joke route: {route['pattern']} -> {got[:180]}"); failures += 1
+        else:
+            print(f"PASS | joke route: {route['pattern']} -> {route['frame']}")
+    total = len(routes)
+    print(f"{'PASS' if not failures else 'FAIL'} | joke-check: {total - failures}/{total} routes passed")
+    return 1 if failures else 0
+
+
 # ── validate ─────────────────────────────────────────────────────────────────
+
+HYPERBOLIC_INTERVAL_CLASSES = {
+    "timelike_candidate",
+    "spacelike_candidate",
+    "lightlike_boundary",
+    "unclassified",
+}
+HYPERBOLIC_EPISTEMIC_STATES = {"SUPPORTED", "MISS", "UNKNOWN", "CONTRADICTED"}
+HYPERBOLIC_SPACE_SIGNATURES = {"Minkowski_Minus_Plus_Plus_Plus"}
+
+
+def _finite_number(value):
+    return isinstance(value, (int, float)) and math.isfinite(float(value))
+
+
+def _interval_class_for(interval):
+    if interval < -1e-9:
+        return "timelike_candidate"
+    if interval > 1e-9:
+        return "spacelike_candidate"
+    return "lightlike_boundary"
+
+
+def _validate_interval_class_match(interval, interval_class, where, errors):
+    if interval is None or interval_class in (None, "unclassified"):
+        return
+    if not _finite_number(interval):
+        return
+    expected = _interval_class_for(float(interval))
+    if interval_class != expected:
+        errors.append(
+            f"{where}: hyperbolic_event interval_class {interval_class!r} "
+            f"does not match minkowski_interval sign {float(interval):.12g} "
+            f"(expected {expected})"
+        )
+
+
+def _validate_hyperbolic_metrics(metrics, where, errors):
+    if metrics is None:
+        return None
+    if not isinstance(metrics, dict):
+        errors.append(f"{where}: hyperbolic_metrics must be an object")
+        return None
+    rapidity = metrics.get("rapidity_rho")
+    if rapidity is not None and (not _finite_number(rapidity) or float(rapidity) < 0.0):
+        errors.append(f"{where}: hyperbolic_metrics rapidity_rho must be a nonnegative finite number")
+    direction = metrics.get("direction_vector")
+    if direction is not None:
+        if not isinstance(direction, list) or len(direction) != 3 or \
+                any(not _finite_number(v) for v in direction):
+            errors.append(f"{where}: hyperbolic_metrics direction_vector must be [x,y,z] finite numbers")
+        elif all(abs(float(v)) <= 1e-12 for v in direction):
+            errors.append(f"{where}: hyperbolic_metrics direction_vector must be nonzero")
+    interval = metrics.get("minkowski_interval")
+    if interval is not None and not _finite_number(interval):
+        errors.append(f"{where}: hyperbolic_metrics minkowski_interval must be finite")
+    return interval if _finite_number(interval) else None
+
+
+def _validate_hyperbolic_bounds(bounds, where, errors):
+    if bounds is None:
+        return None
+    if not isinstance(bounds, dict):
+        errors.append(f"{where}: hyperbolic bounds must be an object")
+        return None
+    interval = bounds.get("interval_class")
+    if interval is not None and interval not in HYPERBOLIC_INTERVAL_CLASSES:
+        errors.append(f"{where}: bounds interval_class {interval!r} is invalid")
+    state = bounds.get("epistemic_state")
+    if state is not None and state not in HYPERBOLIC_EPISTEMIC_STATES:
+        errors.append(f"{where}: bounds epistemic_state {state!r} is invalid")
+    if bounds.get("semantic_authority") is not False:
+        errors.append(f"{where}: bounds semantic_authority must be false")
+    return interval if interval in HYPERBOLIC_INTERVAL_CLASSES else None
+
+
+def _validate_hyperbolic_event_object(event, where, errors):
+    if not isinstance(event, dict):
+        errors.append(f"{where}: hyperbolic_event must be an object")
+        return
+    if event.get("@type") != "key_grammar.hyperbolic_event.v1":
+        errors.append(f"{where}: hyperbolic_event @type must be key_grammar.hyperbolic_event.v1")
+    if not str(event.get("origin", "")).strip():
+        errors.append(f"{where}: hyperbolic_event requires origin")
+
+    # Preferred nested v1 shape.
+    nested_interval = _validate_hyperbolic_metrics(event.get("hyperbolic_metrics"), where, errors)
+    nested_interval_class = _validate_hyperbolic_bounds(event.get("bounds"), where, errors)
+    _validate_interval_class_match(nested_interval, nested_interval_class, where, errors)
+
+    # Legacy flat fields remain accepted for existing key-grammar rows.
+    rapidity = event.get("rapidity")
+    if rapidity is not None and (not _finite_number(rapidity) or float(rapidity) < 0.0):
+        errors.append(f"{where}: hyperbolic_event rapidity must be a nonnegative finite number")
+    direction = event.get("direction")
+    if direction is not None:
+        if not isinstance(direction, list) or len(direction) != 3 or \
+                any(not _finite_number(v) for v in direction):
+            errors.append(f"{where}: hyperbolic_event direction must be [x,y,z] finite numbers")
+        elif all(abs(float(v)) <= 1e-12 for v in direction):
+            errors.append(f"{where}: hyperbolic_event direction must be nonzero")
+    flat_interval = event.get("minkowski_interval")
+    if flat_interval is not None and not _finite_number(flat_interval):
+        errors.append(f"{where}: hyperbolic_event minkowski_interval must be finite")
+    interval_class = event.get("interval_class")
+    if interval_class is not None and interval_class not in HYPERBOLIC_INTERVAL_CLASSES:
+        errors.append(f"{where}: hyperbolic_event interval_class {interval_class!r} is invalid")
+    _validate_interval_class_match(flat_interval, interval_class, where, errors)
+    state = event.get("epistemic_state")
+    if state is not None and state not in HYPERBOLIC_EPISTEMIC_STATES:
+        errors.append(f"{where}: hyperbolic_event epistemic_state {state!r} is invalid")
+    if event.get("semantic_authority") is not False:
+        errors.append(f"{where}: hyperbolic_event semantic_authority must be false")
+    if event.get("fact_authority") is True:
+        errors.append(f"{where}: hyperbolic_event fact_authority must not be true")
+
+
+def validate_hyperbolic_event(row, path, lineno, errors):
+    where = f"{path}:{lineno}"
+    if row.get("$schema") == "urn:kuhul:khanary:schema:key-grammar-event:v1":
+        if row.get("space_signature") not in HYPERBOLIC_SPACE_SIGNATURES:
+            errors.append(f"{where}: hyperbolic_event space_signature must be Minkowski_Minus_Plus_Plus_Plus")
+        if row.get("topology_target") != "B":
+            errors.append(f"{where}: hyperbolic_event topology_target must be B")
+        _validate_hyperbolic_event_object(row.get("event_record"), where, errors)
+
+    event = row.get("hyperbolic_event")
+    if event is not None:
+        _validate_hyperbolic_event_object(event, where, errors)
+
 
 def validate_lexicon_row(row, path, lineno, errors, warnings):
     where = f"{path}:{lineno}"
@@ -599,6 +1181,7 @@ def validate_lexicon_row(row, path, lineno, errors, warnings):
             errors.append(f"{where}: lexicon_row missing required field {field_name!r}")
     if row.get("unit") != "unigram":
         errors.append(f"{where}: lexicon_row unit must be \"unigram\"")
+    validate_hyperbolic_event(row, path, lineno, errors)
     channels = row.get("gram_channels", {})
     if not isinstance(channels, dict):
         errors.append(f"{where}: gram_channels must be an object")
@@ -1897,6 +2480,209 @@ def cmd_css_check(repo_root):
     return 1 if problems else 0
 
 
+# ── relational graph compile/check ────────────────────────────────────────────
+
+def _relational_paths(repo_root):
+    grammar_dir = repo_root / "data" / "grammar"
+    manifest_dir = repo_root / "data" / "manifest"
+    return {
+        "source": grammar_dir / "kuhul-relational-graph.xml",
+        "xsl": grammar_dir / "kuhul-relational.xsl",
+        "css": grammar_dir / "kuhul-relational.sdm.css",
+        "sdm": grammar_dir / "kuhul-relational.sdm.xml",
+        "jsonl": grammar_dir / "kuhul-relational.key-grammar.jsonl",
+        "manifest": manifest_dir / "relational.manifest.json",
+    }
+
+
+def _relational_key_rows(model):
+    rows = []
+    for index, node in enumerate(model["nodes"]):
+        parent = node.get("parent") or "root"
+        text = (
+            f"{node['id']} micronaut category {node.get('category', 'uncategorized')} "
+            f"relational node parent {parent} graph execution plan"
+        )
+        rows.append({
+            "word": node["id"],
+            "key": f"RELATIONAL:NODE:{index}:{node['id']}",
+            "unit": "relational_node",
+            "book": "Book(RELATIONAL)",
+            "grammar_phases": ["Pop", "Wo", "Yax", "Sek"],
+            "lexicon_source": "data/grammar/kuhul-relational-graph.xml",
+            "provenance": "relational_graph_compile.node",
+            "gram_channels": typed_gram_channels(text, "relational_graph_compile.node"),
+            "relational": {
+                "kind": "micronaut_instance",
+                "id": node["id"],
+                "category": node.get("category", "uncategorized"),
+                "parent": node.get("parent"),
+                "cluster": bool(node.get("cluster")),
+                "occurrence_id": node.get("occurrence_id"),
+            },
+        })
+
+    for index, edge in enumerate(model["edges"]):
+        text = (
+            f"{edge['from']} {edge['verb']} {edge['to']} "
+            f"{edge.get('relation_type', 'directed')} relational verb execution edge"
+        )
+        rows.append({
+            "word": f"{edge['from']} {edge['verb']} {edge['to']}",
+            "key": f"RELATIONAL:EDGE:{index}:{edge['from']}:{edge['verb']}:{edge['to']}",
+            "unit": "relational_edge",
+            "book": "Book(RELATIONAL)",
+            "grammar_phases": ["Wo", "Yax", "Sek", "Ch'en"],
+            "lexicon_source": "data/grammar/kuhul-relational-graph.xml",
+            "provenance": "relational_graph_compile.edge",
+            "gram_channels": typed_gram_channels(text, "relational_graph_compile.edge"),
+            "relational": {
+                "kind": "relational_verb",
+                "from": edge["from"],
+                "to": edge["to"],
+                "verb": edge["verb"],
+                "directed": bool(edge.get("directed", True)),
+                "parent": edge.get("parent"),
+                "isLink": True,
+            },
+        })
+    return rows
+
+
+def _render_jsonl(rows):
+    return "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows)
+
+
+def _relational_manifest(model, paths, repo_root):
+    def rel(path):
+        return str(path.relative_to(repo_root)).replace("\\", "/")
+
+    verbs = sorted({edge["verb"] for edge in model["edges"]})
+    node_ids = sorted({node["id"] for node in model["nodes"]})
+    return {
+        "RELATIONAL:": [
+            "@relational",
+            "relational:sdm-graph-rendering:v1",
+            "relational:micronaut-network",
+            "relational:edge-verbs",
+            "relational:tensor-slot-law",
+            "every_node_is_micronaut",
+            "every_edge_is_verb",
+            "every_graph_is_execution_plan",
+            "⟁Yax",
+            "⟁Sek",
+        ],
+        "@relational": [
+            "RELATIONAL:",
+            "@node:ORCH-µ",
+            "GraphLayout:Tree",
+            "XSLT/SDM",
+            "K'UHUL relational micronauts",
+        ],
+        "relational:sdm-graph-rendering:v1": [
+            f"source:{rel(paths['source'])}",
+            f"xsl:{rel(paths['xsl'])}",
+            f"style:{rel(paths['css'])}",
+            f"sdm:{rel(paths['sdm'])}",
+            f"key_grammar:{rel(paths['jsonl'])}",
+            "tensor_slots:data/world/micronaut_tensor_slots.json",
+            "graph->relational_network",
+            "node->micronaut_instance",
+            "node->micronaut_tensor_slot",
+            "edge->relational_verb",
+            "nested_graph->sub_micronaut_cluster",
+        ],
+        "relational:micronaut-network": node_ids,
+        "relational:edge-verbs": verbs,
+        "relational:tensor-slot-law": [
+            "every_micronaut_node_has_tensor_slot",
+            "private_STB_binding_requires_evidence",
+            "shared_virtual_tensor_slot_allowed",
+            "tensor_slot_is_projection_not_truth",
+            "registry:data/world/micronaut_tensor_slots.json",
+        ],
+        "relational:authority-boundary": [
+            "rendering_projection_only",
+            "execution_plan_projection_only",
+            "not_semantic_truth",
+            "not_Ch'en_verification",
+            "not_Xul_persistence",
+        ],
+    }
+
+
+def _render_manifest(manifest):
+    return json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def _relational_expected(repo_root):
+    paths = _relational_paths(repo_root)
+    model = compile_relational_graph(paths["source"])
+    sdm_xml = render_relational_sdm_xml(model)
+    rows = _relational_key_rows(model)
+    manifest = _relational_manifest(model, paths, repo_root)
+    return paths, model, sdm_xml, rows, manifest
+
+
+def cmd_relational_graph_compile(repo_root):
+    paths, model, sdm_xml, rows, manifest = _relational_expected(repo_root)
+    paths["sdm"].write_text(sdm_xml, encoding="utf-8", newline="\n")
+    paths["jsonl"].write_text(_render_jsonl(rows), encoding="utf-8", newline="\n")
+    paths["manifest"].write_text(_render_manifest(manifest), encoding="utf-8", newline="\n")
+    print(f"PASS | relational-graph-compile: {model['node_count']} node occurrence(s), "
+          f"{model['edge_count']} edge(s), {model['cluster_count']} cluster(s) → "
+          f"{paths['sdm'].relative_to(repo_root)}, {paths['jsonl'].relative_to(repo_root)}, "
+          f"{paths['manifest'].relative_to(repo_root)}")
+    return 0
+
+
+def cmd_relational_graph_check(repo_root):
+    paths, model, sdm_xml, rows, manifest = _relational_expected(repo_root)
+    problems = []
+
+    for key in ("source", "xsl", "css", "sdm", "jsonl", "manifest"):
+        if not paths[key].exists():
+            problems.append(f"missing {paths[key].relative_to(repo_root)}")
+
+    if paths["sdm"].exists() and paths["sdm"].read_text(encoding="utf-8") != sdm_xml:
+        problems.append(f"stale {paths['sdm'].relative_to(repo_root)}")
+    if paths["jsonl"].exists() and paths["jsonl"].read_text(encoding="utf-8") != _render_jsonl(rows):
+        problems.append(f"stale {paths['jsonl'].relative_to(repo_root)}")
+    if paths["manifest"].exists() and paths["manifest"].read_text(encoding="utf-8") != _render_manifest(manifest):
+        problems.append(f"stale {paths['manifest'].relative_to(repo_root)}")
+
+    try:
+        ET.fromstring(sdm_xml)
+    except ET.ParseError as exc:
+        problems.append(f"generated SDM XML does not parse: {exc}")
+
+    node_ids = {node["id"] for node in model["nodes"]}
+    for edge in model["edges"]:
+        if edge["from"] not in node_ids:
+            problems.append(f"edge source {edge['from']!r} has no micronaut node")
+        if edge["to"] not in node_ids:
+            problems.append(f"edge target {edge['to']!r} has no micronaut node")
+        if not edge["verb"].startswith("@"):
+            problems.append(f"edge {edge['from']}->{edge['to']} verb {edge['verb']!r} is not @-prefixed")
+        if edge.get("directed") is False and edge["verb"] != "@relate":
+            problems.append(f"undirected edge {edge['from']}->{edge['to']} must lower to @relate")
+
+    required_verbs = {"@call", "@delegate", "@compose", "@eval", "@relate"}
+    verbs = {edge["verb"] for edge in model["edges"]}
+    missing_verbs = required_verbs - verbs
+    if missing_verbs:
+        problems.append(f"relational graph missing required verb examples {sorted(missing_verbs)}")
+    if not model["clusters"]:
+        problems.append("relational graph has no nested sub-micronaut cluster")
+
+    print(f"{'PASS' if not problems else 'FAIL'} | relational-graph-check: "
+          f"{model['node_count']} node occurrence(s), {model['edge_count']} edge(s), "
+          f"{len(verbs)} verb kind(s), {len(problems)} problem(s)")
+    for problem in problems:
+        print(f"  error | {problem}")
+    return 1 if problems else 0
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -1904,10 +2690,14 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command",
                         choices=["ebnf-sync", "greeting-bank-compile", "advisor-bootstrap-compile",
-                                 "advisor-check", "plan-bootstrap-compile", "plan-check", "validate", "gyro-align", "greetings-check", "control-check",
+                                 "advisor-check", "plan-bootstrap-compile", "plan-check",
+                                 "micronaut-transpile", "micronaut-transpile-check",
+                                 "joke-bootstrap-compile", "joke-check",
+                                 "validate", "gyro-align", "greetings-check", "control-check",
                                  "fold-geometry-check", "capability-gap",
                                  "code-grammar-check",
-                                 "css-grammar-compile", "css-check"])
+                                 "css-grammar-compile", "css-check",
+                                 "relational-graph-compile", "relational-graph-check"])
     parser.add_argument("--repo-root", default=Path(__file__).resolve().parents[2])
     parser.add_argument("--sample", type=int, default=None,
                         help="validate only the first N rows per file (for quick checks)")
@@ -1928,6 +2718,14 @@ def main():
         return cmd_plan_bootstrap_compile(repo_root)
     if args.command == "plan-check":
         return cmd_plan_check(repo_root)
+    if args.command == "micronaut-transpile":
+        return cmd_micronaut_transpile(repo_root)
+    if args.command == "micronaut-transpile-check":
+        return cmd_micronaut_transpile_check(repo_root)
+    if args.command == "joke-bootstrap-compile":
+        return cmd_joke_bootstrap_compile(repo_root)
+    if args.command == "joke-check":
+        return cmd_joke_check(repo_root)
     if args.command == "validate":
         return cmd_validate(repo_root, sample_limit=args.sample)
     if args.command == "gyro-align":
@@ -1946,6 +2744,10 @@ def main():
         return cmd_css_grammar_compile(repo_root)
     if args.command == "css-check":
         return cmd_css_check(repo_root)
+    if args.command == "relational-graph-compile":
+        return cmd_relational_graph_compile(repo_root)
+    if args.command == "relational-graph-check":
+        return cmd_relational_graph_check(repo_root)
     return 2
 
 

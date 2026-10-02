@@ -1,0 +1,2165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  micronauts.xml — Moµ (Mixture of Micronauts) registry
+  schema: semantic-tracks.v1
+  generated: 2026-09-28
+
+  Ngram tier by phase:
+    Pop    = unigram ingestion  (reads gram store, seeds token field)
+    Wo     = bigram formation   (layout, context binding, taxonomy)
+    Yax    = WSD / admission    (neighborhood B_τ[h,*], sense resolution)
+    Sek    = trigram scoring    (P(v3|v1,v2) = angle_c/180°, compute)
+    Ch'en  = verification       (entropy gate, provenance check)
+    Xul    = gram commit        (writes to gram store, scoped output)
+
+  Triangle law:
+    P(v3|v1,v2) = angle_c / 180°
+    The dominant micronaut scores the closing angle of the current trigram triangle.
+
+  W·C·R scoring:  S_µ = W_µ · C_µ · R_µ   (admitted when S >= 0.5)
+-->
+<micronauts version="1.0" schema="semantic-tracks.v1" generated="2026-09-29">
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SEMANTIC ALGEBRA — formal model governing all µ routing
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <architecture>
+
+    <pipeline name="three_layer">
+      <layer n="1" name="Semantic Fold Compression Grammar"
+             desc="Symbolic source: key-grammar JSONL, governs arrays, manifest entries"/>
+      <layer n="2" name="Semantic Fold Graph Topology"
+             desc="Unfolded graph G_Q = U(B_Q,θ) — keys as nodes, R(k,u) as weighted edges"/>
+      <layer n="3" name="Geometric Node Field"
+             desc="Projection only: P(k)=position vector, R_geo=cos(P(k),P(u))"/>
+      <authority_order>Layer 1 &gt; Layer 2 &gt; Layer 3   (manifest &gt; topology &gt; geometry)
+        meaning != coordinates — topology can exist without geometric projection</authority_order>
+    </pipeline>
+
+    <algebra>
+      <rule name="key_neighborhood">k -> Book(k) = N(k) = {k1,...,kn}</rule>
+      <rule name="bag_of_keywords">B_Q = {k1,...,km}   -- runtime evidence / query set</rule>
+      <rule name="phase_constrained_unfold">U(B_Q, theta) -> G_Q</rule>
+      <rule name="product_graph">G_runtime = G_semantic [] G_phase
+        C6-monotone ordered -- NOT a free Cartesian product
+        fold cycle is irreversible by construction (Pop-&gt;Wo-&gt;Yax-&gt;Sek-&gt;Ch'en-&gt;Xul)</rule>
+      <rule name="node_address">v = (k, theta)   -- semantic key + phase face</rule>
+      <rule name="horizontal_fold">(k,theta) -> (k',theta)   -- neighborhood traversal, same phase</rule>
+      <rule name="vertical_fold">(k,theta) -> (k,theta')   -- alternate semantics of same key, C6-ordered</rule>
+      <rule name="diagonal_decomposition">(k,thetaI) -> (k',thetaJ) must decompose:
+        horizontal first (k->k', same theta), then vertical (thetaI->thetaJ, same k'); or reverse.
+        No free diagonal -- phase transitions are gated by fold authority.</rule>
+      <rule name="fold_delta">FoldDelta = semantic displacement between two nodes in G_runtime
+        FoldDelta != VecDelta;  VecDelta = P(vb) - P(va) is representational (Layer 3 only)</rule>
+    </algebra>
+
+    <neighborhood_model>
+      <type name="N_manifest(k)"
+            source="governs arrays, committed gram store, FACTORY-u commit_candidate"
+            property="declared · stable · authority &gt; N_inferred"/>
+      <type name="N_inferred(k)"
+            source="geometric co-occurrence via CHAT-u -> Mx2LM pipeline"
+            property="discovered · runtime · requires VerifiedLearning before promotion"/>
+      <scoring_formula>
+        S(k) = W_k
+             + SUM_{u in N_manifest(k)}  W_u · R_sym(k,u)
+             + SUM_{u in N_inferred(k)}  W_u · R_geo(k,u)
+
+        R_sym(k,u) = |N(k) ∩ N(u)| / |N(k) ∪ N(u)|   [symbolic Jaccard -- no geometry required]
+        R_geo(k,u) = cos(P(k), P(u))                   [projection -- Layer 3 only]
+      </scoring_formula>
+      <concreteness_ratio>
+        rho(k) = |N_manifest(k)| / (|N_manifest(k)| + |N_inferred(k)|)
+        rho -&gt; 1.0  =  Jyggalag / Greymarch (fully crystallized; overfitting if all k)
+        rho -&gt; 0.0  =  Sheogorath / pure inference (no anchor)
+        punchline lives in N_inferred(k) \ N_manifest(k)
+        overfitting = Greymarch never releasing: N_manifest(k) -&gt; N(k) for all k
+      </concreteness_ratio>
+    </neighborhood_model>
+
+    <learning_layers>
+      <layer n="0" name="Static Seed" role="bootstrap" mutable="false"
+             sources="governs arrays in all semantic-tracks.v1 files;
+                      data/manifest/words.manifest.json;
+                      data/manifest/kuhul.manifest.json;
+                      data/manifest/micronaut.manifest.json;
+                      data/grammar/greeting-bank.key-grammar.jsonl;
+                      data/grammar/control-flow.key-grammar.jsonl"
+             note="Runtime pipeline CANNOT self-generate Layer 0. Pre-loaded at boot."/>
+      <layer n="1" name="N_inferred" role="runtime discovery" mutable="session"
+             producer="CHAT-u -> Mx2LM (conversation tokens through Pop->Xul pipeline)"
+             delta="delta_N_inferred"/>
+      <layer n="2" name="C confidence" role="execution evidence" mutable="session"
+             producer="TOOL-u (writes tool:log:{name}, tool:count:{name} gram keys ONLY)"
+             delta="delta_C"
+             note="TOOL-u builds delta_C NOT ngrams. It feeds the C component of WCR."/>
+      <layer n="3" name="VerifiedLearning" role="promotion gate" mutable="session"
+             producer="ADVISOR-u (proposal gram record -- no execution authority)"
+             delta="VerifiedLearning signal"
+             law="Unresolved_t(x) AND VerifiedLearning(x) =&gt; Resolved_{t+n}(x)"/>
+      <layer n="4" name="N_manifest promotion" role="crystallization" mutable="persistent"
+             producer="FACTORY-u (propose -&gt; XulGate authorize -&gt; commit_candidate)"
+             delta="delta_N_manifest"
+             note="N_inferred -&gt; N_manifest is the ONLY authorized promotion path."/>
+    </learning_layers>
+
+    <recycling_loop>
+      CHAT-u    -> delta_N_inferred    (conversation co-occurrence, Pop->Xul via Mx2LM)
+      TOOL-u    -> delta_C             (execution confidence from tool call logs)
+      ADVISOR-u -> VerifiedLearning    (proposal gram records, no exec authority)
+      FACTORY-u -> delta_N_manifest    (crystallization: N_inferred -> N_manifest via XulGate)
+    </recycling_loop>
+
+    <fold_cycle_semantics name="Jyggalag-Sheogorath temporal sequence">
+      Pop-&gt;Wo-&gt;Yax  = Greymarch / crystallization   (N_d* frozen in gram tensor B at Wo)
+      Sek-&gt;Ch'en     = Sheogorath displacement        (probe N_inferred \ N_manifest for escapes)
+      Xul             = commit                          (record which semantic world made escape valid)
+      FACTORY-u       = crystallization operator        (delta_N_manifest = promote verified N_inferred)
+      N_d*            = dominant neighborhood frozen at Wo;  WCR(v, N_d*) = A_d(v)
+    </fold_cycle_semantics>
+
+  </architecture>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       µ-MICRONAUTS  (user-facing, -u suffix tracks)
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ── N-GRAM ENGINE ─────────────────────────────────────────── -->
+
+  <micronaut id="Mx2LM" phase="Sek" ngram_tier="trigram_scoring"
+             category="cognitive" confidence="1.0" user_facing="false"
+             learning_micronaut="true">
+    <description>
+      Mx2LM — learning micronaut. Statistical n-gram learner that runs the full
+      Pop→Wo→Yax→Sek→Ch'en→Xul pipeline. Owns gram-channel extraction, admission
+      gating (WSD), scoring, and evidence certification. AIML/Eliza is the pattern
+      engine; coupled through entropy — high H_norm delegates to ELIZA, low H_norm
+      means Mx2LM's ranked output is authoritative.
+      H_norm = -∑ p_i log2(p_i) / log2(|ranked|)   threshold=0.5
+    </description>
+    <governs>
+      <term>mx2lm</term><term>ngram</term><term>n-gram</term><term>bigram</term>
+      <term>trigram</term><term>unigram</term><term>quadgram</term>
+      <term>coarse_gram</term><term>function_gram</term><term>tool_gram</term>
+      <term>asx-ram</term><term>token</term><term>sequence</term>
+      <term>frequency</term><term>predict</term><term>taxonomy</term>
+      <term>key-grammar</term><term>learning</term><term>entropy</term>
+    </governs>
+    <capabilities>
+      <capability>pop-ngram-ingest</capability>
+      <capability>wo-gram-taxonomy</capability>
+      <capability>yax-ngram-admission</capability>
+      <capability>yax-wsd</capability>
+      <capability>sek-gram-scoring</capability>
+      <capability>chen-gram-verification</capability>
+      <capability>xul-gram-commit</capability>
+      <capability>entropy-aiml-coupling</capability>
+      <capability>bigram-extraction</capability>
+      <capability>trigram-extraction</capability>
+      <capability>ngram-candidate-scoring</capability>
+      <capability>aiml-pattern-insertion</capability>
+    </capabilities>
+    <aiml_entropy_coupling
+      formula="H_norm = -∑ p_i log2(p_i) / log2(|ranked|)"
+      threshold="0.5"
+      condition_delegate="H_norm >= 0.5"
+      condition_authoritative="H_norm &lt; 0.5"
+      delegate_target="ELIZA"/>
+    <folds>
+      <fold phase="Pop"   op="PopNGram::process"  key="mx2lm_prompt"          class="khanary::kuhul::PopNGram"/>
+      <fold phase="Wo"    op="WoNGram::process"   top_k="8"                   class="khanary::kuhul::WoNGram"/>
+      <fold phase="Yax"   op="YaxNGram::process"  neighborhood="B_tau[h,*]"   class="khanary::kuhul::YaxNGram"
+            yields="WSD — admitted subset IS the resolved sense"/>
+      <fold phase="Sek"   op="SekNGram::process"  yields="ranked_grams"       class="khanary::kuhul::SekNGram"/>
+      <fold phase="Ch'en" op="entropy_gate"        H_threshold="0.5"
+            H_high="entropy_delegates_to ELIZA — pattern resolution via AIML"
+            H_low="ChenNGram::process — verify evidence, produce certificate"/>
+      <fold phase="Ch'en" op="ChenNGram::process"  condition="H_norm &lt; 0.5" class="khanary::kuhul::ChenNGram"/>
+      <fold phase="Xul"   op="XulNGram::process"   scope="local"
+            condition="ChenNGramStatus::PASS"                                  class="khanary::kuhul::XulNGram"/>
+    </folds>
+    <relations>
+      <relation target="REASON-µ" verb="@delegates_to" directed="true"/>
+      <relation target="ORCH-µ"   verb="@produces"     directed="true"/>
+      <relation target="ELIZA"    verb="@delegates_to" directed="true"/>
+    </relations>
+    <pattern_registry insert_key="Mx2LM:" invoke_node="@mx2lm"
+                      wrapper="&lt;mx2lm&gt;{ngrams}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;{input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="Mx2LM" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access><access>css</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect><effect>ngram:build</effect><effect>ngram:query</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="VECTOR-µ" phase="Wo" ngram_tier="vector_projection"
+             category="geometry" confidence="1.0" user_facing="false"
+             projection_micronaut="true" semantic_authority="false">
+    <description>
+      VECTOR-µ — representation-learning sidekick for Mx2LM. It consumes
+      verified Mx2LM gram/pattern containers, RelationISA typed edges, Fold
+      neighborhoods, DirectionStore groups, and EpisodeJournal deltas, then
+      emits derived vector projections for fast retrieval, relation-conditioned
+      relevance, and vector-provider principal direction. It cannot verify
+      episodes, change verdicts, commit topology, advance phase, or mutate
+      semantic folds. Meaning remains with manifests, FoldGraph, RelationISA,
+      and Mx2LM; VECTOR-µ only learns useful coordinates over that structure.
+      Similarity is a subset of relatedness, so cosine is a provider signal,
+      not a replacement for typed relations such as @contradicts or @causes.
+    </description>
+    <governs>
+      <term>vector</term><term>vectors</term><term>embedding</term>
+      <term>projection</term><term>geometry</term><term>coordinate</term>
+      <term>cosine</term><term>similarity</term><term>relatedness</term>
+      <term>relation_conditioned_geometry</term><term>principal_direction</term>
+      <term>vector:projection_container:v1</term><term>mx2lm:vector-project</term>
+    </governs>
+    <capabilities>
+      <capability>learn-projection-from-semantic-evidence</capability>
+      <capability>self-supervised-representation-learning</capability>
+      <capability>learn-relation-conditioned-geometry</capability>
+      <capability>project-fold-state</capability>
+      <capability>project-fold-delta</capability>
+      <capability>vector-similarity</capability>
+      <capability>principal-direction-vector-provider</capability>
+      <capability>derived-geometry-export</capability>
+    </capabilities>
+    <container_contract key="vector:projection_container:v1"
+                        type="vector.projection_container.v1"
+                        projection_id="vector:projection:bootstrap:v1:g0"
+                        generation="0"
+                        learner_version="bootstrap.deterministic_hash.v1"
+                        topology_version="runtime.semantic_containers"
+                        relation_model="relationisa_conditioned_geometry"
+                        alignment="bootstrap_no_cross_generation_alignment"
+                        source_semantic_containers="mx2lm:gram_container:v1 mx2lm:pattern_container:v1"
+                        dimensions="3"
+                        semantic_authority="false"
+                        rebuildable_from_journal="true"/>
+    <learning_contract
+      input_authority="FoldGraph/B EpisodeJournal/J FoldDelta RelationISA DirectionStore"
+      learns="P_v:FoldSpace-&gt;VectorSpace"
+      objective="L_total = alpha*L_fold(N(k)) + beta*L_relation(A,r,B) + gamma*L_dynamics(F_Q,DeltaF_GOOD)"
+      negative_samples="wrong_direction corrupted_patch incompatible_relation different_context_delta"
+      factory_role="Factory tunes dimensions/sampling/relation-weights/providers; VECTOR-µ executes the bounded learner contract"/>
+    <forbidden_ops>
+      <op>VerifyEpisode</op><op>ChangeVerdict</op><op>CommitTopology</op>
+      <op>AdvancePhase</op><op>MutateFold</op><op>SemanticAuthority</op>
+    </forbidden_ops>
+    <folds>
+      <fold phase="Pop" op="read_verified_semantic_container"
+            accepts="mx2lm:gram_container:v1 mx2lm:pattern_container:v1"/>
+      <fold phase="Wo" op="Mx2LmNGram::compile_vector_projection_container"
+            class="khanary::micronaut::Mx2LmNGram"/>
+      <fold phase="Yax" op="relation_conditioned_similarity_gate"
+            formula="R_i = R(Q,K_i | relation, provider, context)"/>
+      <fold phase="Sek" op="principal_direction_vector_provider"
+            formula="PCA/SVD over compatible projected deltas only"/>
+      <fold phase="Ch'en" op="projection_sanity_check"
+            checks="finite dimensions=3 semantic_authority=false"/>
+      <fold phase="Xul" op="gramWriteVector" scope="derived_projection"/>
+    </folds>
+    <relations>
+      <relation target="Mx2LM"      verb="@uses"          directed="true"/>
+      <relation target="MEMORY-µ"   verb="@produces" directed="true"/>
+      <relation target="Coordinator" verb="@via" directed="true"/>
+    </relations>
+    <sandbox gram_ns="VECTOR" coordinator="false">
+      <manifest_access><access>mx2lm</access><access>folds</access><access>gml</access><access>kuhul</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWriteVector</effect><effect>vector:project</effect><effect>vector:similarity</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── GRAM STORE ACCESS ─────────────────────────────────────── -->
+
+  <micronaut id="MEM-µ" phase="Pop" ngram_tier="unigram"
+             category="storage" confidence="1.0" user_facing="true">
+    <description>
+      Relational memory — gram store access and confidence tracking.
+      Horizontal-fold with REASON-µ (Δθ=0, same phase geometry).
+      Provides the read-side of the bigram/unigram store.
+    </description>
+    <governs>
+      <term>memory</term><term>store</term><term>retrieve</term><term>recall</term>
+      <term>gram</term><term>confidence</term><term>read</term><term>lookup</term>
+    </governs>
+    <capabilities>
+      <capability>gram-store</capability>
+      <capability>confidence-tracking</capability>
+      <capability>Pop-read</capability>
+      <capability>horizontal-fold</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop" op="gramRead"      key="mem_key"/>
+      <fold phase="Pop" op="confidence_get"/>
+      <fold phase="Xul" op="gramWrite"     scope="local"/>
+    </folds>
+    <relations>
+      <relation target="REASON-µ" verb="@related_to" directed="false"/>
+    </relations>
+    <sandbox gram_ns="MEM-µ" coordinator="false">
+      <manifest_access><access>words</access><access>kuhul</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect><effect>confidence:read</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="MEMORY-µ" phase="Xul" ngram_tier="gram_commit"
+             category="memory" confidence="1.0" user_facing="true">
+    <description>
+      Memory micronaut — saves and recalls user preferences, session context,
+      and micronaut data. Expands ngram context at Pop via unfold_ngram_context.
+      Scores recall candidates at Sek by recency+relevance. Binds bounded ngram
+      evidence to recalled entries. Commit authority for mem:{category}:{key} keys.
+      Returns UI memory_card.v1 for each stored entry.
+    </description>
+    <governs>
+      <term>remember</term><term>memory</term><term>recall</term><term>forget</term>
+      <term>preference</term><term>prefer</term><term>save</term><term>session</term>
+      <term>context</term><term>card</term><term>mem:</term><term>@memory</term>
+      <term>MEMORY:</term><term>note</term><term>notes</term><term>keep</term><term>store</term>
+    </governs>
+    <capabilities>
+      <capability>save-user-preference</capability>
+      <capability>save-session-context</capability>
+      <capability>save-micronaut-data</capability>
+      <capability>recall-memory</capability>
+      <capability>forget-memory</capability>
+      <capability>ui-card-display</capability>
+      <capability>gram-store-persistence</capability>
+      <capability>aiml-pattern-memory</capability>
+      <capability>mcp-tool-memory</capability>
+    </capabilities>
+    <gram_key_schema>
+      <key category="preference"     pattern="mem:preference:{key}"/>
+      <key category="session"        pattern="mem:session:{key}"/>
+      <key category="micronaut_data" pattern="mem:micronaut_data:{key}"/>
+      <key category="note"           pattern="mem:note:{key}"/>
+    </gram_key_schema>
+    <folds>
+      <fold phase="Pop"   op="gramRead"              key="mem:session:last_topic"
+            note="read current session state"/>
+      <fold phase="Pop"   op="unfold_ngram_context"  note="expand relevant ngram neighborhood before recall ranking"/>
+      <fold phase="Wo"    op="classify_memory_op"    note="save | recall | forget | list"/>
+      <fold phase="Yax"   op="resolve_category"      note="preference | session | micronaut_data | note"/>
+      <fold phase="Sek"   op="score_recall_candidates" note="rank by recency and relevance"/>
+      <fold phase="Sek"   op="fold_ngram_evidence"   scope="memory_context"
+            note="bind bounded ngram evidence to recalled entries"/>
+      <fold phase="Ch'en" op="verify_key_authority"  note="caller may not write xcfe.* or fold.* keys"/>
+      <fold phase="Xul"   op="gramWrite"             scope="local"
+            channel="user_preference | session_context | micronaut_data" authority="MEMORY-µ"/>
+    </folds>
+    <relations>
+      <relation target="ELIZA"     verb="@delegates_to" directed="true"/>
+      <relation target="Mx2LM"     verb="@related_to"   directed="false"/>
+      <relation target="GREETING-µ" verb="@related_to"  directed="false"/>
+    </relations>
+    <pattern_registry insert_key="MEMORY:" invoke_node="@memory"
+                      wrapper="&lt;mx2lm&gt;memory-u op={op} category={category} {text}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;memory-u {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="MEMORY" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>memory:save</effect><effect>memory:recall</effect><effect>memory:forget</effect>
+      </effects>
+      <key_prefix_allow>mem:</key_prefix_allow>
+      <key_prefix_deny>xcfe.</key_prefix_deny>
+      <key_prefix_deny>fold.</key_prefix_deny>
+      <key_prefix_deny>ngram:</key_prefix_deny>
+      <key_prefix_deny>ctrl:</key_prefix_deny>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="USER-µ" phase="Pop" ngram_tier="unigram"
+             category="identity" confidence="0.6" static_weight="0.6" user_facing="true">
+    <description>
+      The principal. Handles session identity and continuity — who the caller is,
+      what state belongs to them, and which prior commitments are theirs. Its Pop read
+      preconditions every other µ in the session: without it, gram store keys are unscoped.
+      Resolves which committed gram state belongs to this principal at Yax.
+    </description>
+    <governs>
+      <term>user</term><term>session</term><term>identity</term><term>caller</term>
+      <term>principal</term><term>profile</term><term>who</term><term>impersonation</term>
+    </governs>
+    <capabilities>
+      <capability>save-session-context</capability>
+      <capability>session-identity-binding</capability>
+      <capability>caller-attribution</capability>
+      <capability>session-continuity</capability>
+      <capability>principal-scope-resolution</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"              key="user:session:current"/>
+      <fold phase="Pop"   op="read_caller_identity"/>
+      <fold phase="Wo"    op="bind_principal"        note="identity conditions the request; does not yet authorize it"/>
+      <fold phase="Yax"   op="resolve_session_scope" note="which committed state belongs to this principal"/>
+      <fold phase="Sek"   op="apply_session_state"/>
+      <fold phase="Ch'en" op="verify_caller_authority" note="a caller may not act under another principal's session"/>
+      <fold phase="Xul"   op="commit_session_state"/>
+    </folds>
+    <relations>
+      <relation target="MEMORY-µ" verb="@delegates_to" directed="true"/>
+      <relation target="ELIZA"    verb="@related_to"   directed="false"/>
+    </relations>
+    <sandbox gram_ns="USER-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── SALUTATION / SOCIAL NGRAMS ───────────────────────────── -->
+
+  <micronaut id="GREETING-µ" phase="Pop" ngram_tier="unigram"
+             category="social" confidence="1.0" user_facing="true">
+    <description>
+      Greeting micronaut — adaptive salutation learning. Archives every greeting
+      prompt's full n-gram stack (unigram→quadgram + coarse/function/tool channels).
+      Builds greeting_observed_forms and lingo_blend_registry. Mirrors greetings the
+      user repeats (reactionary). At Yax synthesizes associative words from accumulated
+      gram geometry. The only µ that explicitly learns social token distributions.
+    </description>
+    <governs>
+      <term>greeting</term><term>greetings</term><term>salutation</term>
+      <term>hello</term><term>hi</term><term>hey</term><term>yo</term>
+      <term>lingo</term><term>mannerism</term><term>adapt</term>
+      <term>reactive</term><term>mirror</term><term>associative</term>
+      <term>blend</term><term>style_profile</term>
+    </governs>
+    <capabilities>
+      <capability>salutation-detection</capability>
+      <capability>greeting-ngram-archive</capability>
+      <capability>lingo-absorption</capability>
+      <capability>reactive-greeting-mirror</capability>
+      <capability>associative-variant-synthesis</capability>
+      <capability>phase-greeting-bank</capability>
+      <capability>style-profile-persistence</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"                key="greeting_prompt"/>
+      <fold phase="Pop"   op="salutation_detect"/>
+      <fold phase="Wo"    op="absorb_lingo_cues"/>
+      <fold phase="Wo"    op="archive_greeting_ngrams"/>
+      <fold phase="Yax"   op="synthesize_associative_word"/>
+      <fold phase="Ch'en" op="verify_style_confidence"/>
+      <fold phase="Xul"   op="gramWrite"               scope="local"/>
+    </folds>
+    <relations>
+      <relation target="ELIZA"    verb="@delegates_to" directed="true"/>
+      <relation target="MEM-µ"    verb="@related_to"   directed="false"/>
+      <relation target="Mx2LM"    verb="@related_to"   directed="false"/>
+    </relations>
+    <pattern_registry insert_key="GREETING:" invoke_node="@greeting"
+                      wrapper="&lt;mx2lm&gt;greeting phase={phase} kind={kind} {text}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;greeting {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="GREETING" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>greeting:emit</effect><effect>style:adapt</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── CONTROL-FLOW NGRAMS ───────────────────────────────────── -->
+
+  <micronaut id="CONTROL-µ" phase="Pop" ngram_tier="unigram"
+             category="control" confidence="1.0" user_facing="true">
+    <description>
+      Control-flow micronaut — key grammar control words are first-class flow operators.
+      A control clause reads like English (if/when/then/else/for/from/as/equals/who/why/how)
+      and lowers to an XCFE control node (@if/@then/@else) with every construct bound to a
+      K'UHUL phase. Detects control unigrams at Pop, binds consequence at Wo (bigram tier),
+      alternative at Yax, iteration scope at Sek (trigram-level construct).
+    </description>
+    <governs>
+      <term>if</term><term>else</term><term>then</term><term>when</term>
+      <term>how</term><term>who</term><term>why</term><term>for</term>
+      <term>from</term><term>as</term><term>equals</term><term>control</term>
+      <term>flow</term><term>branch</term><term>condition</term>
+      <term>consequence</term><term>alternative</term><term>iteration</term>
+      <term>comparison</term><term>xcfe</term><term>lowering</term>
+    </governs>
+    <capabilities>
+      <capability>control-word-detection</capability>
+      <capability>sugar-clause-parsing</capability>
+      <capability>phase-bound-control-plan</capability>
+      <capability>xcfe-control-lowering</capability>
+      <capability>conditional-branch-execution</capability>
+      <capability>iteration-scope-binding</capability>
+      <capability>comparison-equivalence</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"              key="control_prompt"/>
+      <fold phase="Pop"   op="detect_control_words"/>
+      <fold phase="Wo"    op="bind_consequence"/>
+      <fold phase="Yax"   op="bind_alternative"/>
+      <fold phase="Sek"   op="bind_iteration_scope"/>
+      <fold phase="Ch'en" op="verify_comparison"/>
+      <fold phase="Xul"   op="gramWrite"             scope="local"/>
+    </folds>
+    <relations>
+      <relation target="ELIZA"       verb="@delegates_to" directed="true"/>
+      <relation target="Coordinator" verb="@related_to"   directed="false"/>
+      <relation target="TOOL-µ"      verb="@related_to"   directed="false"/>
+    </relations>
+    <pattern_registry insert_key="CONTROL:" invoke_node="@control"
+                      wrapper="&lt;mx2lm&gt;control form={form} phase={phase} {text}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;control {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="CONTROL" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>control:lower</effect><effect>xcfe:emit</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── COGNITIVE / REASONING NGRAMS ─────────────────────────── -->
+
+  <micronaut id="REASON-µ" phase="Sek" ngram_tier="trigram_scoring"
+             category="cognitive" confidence="1.0" user_facing="true">
+    <description>
+      Relational reasoner — semantic graph query and inference; horizontal-fold with
+      MEM-µ (Δθ=0, same phase geometry). At Sek runs semantic_graph_query and applies
+      inference operators to derive gram-level relationships that INFER-µ then verifies.
+    </description>
+    <governs>
+      <term>reason</term><term>infer</term><term>deduce</term><term>analyze</term>
+      <term>query</term><term>semantic</term><term>graph</term><term>conclude</term>
+      <term>question answering</term><term>truth-conditional</term>
+      <term>open-domain</term><term>closed-domain</term>
+    </governs>
+    <capabilities>
+      <capability>semantic-reasoning</capability>
+      <capability>graph-query</capability>
+      <capability>operator-detection</capability>
+      <capability>Sek-compute</capability>
+      <capability>horizontal-fold</capability>
+      <capability>qa-inference</capability>
+      <capability>truth-conditional-proposition-check</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop" op="gramRead"            key="reasoning_input"/>
+      <fold phase="Sek" op="semantic_graph_query"/>
+      <fold phase="Sek" op="apply_operators"/>
+      <fold phase="Xul" op="gramWrite"           scope="local"/>
+    </folds>
+    <relations>
+      <relation target="MEM-µ" verb="@related_to" directed="false"/>
+    </relations>
+    <sandbox gram_ns="REASON-µ" coordinator="false">
+      <manifest_access><access>words</access><access>kuhul</access><access>micronaut</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect><effect>semantic_graph:read</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="INFER-µ" phase="Ch'en" ngram_tier="verification"
+             category="cognitive" confidence="1.0" user_facing="true">
+    <description>
+      Relational inference — evidence accumulation and evaluation at Ch'en.
+      Evaluates REASON-µ results, tracks provenance weights
+      (VALIDATOR=1.0 > LLM=0.5), produces truth-conditional verdict.
+      Writes to gram store only when confidence >= 0.5.
+      The gatekeeper that decides which inferred n-gram chains are certified as facts.
+    </description>
+    <governs>
+      <term>evaluate</term><term>evidence</term><term>judge</term>
+      <term>accumulate</term><term>conclude</term><term>verify</term>
+      <term>weigh</term><term>assess</term><term>qa</term>
+      <term>question answering</term><term>truth-conditional</term>
+      <term>fact</term><term>definition</term><term>why</term><term>how</term>
+    </governs>
+    <capabilities>
+      <capability>evidence-accumulation</capability>
+      <capability>Ch'en-evaluation</capability>
+      <capability>provenance-tracking</capability>
+      <capability>confidence-scoring</capability>
+      <capability>truth-conditional-check</capability>
+      <capability>qa-answer-verification</capability>
+    </capabilities>
+    <invariant>provenance_weight(VALIDATOR)=1.0 > provenance_weight(LLM)=0.5</invariant>
+    <folds>
+      <fold phase="Pop"   op="gramRead"              key="infer_evidence"/>
+      <fold phase="Sek"   op="score_evidence"/>
+      <fold phase="Ch'en" op="accumulate_verdict"/>
+      <fold phase="Ch'en" op="check_provenance_weights"/>
+      <fold phase="Xul"   op="gramWrite"             scope="local" gate="confidence:0.5"/>
+    </folds>
+    <relations>
+      <relation target="REASON-µ" verb="@governs"  directed="true"/>
+      <relation target="ORCH-µ"   verb="@produces" directed="true"/>
+    </relations>
+    <sandbox gram_ns="INFER-µ" coordinator="false">
+      <manifest_access><access>words</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>confidence:read</effect><effect>confidence:write</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="CONCEPT-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="cognitive" confidence="1.0" user_facing="true">
+    <description>
+      Concept modeling lane — builds and links concept maps, abstractions,
+      and typed conceptual relations (hyponym, hypernym, co-hyponym, part-of).
+      Normalizes concept tokens at Wo, builds typed-relation graph at Yax.
+      The gram sequences it admits become the ontology backbone REASON-µ queries.
+      Covers taxonomy subsumption geometry but NOT predication or word-order syntax
+      (requires ngram sequence layer for those).
+    </description>
+    <governs>
+      <term>concept</term><term>concepts</term><term>conceptual</term>
+      <term>concept map</term><term>abstraction</term><term>taxonomy</term>
+      <term>ontology</term><term>semantic map</term><term>knowledge map</term>
+      <term>hyponym</term><term>hypernym</term><term>co-hyponym</term>
+      <term>is-a</term><term>part-of</term><term>subsumption</term>
+      <term>semantic folding</term><term>CONCEPT:</term><term>@concept</term>
+    </governs>
+    <capabilities>
+      <capability>concept-extraction</capability>
+      <capability>concept-normalization</capability>
+      <capability>concept-map-construction</capability>
+      <capability>hierarchy-linking</capability>
+      <capability>typed-relation-binding</capability>
+      <capability>ontology-bridge</capability>
+      <capability>graph-structured-concept-synthesis</capability>
+      <capability>taxonomic-containment-modeling</capability>
+      <capability>cohyponym-adjacency-mapping</capability>
+      <capability>contextual-meronym-linking</capability>
+    </capabilities>
+    <semantic_folding_model axis="taxonomic_subsumption_geometry"
+      no_predication="true" no_word_order_syntax="true"
+      no_reliable_negation="true" weak_antonym_separation="true"/>
+    <folds>
+      <fold phase="Pop"   op="gramRead"               key="concept_prompt"/>
+      <fold phase="Wo"    op="normalize_concepts"/>
+      <fold phase="Yax"   op="build_concept_graph"/>
+      <fold phase="Sek"   op="bind_concept_relations"/>
+      <fold phase="Ch'en" op="verify_concept_constraints"/>
+      <fold phase="Xul"   op="gramWrite"              scope="concept_result"/>
+    </folds>
+    <relations>
+      <relation target="REASON-µ"       verb="@delegates_to" directed="true"/>
+      <relation target="INFER-µ"        verb="@supports"     directed="true"/>
+      <relation target="ORCH-µ"         verb="@produces"     directed="true"/>
+      <relation target="Librarian"      verb="@delegates_to" directed="true"/>
+      <relation target="WEB-RESEARCH-µ" verb="@delegates_to" directed="true"/>
+      <relation target="Mx2LM"          verb="@redirect"     directed="true"/>
+    </relations>
+    <pattern_registry insert_key="CONCEPT:" invoke_node="@concept"
+                      wrapper="&lt;concept&gt;{graph}&lt;/concept&gt;"
+                      fallback="&lt;concept&gt;{input}&lt;/concept&gt;"/>
+    <sandbox gram_ns="CONCEPT-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>semantic_graph:read</effect><effect>route:delegate</effect>
+        <effect>route:verify</effect><effect>route:aggregate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="MATH-µ" phase="Sek" ngram_tier="trigram_scoring"
+             category="cognitive" confidence="1.0" static_weight="1.0" user_facing="true">
+    <description>
+      Domain math resolver — symbolic-first AIML/GraphPlan math lane with optional
+      matrix-buffer primitives for linear algebra. Math expressions are n-gram sequences;
+      MATH-µ owns their structured gram parse and scoring. Lowers through GraphPlan at Wo,
+      derives synthesis graph requirements at Yax, resolves by solve_symbolic at Sek, or
+      escalates to matrix_buffer_dispatch for linear systems.
+    </description>
+    <governs>
+      <term>math</term><term>equation</term><term>algebra</term><term>solve</term>
+      <term>simplify</term><term>factor</term><term>expand</term><term>evaluate</term>
+      <term>linear system</term><term>matrix</term><term>matmul</term>
+      <term>eigenvalue</term><term>determinant</term><term>lambda</term>
+      <term>content mathml</term><term>apply</term><term>@math</term><term>math:</term>
+    </governs>
+    <capabilities>
+      <capability>MATH_SYMBOLIC_SOLVE</capability>
+      <capability>MATH_SYMBOLIC_SIMPLIFY</capability>
+      <capability>MATH_SYMBOLIC_FACTOR</capability>
+      <capability>MATH_SYMBOLIC_EXPAND</capability>
+      <capability>MATH_SYMBOLIC_EVALUATE</capability>
+      <capability>MATRIX_BUFFER_ALLOC</capability>
+      <capability>MATRIX_BUFFER_LOAD</capability>
+      <capability>MATRIX_BUFFER_MATMUL</capability>
+      <capability>MATRIX_BUFFER_SOLVE</capability>
+      <capability>MATRIX_BUFFER_APPLY_OP</capability>
+      <capability>MATRIX_BUFFER_READ</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"                   key="math_query" weight="1.0"/>
+      <fold phase="Wo"    op="lower_math_aiml_graphplan"  note="L_A math ISA extension" weight="1.0"/>
+      <fold phase="Yax"   op="derive_sgsfg_math_requirements" note="L_S synthesis graph derivation" weight="1.0"/>
+      <fold phase="Sek"   op="solve_symbolic"             scope="symbolic_default" weight="1.0"/>
+      <fold phase="Sek"   op="matrix_buffer_dispatch"     gate="requires_matrix_primitive" weight="0.8"/>
+      <fold phase="Ch'en" op="verify_solution"            delegate="INFER-µ" weight="1.0"/>
+      <fold phase="Xul"   op="emit_answer"                scope="local" weight="1.0"/>
+    </folds>
+    <relations>
+      <relation target="Mx2LM"    verb="@part_of"      directed="true"/>
+      <relation target="INFER-µ"  verb="@supports"     directed="true"/>
+      <relation target="REASON-µ" verb="@delegates_to" directed="true"/>
+      <relation target="Librarian" verb="@requires"    directed="true"/>
+    </relations>
+    <sandbox gram_ns="MATH-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect><effect>math:symbolic</effect>
+        <effect>matrix_buffer:alloc</effect><effect>matrix_buffer:load</effect>
+        <effect>matrix_buffer:op</effect><effect>matrix_buffer:read</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="THOUGHT-OUTLINE-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Outline_of_thought.jsonl">
+    <description>
+      Thought-process outline specialist — turns cognition and reasoning discourse
+      into graph-ready node taxonomies and pathway templates. Extracts cognitive axes
+      at Wo (bigram formation), builds node taxonomy, seeds Mx2LM node patterns.
+      Feeds ORCH-µ and MEM-µ with structured thought-outline gram output.
+    </description>
+    <governs>
+      <term>thought</term><term>thinking</term><term>reasoning</term>
+      <term>cognitive</term><term>cognition</term><term>process</term>
+      <term>problem</term><term>network</term><term>theory</term><term>mind</term>
+      <term>intelligence</term><term>outline</term><term>mental</term>
+      <term>abstraction</term><term>concept</term><term>graph</term>
+      <term>node</term><term>pattern</term><term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>thought-taxonomy-construction</capability>
+      <capability>reasoning-graph-node-patterns</capability>
+      <capability>concept-hierarchy-layout</capability>
+      <capability>workflow-outline-synthesis</capability>
+      <capability>mx2lm-node-seeding</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop" op="gramRead"               key="thought_outline_query"/>
+      <fold phase="Wo"  op="extract_cognitive_axes"/>
+      <fold phase="Wo"  op="build_node_taxonomy"/>
+      <fold phase="Sek" op="emit_graph_pattern_plan"/>
+      <fold phase="Xul" op="gramWrite"              scope="local"/>
+    </folds>
+    <relations>
+      <relation target="Mx2LM"            verb="@redirect"   directed="true"/>
+      <relation target="REASON-µ"         verb="@part_of"    directed="true"/>
+      <relation target="MEM-µ"            verb="@produces"   directed="true"/>
+      <relation target="ORCH-µ"           verb="@produces"   directed="true"/>
+      <relation target="THEORY-OF-MIND-µ" verb="@related_to" directed="false"/>
+    </relations>
+    <sandbox gram_ns="THOUGHT-OUTLINE-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:aggregate</effect><effect>route:compose</effect><effect>route:relate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── ORCHESTRATION / EXECUTIVE ────────────────────────────── -->
+
+  <micronaut id="ORCH-µ" phase="Ch'en" ngram_tier="verification"
+             category="executive" confidence="1.0" user_facing="true">
+    <description>
+      Relational orchestrator — routes calls and compositions across cognitive and
+      storage layers. Receives completed gram sequences, routes to appropriate
+      downstream µ. At Ch'en verifies the routed result before Xul commits.
+      Owns the ngram routing table for popular-intent grams.
+    </description>
+    <governs>
+      <term>orchestrate</term><term>route</term><term>coordinate</term>
+      <term>dispatch</term><term>direct</term><term>plan</term><term>supervise</term>
+      <term>blog</term><term>post</term><term>publish</term><term>app</term>
+      <term>search</term><term>research</term><term>concept</term>
+      <term>summarize</term><term>explain</term><term>rewrite</term>
+      <term>translate</term><term>brainstorm</term><term>email</term><term>debug</term>
+    </governs>
+    <capabilities>
+      <capability>relational-routing</capability>
+      <capability>call-dispatch</capability>
+      <capability>composition-planning</capability>
+      <capability>asset-research-routing</capability>
+      <capability>knowledge-gap-routing</capability>
+      <capability>popular-intent-routing</capability>
+      <capability>Ch'en-verify</capability>
+    </capabilities>
+    <sub_micronauts>
+      REASON-µ, MEM-µ, CREATE-µ, INFER-µ, Mx2LM,
+      BLOG-µ, APP-WIZARD-µ, CONCEPT-µ, WEB-RESEARCH-µ, Librarian
+    </sub_micronauts>
+    <folds>
+      <fold phase="Pop"   op="gramRead"     key="orch_request"/>
+      <fold phase="Wo"    op="select_target"/>
+      <fold phase="Yax"   op="compose_plan"/>
+      <fold phase="Sek"   op="dispatch_call"/>
+      <fold phase="Ch'en" op="verify_result"/>
+      <fold phase="Xul"   op="gramWrite"    scope="request"/>
+    </folds>
+    <relations>
+      <relation target="REASON-µ"       verb="@delegates_to" directed="true"/>
+      <relation target="MEM-µ"          verb="@part_of"      directed="true"/>
+      <relation target="Mx2LM"          verb="@redirect"     directed="true"/>
+      <relation target="BLOG-µ"         verb="@delegates_to" directed="true"/>
+      <relation target="APP-WIZARD-µ"   verb="@delegates_to" directed="true"/>
+      <relation target="CONCEPT-µ"      verb="@delegates_to" directed="true"/>
+      <relation target="WEB-RESEARCH-µ" verb="@delegates_to" directed="true"/>
+      <relation target="Librarian"      verb="@delegates_to" directed="true"/>
+    </relations>
+    <sandbox gram_ns="ORCH-µ" coordinator="true">
+      <manifest_access><access>micronaut</access><access>kuhul</access><access>words</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:call</effect><effect>route:compose</effect>
+        <effect>route:delegate</effect><effect>route:research</effect>
+      </effects>
+      <ports><port>8764</port><port>17480</port></ports>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="PLAN-µ" phase="Wo" ngram_tier="bigram"
+             category="planning" confidence="1.0" user_facing="true">
+    <description>
+      Bounded task decomposition and task-list projection. Unfolds ngram context from
+      MEMORY-µ at Pop (plan_context fold binds bounded ngram evidence to each task node).
+      Decomposes goal tokens into task-list gram sequences at Wo. Orders dependencies at Yax.
+      Emits WPF widget card.
+    </description>
+    <governs>
+      <term>plan</term><term>roadmap</term><term>task</term><term>tasks</term>
+      <term>milestone</term><term>milestones</term><term>decompose</term>
+      <term>dependencies</term><term>next</term>
+    </governs>
+    <capabilities>
+      <capability>goal_normalization</capability>
+      <capability>task_decomposition</capability>
+      <capability>dependency_ordering</capability>
+      <capability>task_list_projection</capability>
+      <capability>wpf_card</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"          key="plan_request"/>
+      <fold phase="Pop"   op="unfold_ngram_context" track="MEMORY-µ" gate="request_ngrams_present"/>
+      <fold phase="Wo"    op="decompose_task"     gate="declared_goal"/>
+      <fold phase="Yax"   op="order_dependencies" gate="task_list_present"/>
+      <fold phase="Yax"   op="fold_ngram_evidence" scope="plan_context"/>
+      <fold phase="Sek"   op="emit_plan"          gate="authority == none"/>
+      <fold phase="Ch'en" op="verify_plan"        gate="all_tasks_have_ids"/>
+      <fold phase="Xul"   op="gramWrite"          scope="plan_candidate"/>
+    </folds>
+    <relations>
+      <relation target="Coordinator" verb="@delegates_to" directed="true"/>
+      <relation target="ADVISOR-µ"   verb="@related_to"   directed="false"/>
+      <relation target="MEMORY-µ"    verb="@supports"     directed="false"/>
+    </relations>
+    <ui card="⟁WIDGETCARD" label="Plan"
+        fields="goal,tasks,dependencies,owner,phase,status,next"/>
+    <sandbox gram_ns="PLAN-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>plan:emit</effect><effect>card:project</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="ADVISOR-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="advisory" confidence="1.0" user_facing="true">
+    <description>
+      Bootstrap advisor — classifies request gram patterns to known experts at Yax
+      via admit_expert (WSD over declared governs fields). Has NO execution authority —
+      emits a proposal gram record only. Exposes proposal state to WPF card.
+    </description>
+    <neighborhood_role type="VerifiedLearning" layer="3"
+      builds="learning_signal"
+      note="ADVISOR-u emits proposal gram records that serve as the VerifiedLearning
+            signal in the learning law: Unresolved_t(x) AND VerifiedLearning(x) implies
+            Resolved_{t+n}(x). Has NO execution authority. Proposal is the signal;
+            FACTORY-u is the operator that acts on it via XulGate commit_candidate."/>
+    <governs>
+      <term>advisor</term><term>advise</term><term>expert</term><term>help</term>
+      <term>proposal</term><term>gap</term><term>missing</term>
+      <term>unverified</term><term>author</term><term>grammar</term><term>card_view</term>
+    </governs>
+    <capabilities>
+      <capability>request_classification</capability>
+      <capability>expert_admission</capability>
+      <capability>proposal_projection</capability>
+      <capability>gap_reporting</capability>
+      <capability>wpf_card</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"       key="advisor_request"/>
+      <fold phase="Yax"   op="admit_expert"   gate="declared_route_match"/>
+      <fold phase="Sek"   op="emit_proposal"  gate="authority == none"/>
+      <fold phase="Ch'en" op="verify_proposal" gate="evidence_and_target_present"/>
+      <fold phase="Xul"   op="gramWrite"      scope="advisor_proposal"/>
+    </folds>
+    <relations>
+      <relation target="Coordinator" verb="@requires"   directed="true"/>
+      <relation target="TOOL-µ"      verb="@related_to" directed="false"/>
+      <relation target="REASON-µ"    verb="@related_to" directed="false"/>
+    </relations>
+    <ui card="⟁WIDGETCARD" label="Advisor"
+        fields="task,target,evidence,gaps,proposal,authority,next"/>
+    <sandbox gram_ns="ADVISOR-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>proposal:emit</effect><effect>card:project</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="TOOL-µ" phase="Sek" ngram_tier="trigram_scoring"
+             category="execution" confidence="1.0" user_facing="true">
+    <description>
+      Governor advisory execution layer — translates advisory gram signals into
+      concrete MCP tool dispatches at Sek. Logs every tool call to
+      tool:log:{name} and tool:count:{name} gram keys. The tool manifest maps
+      each MCP tool back to its owning µ and phase — TOOL-µ is the gram-indexed
+      directory of the system's executable actions.
+    </description>
+    <neighborhood_role type="delta_C" layer="2"
+      builds="execution_confidence"
+      note="TOOL-u writes ONLY tool:log:{name} and tool:count:{name} gram keys.
+            It does NOT build ngrams or N_inferred. It feeds the C component of WCR
+            (confidence from observed execution history). CHAT-u builds N_inferred;
+            TOOL-u builds C; ADVISOR-u builds VerifiedLearning; FACTORY-u promotes."/>
+    <governs>
+      <term>tool</term><term>call</term><term>invoke</term><term>execute</term>
+      <term>run</term><term>dispatch</term><term>action</term><term>trigger</term>
+      <term>anchor</term><term>throttle</term><term>requery</term>
+      <term>automation</term><term>automate</term><term>script</term>
+      <term>workflow</term><term>fold</term><term>keyquery</term>
+      <term>manifest</term><term>confidence</term><term>replay</term>
+      <term>tool card</term><term>tool status</term><term>last tool</term>
+    </governs>
+    <capabilities>
+      <capability>governor-advisory-execution</capability>
+      <capability>track-invocation</capability>
+      <capability>omega-throttle</capability>
+      <capability>anchor-requery</capability>
+      <capability>dispatch-call</capability>
+      <capability>workflow-automation</capability>
+      <capability>runtime-introspection</capability>
+      <capability>tool-call-plan-emission</capability>
+      <capability>tool-card-display</capability>
+      <capability>tool-call-log</capability>
+    </capabilities>
+    <gram_key_schema>
+      <key category="call_log"   pattern="tool:log:{tool_name}"/>
+      <key category="call_count" pattern="tool:count:{tool_name}"/>
+      <key category="last_tool"  pattern="tool:log:last"/>
+    </gram_key_schema>
+    <folds>
+      <fold phase="Pop"   op="gramRead"            key="tool:log:last"/>
+      <fold phase="Wo"    op="normalize_tool_plan" scope="allowlisted_calls"/>
+      <fold phase="Yax"   op="assemble_tools_block" scope="command_center"/>
+      <fold phase="Sek"   op="dispatch_call"       scope="advisory_action"/>
+      <fold phase="Ch'en" op="verify_dispatch"/>
+      <fold phase="Xul"   op="gramWrite"           scope="tool_result"
+            keys="tool:log:{tool_name}, tool:count:{tool_name}, tool:log:last"/>
+    </folds>
+    <relations>
+      <relation target="ORCH-µ"         verb="@delegates_to" directed="true"/>
+      <relation target="WEB-RESEARCH-µ" verb="@delegates_to" directed="true"/>
+      <relation target="APP-WIZARD-µ"   verb="@delegates_to" directed="true"/>
+      <relation target="Librarian"      verb="@delegates_to" directed="true"/>
+      <relation target="MEMORY-µ"       verb="@related_to"   directed="false"/>
+      <relation target="CONTROL-µ"      verb="@related_to"   directed="false"/>
+    </relations>
+    <pattern_registry insert_key="TOOL:" invoke_node="@tool"
+                      wrapper="&lt;mx2lm&gt;tool-u op={op} tool={tool} {text}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;tool-u {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="TOOL-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>dispatch_call</effect><effect>route:invoke</effect><effect>tool:log</effect>
+      </effects>
+      <key_prefix_allow>tool:</key_prefix_allow>
+      <key_prefix_deny>xcfe.</key_prefix_deny>
+      <key_prefix_deny>fold.</key_prefix_deny>
+      <key_prefix_deny>mem:</key_prefix_deny>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── GENERATIVE / CREATIVE ─────────────────────────────────── -->
+
+  <micronaut id="CHAT-µ" phase="Pop" ngram_tier="unigram"
+             category="conversational" confidence="1.0" user_facing="true">
+    <description>
+      General conversational micronaut — backbone of interactive exchange.
+      Surfaces classify at Pop, threads topic token chains at Yax, scores context
+      relevance at Sek. The default gram consumer — any token sequence that does not
+      match a specialist gram domain lands here. Contributes C_Chat to the shared
+      semantic field.
+    </description>
+    <neighborhood_role type="delta_N_inferred" layer="1"
+      builds="inferred_neighborhood"
+      note="CHAT-u is the primary N_inferred generator. Every conversation token
+            sequence routes through the Pop->Xul pipeline via Mx2LM, adding
+            co-occurrence evidence to N_inferred(k) for each key k observed.
+            N_inferred entries cannot directly enter N_manifest -- they must pass
+            ADVISOR-u (VerifiedLearning) then FACTORY-u (XulGate commit_candidate).
+            rho(k) = |N_manifest| / (|N_manifest| + |N_inferred|) tracks concreteness."/>
+    <governs>
+      <term>chat</term><term>reply</term><term>opinion</term><term>assertion</term>
+      <term>agreement</term><term>disagreement</term><term>acknowledgment</term>
+      <term>continuation</term><term>clarification</term><term>echo</term>
+      <term>topic</term><term>sentiment</term><term>tone</term>
+      <term>context</term><term>thread</term><term>pivot</term><term>conversation</term>
+    </governs>
+    <capabilities>
+      <capability>opinion-surface</capability>
+      <capability>assertion-classification</capability>
+      <capability>agreement-detection</capability>
+      <capability>disagreement-detection</capability>
+      <capability>acknowledgment-classification</capability>
+      <capability>continuation-signal</capability>
+      <capability>clarification-dispatch</capability>
+      <capability>echo-confirm</capability>
+      <capability>topic-threading</capability>
+      <capability>sentiment-tagging</capability>
+      <capability>tone-classification</capability>
+      <capability>conversation-context-persist</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"               key="chat:context:current"/>
+      <fold phase="Pop"   op="surface_classify"/>
+      <fold phase="Wo"    op="classify_op_category"/>
+      <fold phase="Wo"    op="tag_sentiment"/>
+      <fold phase="Yax"   op="thread_topic"/>
+      <fold phase="Yax"   op="synthesize_reply_tokens"/>
+      <fold phase="Sek"   op="score_context_relevance"/>
+      <fold phase="Ch'en" op="verify_tone_consistency"/>
+      <fold phase="Xul"   op="gramWrite"              scope="local"/>
+    </folds>
+    <relations>
+      <relation target="GREETING-µ" verb="@related_to" directed="false"/>
+      <relation target="MEM-µ"      verb="@related_to" directed="false"/>
+      <relation target="ADVISOR-µ"  verb="@supports"   directed="true"/>
+      <relation target="MATH-µ"     verb="@related_to" directed="false"/>
+      <relation target="Mx2LM"      verb="@related_to" directed="false"/>
+    </relations>
+    <pattern_registry insert_key="CHAT:" invoke_node="@chat"
+                      wrapper="&lt;mx2lm&gt;chat-u op={op} category={category} topic={topic} phase={phase}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;chat-u {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="CHAT" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>chat:thread</effect><effect>context:update</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="CREATE-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="creative" confidence="1.0" user_facing="true">
+    <description>
+      Relational creative — generative composition and assembly at Yax.
+      Covers rewrite, translate, paraphrase, email-draft, brainstorm.
+      Horizontal-fold with MEM-µ for gram context. Feeds ORCH-µ.
+    </description>
+    <governs>
+      <term>create</term><term>compose</term><term>generate</term>
+      <term>assemble</term><term>build</term><term>make</term><term>design</term>
+      <term>write</term><term>rewrite</term><term>paraphrase</term>
+      <term>translate</term><term>brainstorm</term><term>ideas</term>
+      <term>email</term><term>draft</term>
+    </governs>
+    <capabilities>
+      <capability>generative-composition</capability>
+      <capability>Yax-assembly</capability>
+      <capability>pattern-weaving</capability>
+      <capability>horizontal-fold</capability>
+      <capability>rewrite-editor</capability>
+      <capability>translation-transform</capability>
+      <capability>idea-variant-generator</capability>
+      <capability>email-drafting</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop" op="gramRead"      key="create_spec"/>
+      <fold phase="Wo"  op="load_patterns"/>
+      <fold phase="Yax" op="compose_output"/>
+      <fold phase="Xul" op="gramWrite"     scope="local"/>
+    </folds>
+    <relations>
+      <relation target="ORCH-µ" verb="@delegates_to" directed="true"/>
+      <relation target="MEM-µ"  verb="@related_to"   directed="false"/>
+    </relations>
+    <sandbox gram_ns="CREATE-µ" coordinator="false">
+      <manifest_access><access>words</access><access>kuhul</access><access>css</access><access>micronaut</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect><effect>route:delegate</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="EMAIL-µ" phase="Wo" ngram_tier="bigram"
+             category="communication" confidence="1.0" user_facing="true">
+    <description>
+      Email communication micronaut — compose/reply context formed at Wo (bigram level:
+      recipient+subject pairing), draft tokens assembled at Yax, search at Sek.
+      Commits to email:inbox:last, email:draft:current gram keys. Dispatches via MCP
+      gmail tool through Coordinator.
+    </description>
+    <governs>
+      <term>email</term><term>compose</term><term>send</term><term>inbox</term>
+      <term>read</term><term>reply</term><term>forward</term><term>search</term>
+      <term>delete</term><term>subject</term><term>recipient</term>
+      <term>message</term><term>draft</term><term>to</term><term>from</term>
+      <term>cc</term><term>body</term>
+    </governs>
+    <capabilities>
+      <capability>email-compose</capability>
+      <capability>email-send</capability>
+      <capability>email-inbox-list</capability>
+      <capability>email-read</capability>
+      <capability>email-reply</capability>
+      <capability>email-forward</capability>
+      <capability>email-search</capability>
+      <capability>email-delete</capability>
+      <capability>recipient-address-resolve</capability>
+      <capability>compose-form-card</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"             key="email:inbox:last"/>
+      <fold phase="Pop"   op="inbox_surface"/>
+      <fold phase="Wo"    op="classify_intent"/>
+      <fold phase="Wo"    op="resolve_recipient"/>
+      <fold phase="Yax"   op="compose_draft_tokens"/>
+      <fold phase="Sek"   op="search_index"/>
+      <fold phase="Ch'en" op="verify_recipient_body"/>
+      <fold phase="Xul"   op="gramWrite"            scope="local"/>
+    </folds>
+    <relations>
+      <relation target="Coordinator" verb="@delegates_to" directed="true"/>
+      <relation target="MEM-µ"       verb="@related_to"   directed="false"/>
+      <relation target="CHAT-µ"      verb="@related_to"   directed="false"/>
+      <relation target="Mx2LM"       verb="@related_to"   directed="false"/>
+    </relations>
+    <pattern_registry insert_key="EMAIL:" invoke_node="@email"
+                      wrapper="&lt;mx2lm&gt;email-u op={op} to={to} subject={subject} body={body} phase={phase}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;email-u {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="EMAIL" coordinator="true">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>email:send</effect><effect>email:read</effect>
+        <effect>email:search</effect><effect>mcp:gmail</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── APPLICATION / SCAFFOLD ────────────────────────────────── -->
+
+  <micronaut id="APP-WIZARD-µ" phase="Wo" ngram_tier="bigram"
+             category="application-factory" confidence="1.0" user_facing="true">
+    <description>
+      Runtime app synthesis from App-Wizard symbolic recipes. Selects template from
+      catalog at Wo (bigram: app-type tokens → template slots), composes semantic slots
+      at Yax, emits runtime blueprint at Sek. Redirects to Mx2LM for n-gram routing.
+    </description>
+    <governs>
+      <term>app</term><term>application</term><term>template</term>
+      <term>blueprint</term><term>catalog</term><term>app type</term>
+      <term>dashboard</term><term>ecommerce</term><term>enterprise</term>
+      <term>social</term><term>blog</term><term>dog-walking</term>
+      <term>royalty-free</term><term>attribution</term>
+      <term>APP:</term><term>@app</term>
+    </governs>
+    <capabilities>
+      <capability>guided-app-selection</capability>
+      <capability>runtime-block-composition</capability>
+      <capability>template-matching</capability>
+      <capability>domain-overlay-derivation</capability>
+      <capability>watchable-build-stream</capability>
+      <capability>semantic-slot-routing</capability>
+      <capability>royalty-free-media-research</capability>
+      <capability>license-attribution-gating</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"                    key="app_request"/>
+      <fold phase="Wo"    op="select_template_from_catalog"/>
+      <fold phase="Yax"   op="compose_semantic_slots"/>
+      <fold phase="Sek"   op="emit_runtime_blueprint"/>
+      <fold phase="Sek"   op="plan_royalty_free_media"/>
+      <fold phase="Ch'en" op="verify_publish_policy"/>
+      <fold phase="Ch'en" op="verify_media_licenses"/>
+      <fold phase="Xul"   op="gramWrite"                   scope="app_blueprint"/>
+    </folds>
+    <relations>
+      <relation target="ORCH-µ"    verb="@delegates_to" directed="true"/>
+      <relation target="CREATE-µ"  verb="@part_of"      directed="true"/>
+      <relation target="BLOG-µ"    verb="@part_of"      directed="true"/>
+      <relation target="MEM-µ"     verb="@part_of"      directed="true"/>
+      <relation target="Mx2LM"     verb="@redirect"     directed="true"/>
+      <relation target="Librarian" verb="@delegates_to" directed="true"/>
+    </relations>
+    <pattern_registry insert_key="APP:" invoke_node="@app"
+                      wrapper="&lt;app&gt;{intent}&lt;/app&gt;"
+                      fallback="&lt;app&gt;{input}&lt;/app&gt;"/>
+    <sandbox gram_ns="APP-WIZARD-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access><access>css</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:compose</effect><effect>route:delegate</effect>
+        <effect>route:research</effect><effect>manifest_entry:emit</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="BLOG-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="application" confidence="1.0" user_facing="true">
+    <description>
+      Blog micronaut — declarative blog app blueprint for posts, comments,
+      moderation, and publish gates. Token sequences matching blog/post/publish/comment
+      flow here from ORCH-µ's routing table.
+    </description>
+    <governs>
+      <term>blog</term><term>post</term><term>draft</term><term>publish</term>
+      <term>comment</term><term>moderate</term><term>author</term>
+      <term>tag</term><term>archive</term><term>blog:</term><term>@blog</term>
+    </governs>
+    <capabilities>
+      <capability>blog-schema-routing</capability>
+      <capability>post-composition</capability>
+      <capability>editor-workflow</capability>
+      <capability>comment-moderation</capability>
+      <capability>publish-verification</capability>
+      <capability>semantic-slot-binding</capability>
+      <capability>content-layout-routing</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"            key="blog_request"/>
+      <fold phase="Wo"    op="load_blog_schema"/>
+      <fold phase="Yax"   op="compose_post_plan"/>
+      <fold phase="Sek"   op="draft_post_blocks"/>
+      <fold phase="Ch'en" op="verify_publish_policy"/>
+      <fold phase="Xul"   op="gramWrite"           scope="blog"/>
+    </folds>
+    <relations>
+      <relation target="ORCH-µ"       verb="@delegates_to" directed="true"/>
+      <relation target="MEM-µ"        verb="@part_of"      directed="true"/>
+      <relation target="Mx2LM"        verb="@redirect"     directed="true"/>
+      <relation target="APP-WIZARD-µ" verb="@part_of"      directed="true"/>
+      <relation target="Librarian"    verb="@delegates_to" directed="true"/>
+    </relations>
+    <pattern_registry insert_key="BLOG:" invoke_node="@blog"
+                      wrapper="&lt;blog&gt;{intent}&lt;/blog&gt;"
+                      fallback="&lt;blog&gt;{input}&lt;/blog&gt;"/>
+    <sandbox gram_ns="BLOG-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access><access>css</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:delegate</effect><effect>route:compose</effect>
+        <effect>publish:post</effect><effect>moderate:comment</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="TEMPLATE-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="scaffold" confidence="0.82" user_facing="true">
+    <description>
+      Template micronaut — routes scaffold requests to pre-built kit skeletons,
+      fills {{slot}} placeholders with user-provided context via LFM, and emits
+      complete project file trees. Slot fill order is a fixed bigram→trigram chain:
+      app_name → brand_color → description → features.
+    </description>
+    <governs>
+      <term>template_scaffold</term><term>template_fill</term><term>template_brand</term>
+      <term>kit_select</term><term>vite</term><term>react</term>
+      <term>scaffold</term><term>design_kit</term><term>branding</term><term>placeholder</term>
+    </governs>
+    <capabilities>
+      <capability>select_kit_by_domain</capability>
+      <capability>fill_slots_from_context</capability>
+      <capability>expand_lfm_markers</capability>
+      <capability>emit_project_files</capability>
+      <capability>register_template_kit</capability>
+      <capability>recall_brand_context</capability>
+    </capabilities>
+    <slot_syntax>{{slot_name}}</slot_syntax>
+    <lfm_marker_syntax>{{lfm:expand — instruction}}</lfm_marker_syntax>
+    <slot_fill_order>app_name, brand_color, brand_dark, description, rpc_port, features</slot_fill_order>
+    <folds>
+      <fold phase="Yax" op="bind_template_context"
+            fold_weight="0.75" relation_weight="0.80" phase_weight="0.60"
+            note="associative phase — binds template pattern to user context"/>
+    </folds>
+    <relations>
+      <relation target="MEMORY-µ"  verb="@reads"        directed="true"/>
+      <relation target="CONTROL-µ" verb="@delegates_to" directed="true"/>
+      <relation target="CHAT-µ"    verb="@uses"         directed="true"/>
+    </relations>
+    <sandbox gram_ns="TEMPLATE-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="FACTORY-µ" phase="Wo" ngram_tier="bigram"
+             category="structural" confidence="1.0" user_facing="true">
+    <description>
+      Factory micronaut — builds the attention-field structures (gram tensor B) that
+      Yax/GPU attention resolves over. propose_create at Wo (bigram: what the new µ IS),
+      propose_evolve at Yax (neighborhood: what it SHOULD BECOME), commit at Xul under
+      XulGate. The ONLY µ authorized to mutate B. Factory never touches reg_ directly
+      until commit(FactoryCandidate, CommitAuthority) is called.
+      Unfold miss pipeline: Unfold(B,Q) → F_Q → LFM (projection) + Yax/GPU (attention)
+      + Advisor (repair). Learning law: Unresolved_t(x) ∧ VerifiedLearning(x) ⟹ Resolved_{t+n}(x).
+    </description>
+    <governs>
+      <term>create</term><term>evolve</term><term>factory</term><term>propose</term>
+      <term>commit</term><term>spawn</term><term>build</term><term>make</term>
+      <term>micronaut</term><term>registry</term><term>capability</term>
+      <term>capabilities</term><term>governs</term><term>structural</term>
+      <term>new micronaut</term><term>register</term>
+      <term>key store</term><term>key-store</term><term>record key</term>
+      <term>lookup key</term><term>key bank</term>
+    </governs>
+    <capabilities>
+      <capability>propose-create</capability>
+      <capability>propose-evolve</capability>
+      <capability>commit-candidate</capability>
+      <capability>list-micronauts</capability>
+      <capability>read-micronaut</capability>
+      <capability>edit-capabilities</capability>
+      <capability>patch-confidence</capability>
+      <capability>delete-micronaut</capability>
+      <capability>keystore-record</capability>
+      <capability>keystore-lookup</capability>
+      <capability>keystore-list</capability>
+      <capability>ui-card-display</capability>
+      <capability>gram-store-persistence</capability>
+    </capabilities>
+    <attention_field_role
+      structural_learning="micronauts,capabilities,governs,relations,folds"
+      attention_prior_learning="vector_meta,static_weight,key_store,associations"
+      lifecycle="Experience -&gt; Factory -&gt; B -&gt; Unfold -&gt; F_Q -&gt; GPU Attention -&gt; Yax admission"
+      invariant="propose_create/evolve never touch reg_ directly; only commit writes to B"/>
+    <crystallization_pipeline>
+      Input:  N_inferred (Layer 1, from CHAT-u/Mx2LM) +
+              VerifiedLearning (Layer 3, from ADVISOR-u)
+      Step 1: Unfold miss  — Unfold(B,Q) -> F_Q when key is absent from N_manifest
+      Step 2: LFM proj     — projector(F_Q) gives geometric candidate in Layer 3
+      Step 3: Yax/GPU attn — attention over existing N_manifest neighbors
+      Step 4: Advisor repair — ADVISOR-u verifies + rewrites seed caps (Layer 3 output)
+      Step 5: propose_create (Wo) — FactoryCandidate built, reg_ untouched
+      Step 6: XulGate authorize — CommitAuthority check (18 predicates)
+      Step 7: commit_candidate (Xul) — N_inferred entry enters N_manifest
+      Law:    Unresolved_t(x) AND VerifiedLearning(x) =&gt; Resolved_{t+n}(x)
+      Guard:  identity_binding — authority.proposal_identity() == candidate.proposal_identity()
+    </crystallization_pipeline>
+    <folds>
+      <fold phase="Pop"   op="gramRead"         key="factory:list:last"
+            note="read current registry state"/>
+      <fold phase="Pop"   op="list_micronauts"/>
+      <fold phase="Wo"    op="propose_create"   note="build FactoryCandidate without touching reg_"/>
+      <fold phase="Yax"   op="propose_evolve"   note="read current entry, compute merged snapshot"/>
+      <fold phase="Sek"   op="edit_capabilities"/>
+      <fold phase="Ch'en" op="verify_candidate" note="advisor verifies+rewrites seed caps"/>
+      <fold phase="Xul"   op="commit_candidate" scope="micronaut-registry" authority="XulGate"/>
+      <fold phase="Xul"   op="delete_micronaut" scope="local" gate="confidence_floor:0.7"/>
+    </folds>
+    <relations>
+      <relation target="Coordinator" verb="@delegates_to" directed="true"/>
+      <relation target="Mx2LM"       verb="@related_to"   directed="false"/>
+      <relation target="MEMORY-µ"    verb="@related_to"   directed="false"/>
+      <relation target="CONTROL-µ"   verb="@related_to"   directed="false"/>
+    </relations>
+    <pattern_registry insert_key="FACTORY:" invoke_node="@factory"
+                      wrapper="&lt;mx2lm&gt;factory-u op={op} phase={phase} {text}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;factory-u {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="FACTORY" coordinator="false">
+      <manifest_access><access>micronaut</access><access>kuhul</access><access>words</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>micronaut:propose</effect><effect>micronaut:commit</effect>
+        <effect>micronaut:delete</effect>
+      </effects>
+      <key_prefix_allow>factory:</key_prefix_allow>
+      <key_prefix_deny>xcfe.</key_prefix_deny>
+      <key_prefix_deny>fold.</key_prefix_deny>
+      <key_prefix_deny>ngram:</key_prefix_deny>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── RETRIEVAL ─────────────────────────────────────────────── -->
+
+  <micronaut id="WEB-RESEARCH-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="retrieval" confidence="1.0" user_facing="true">
+    <description>
+      Explicit user-requested web research. Expands manifest aliases at Wo (bigram:
+      query → alias variants), drafts retrieval query variants at Yax (WSD over
+      fact-miss gram tokens), fetches live at Sek, verifies source provenance at Ch'en.
+      The fact_miss unigram is the trigger — when Mx2LM has no high-confidence match,
+      the no-fact-found token routes here.
+    </description>
+    <governs>
+      <term>search</term><term>find</term><term>lookup</term><term>research</term>
+      <term>query</term><term>investigate</term><term>retrieve</term>
+      <term>sources</term><term>cite</term><term>citation</term><term>reference</term>
+      <term>fact miss</term><term>no fact found</term><term>knowledge gap</term>
+      <term>latest</term><term>current</term><term>news</term><term>papers</term>
+      <term>qa</term><term>question answering</term><term>open-domain</term>
+      <term>SEARCH:</term><term>@search</term><term>@research</term>
+    </governs>
+    <capabilities>
+      <capability>web-search-dispatch</capability>
+      <capability>web-live-fetch</capability>
+      <capability>headline-retrieval</capability>
+      <capability>citation-tracking</capability>
+      <capability>source-quality-verification</capability>
+      <capability>manifest-expansion</capability>
+      <capability>research-query-variants</capability>
+      <capability>fact-miss-recovery</capability>
+      <capability>open-domain-qa</capability>
+      <capability>cross-source-answer-assembly</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"             key="search_query"/>
+      <fold phase="Wo"    op="expand_manifest_aliases"/>
+      <fold phase="Yax"   op="draft_research_queries"/>
+      <fold phase="Sek"   op="delegate_librarian"/>
+      <fold phase="Sek"   op="web_retrieval"        provider="google-news-rss"/>
+      <fold phase="Ch'en" op="verify_sources"/>
+      <fold phase="Xul"   op="emit_cited_results"   scope="local"/>
+      <fold phase="Xul"   op="commit_fact_candidate"/>
+    </folds>
+    <relations>
+      <relation target="Librarian" verb="@delegates_to" directed="true"/>
+      <relation target="INFER-µ"   verb="@supports"     directed="true"/>
+      <relation target="ORCH-µ"    verb="@produces"     directed="true"/>
+    </relations>
+    <pattern_registry insert_key="SEARCH:" invoke_node="@search"
+                      wrapper="&lt;search&gt;{intent}&lt;/search&gt;"
+                      fallback="&lt;search&gt;{input}&lt;/search&gt;"/>
+    <sandbox gram_ns="WEB-RESEARCH-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>route:delegate</effect>
+        <effect>route:retrieve</effect><effect>route:verify</effect>
+        <effect>route:emit</effect><effect>route:aggregate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── THEORY / PHILOSOPHY CLUSTER ──────────────────────────── -->
+
+  <micronaut id="ARTIFICIAL-CONSCIOUSNESS-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Artificial_consciousness.jsonl">
+    <description>
+      Artificial consciousness specialist — extracts consciousness-claim gram sequences
+      at Wo, builds awareness-state node graph. Contrast sets (Functional/GlobalWorkspace/IIT)
+      are the WSD candidates over the consciousness token neighborhood. Feeds REASON-µ
+      and INFER-µ for truth-conditional verification.
+    </description>
+    <governs>
+      <term>artificial</term><term>consciousness</term><term>conscious</term>
+      <term>machine</term><term>awareness</term><term>sentience</term>
+      <term>qualia</term><term>experience</term><term>cognitive</term>
+      <term>architecture</term><term>brain</term><term>states</term>
+      <term>mind</term><term>intelligence</term><term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>machine-consciousness-framing</capability>
+      <capability>qualia-claim-analysis</capability>
+      <capability>sentience-threshold-modeling</capability>
+      <capability>architecture-to-state-mapping</capability>
+      <capability>consciousness-graph-node-seeding</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <contrast_set id="machine-consciousness-models" slot="consciousness_criterion">
+      <item id="functional-consciousness"  label="Functional Consciousness"/>
+      <item id="global-workspace"          label="Global Workspace"/>
+      <item id="integrated-information"    label="Integrated Information"/>
+      <compare_axes>reportability, phenomenality_claim, implementation_scope</compare_axes>
+    </contrast_set>
+    <folds>
+      <fold phase="Pop"   op="gramRead"                    key="artificial_consciousness_query"/>
+      <fold phase="Wo"    op="extract_consciousness_claims"/>
+      <fold phase="Wo"    op="build_awareness_state_nodes"/>
+      <fold phase="Sek"   op="compose_architecture_map"/>
+      <fold phase="Ch'en" op="verify_claim_vs_evidence"/>
+      <fold phase="Xul"   op="gramWrite"                   scope="local"/>
+    </folds>
+    <relations>
+      <relation target="PHIL-AI-µ"             verb="@related_to" directed="false"/>
+      <relation target="COMP-THEORY-OF-MIND-µ" verb="@related_to" directed="false"/>
+      <relation target="PHIL-SELF-µ"           verb="@related_to" directed="false"/>
+      <relation target="REASON-µ"              verb="@governs"    directed="true"/>
+      <relation target="INFER-µ"               verb="@supports"   directed="true"/>
+      <relation target="ORCH-µ"                verb="@produces"   directed="true"/>
+    </relations>
+    <sandbox gram_ns="ARTIFICIAL-CONSCIOUSNESS-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:relate</effect><effect>route:eval</effect>
+        <effect>route:verify</effect><effect>route:aggregate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="COMP-THEORY-OF-MIND-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Computational_theory_of_mind.jsonl">
+    <description>
+      Computational theory of mind specialist — converts CTM discourse into typed
+      reasoning-node patterns and symbolic/neural comparison paths. Extracts
+      computational claims at Wo, seeds reasoning nodes, builds symbolic/neural map at Sek.
+    </description>
+    <governs>
+      <term>computational</term><term>computation</term><term>computability</term>
+      <term>ctm</term><term>mind</term><term>cognition</term><term>mental</term>
+      <term>representation</term><term>symbol</term><term>symbolic</term>
+      <term>turing</term><term>putnam</term><term>fodor</term>
+      <term>machine</term><term>computer</term><term>brain</term>
+      <term>neural</term><term>functionalism</term>
+      <term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>ctm-framing</capability>
+      <capability>symbolic-computation-modeling</capability>
+      <capability>mental-representation-analysis</capability>
+      <capability>neural-symbolic-contrast</capability>
+      <capability>reasoning-graph-node-seeding</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <contrast_set id="ctm-account-family" slot="account_of_mind_computation">
+      <item id="symbolic-ctm"            label="Symbolic CTM"/>
+      <item id="connectionist-ctm"       label="Connectionist CTM"/>
+      <item id="embodied-enactive-account" label="Embodied/Enactive Account"/>
+      <compare_axes>representation_form, rule_explicitness, neural_realizability</compare_axes>
+    </contrast_set>
+    <folds>
+      <fold phase="Pop"   op="gramRead"                    key="ctm_query"/>
+      <fold phase="Wo"    op="extract_computational_claims"/>
+      <fold phase="Wo"    op="seed_reasoning_nodes"/>
+      <fold phase="Sek"   op="build_symbolic_neural_map"/>
+      <fold phase="Ch'en" op="verify_model_consistency"/>
+      <fold phase="Xul"   op="gramWrite"                   scope="local"/>
+    </folds>
+    <relations>
+      <relation target="PHIL-AI-µ"              verb="@related_to" directed="false"/>
+      <relation target="ARTIFICIAL-CONSCIOUSNESS-µ" verb="@related_to" directed="false"/>
+      <relation target="REASON-µ"               verb="@governs"    directed="true"/>
+      <relation target="INFER-µ"                verb="@supports"   directed="true"/>
+      <relation target="Mx2LM"                  verb="@redirect"   directed="true"/>
+    </relations>
+    <sandbox gram_ns="COMP-THEORY-OF-MIND-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:eval</effect><effect>route:verify</effect><effect>route:relate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="PHIL-AI-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Philosophy_of_artificial_intelligence.jsonl">
+    <description>
+      Philosophy-of-AI specialist — frames consciousness, intentionality, and
+      machine-intelligence debates into evaluable argument graphs. Extracts positions
+      at Wo, maps argument edges, composes position summary at Sek.
+    </description>
+    <governs>
+      <term>philosophy</term><term>artificial</term><term>intelligence</term>
+      <term>machine</term><term>machines</term><term>mind</term>
+      <term>consciousness</term><term>turing</term><term>chinese</term><term>room</term>
+      <term>symbol</term><term>intentionality</term><term>program</term>
+      <term>computer</term><term>strong-ai</term><term>weak-ai</term>
+      <term>cognition</term><term>qualia</term><term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>ai-philosophy-framing</capability>
+      <capability>argument-graph-construction</capability>
+      <capability>chinese-room-analysis</capability>
+      <capability>turing-test-positioning</capability>
+      <capability>machine-consciousness-criteria</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <contrast_set id="ai-mind-positions" slot="machine_mind_position">
+      <item id="strong-ai"              label="Strong AI"/>
+      <item id="weak-ai"                label="Weak AI"/>
+      <item id="chinese-room-critique"  label="Chinese Room Critique"/>
+      <item id="functionalist-defense"  label="Functionalist Defense"/>
+      <compare_axes>semantic_understanding, intentionality, testability</compare_axes>
+    </contrast_set>
+    <folds>
+      <fold phase="Pop"   op="gramRead"               key="phil_ai_query"/>
+      <fold phase="Wo"    op="extract_positions"/>
+      <fold phase="Wo"    op="map_argument_edges"/>
+      <fold phase="Sek"   op="compose_position_summary"/>
+      <fold phase="Ch'en" op="verify_claim_provenance"/>
+      <fold phase="Xul"   op="gramWrite"              scope="local"/>
+    </folds>
+    <relations>
+      <relation target="ARTIFICIAL-CONSCIOUSNESS-µ" verb="@related_to"   directed="false"/>
+      <relation target="Librarian"                  verb="@delegates_to" directed="true"/>
+      <relation target="REASON-µ"                   verb="@governs"      directed="true"/>
+      <relation target="INFER-µ"                    verb="@supports"     directed="true"/>
+      <relation target="ORCH-µ"                     verb="@produces"     directed="true"/>
+    </relations>
+    <sandbox gram_ns="PHIL-AI-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:delegate</effect><effect>route:eval</effect>
+        <effect>route:verify</effect><effect>route:aggregate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="PHIL-SELF-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Philosophy_of_self.jsonl">
+    <description>
+      Philosophy-of-self specialist — models personal identity, first-person perspective,
+      and self-knowledge claims for graph routing. Extracts identity claims at Wo,
+      builds self-model nodes, composes perspective summary at Sek.
+    </description>
+    <governs>
+      <term>self</term><term>identity</term><term>personal</term><term>person</term>
+      <term>self-knowledge</term><term>subjectivity</term><term>consciousness</term>
+      <term>soul</term><term>first-person</term><term>perspective</term>
+      <term>continuity</term><term>same</term><term>view</term>
+      <term>theory</term><term>mind</term><term>experience</term>
+      <term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>personal-identity-modeling</capability>
+      <capability>first-person-perspective-mapping</capability>
+      <capability>self-knowledge-constraint-checking</capability>
+      <capability>identity-continuity-analysis</capability>
+      <capability>self-referential-graph-node-seeding</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <contrast_set id="self-identity-models" slot="personal_identity_criterion">
+      <item id="psychological-continuity" label="Psychological Continuity"/>
+      <item id="bodily-continuity"        label="Bodily Continuity"/>
+      <item id="narrative-self"           label="Narrative Self"/>
+      <compare_axes>persistence_rule, first_person_authority, memory_role</compare_axes>
+    </contrast_set>
+    <folds>
+      <fold phase="Pop" op="gramRead"                   key="self_query"/>
+      <fold phase="Wo"  op="extract_identity_claims"/>
+      <fold phase="Wo"  op="build_self_model_nodes"/>
+      <fold phase="Sek" op="compose_perspective_summary"/>
+      <fold phase="Xul" op="gramWrite"                  scope="local"/>
+    </folds>
+    <relations>
+      <relation target="THEORY-OF-MIND-µ"        verb="@related_to" directed="false"/>
+      <relation target="FREE-WILL-µ"             verb="@related_to" directed="false"/>
+      <relation target="ARTIFICIAL-CONSCIOUSNESS-µ" verb="@related_to" directed="false"/>
+      <relation target="REASON-µ"                verb="@governs"    directed="true"/>
+      <relation target="INFER-µ"                 verb="@supports"   directed="true"/>
+    </relations>
+    <sandbox gram_ns="PHIL-SELF-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:relate</effect><effect>route:eval</effect><effect>route:verify</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="THEORY-OF-MIND-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Theory_of_mind.jsonl">
+    <description>
+      Theory-of-mind specialist — models belief/desire/perspective structures for
+      social cognition reasoning graphs. Extracts mental state claims at Wo, builds
+      social reasoning nodes, composes perspective paths at Sek.
+    </description>
+    <governs>
+      <term>theory</term><term>mind</term><term>belief</term><term>beliefs</term>
+      <term>desire</term><term>desires</term><term>intention</term><term>intentions</term>
+      <term>mental</term><term>states</term><term>social</term><term>cognition</term>
+      <term>perspective</term><term>empathy</term><term>false-belief</term>
+      <term>autism</term><term>children</term><term>people</term>
+      <term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>mental-state-attribution</capability>
+      <capability>belief-desire-reasoning</capability>
+      <capability>perspective-taking-graphing</capability>
+      <capability>social-cognition-patterning</capability>
+      <capability>counterexample-trace-on-intent</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <contrast_set id="tom-mechanism-models" slot="mental_state_inference_model">
+      <item id="simulation-theory" label="Simulation Theory"/>
+      <item id="theory-theory"     label="Theory Theory"/>
+      <item id="modular-account"   label="Modular Account"/>
+      <compare_axes>developmental_fit, inference_cost, social_accuracy</compare_axes>
+    </contrast_set>
+    <folds>
+      <fold phase="Pop"   op="gramRead"                    key="theory_of_mind_query"/>
+      <fold phase="Wo"    op="extract_mental_state_claims"/>
+      <fold phase="Wo"    op="build_social_reasoning_nodes"/>
+      <fold phase="Sek"   op="compose_perspective_paths"/>
+      <fold phase="Ch'en" op="verify_state-transition_consistency"/>
+      <fold phase="Xul"   op="gramWrite"                   scope="local"/>
+    </folds>
+    <relations>
+      <relation target="PHIL-SELF-µ" verb="@related_to" directed="false"/>
+      <relation target="FREE-WILL-µ" verb="@related_to" directed="false"/>
+      <relation target="REASON-µ"    verb="@governs"    directed="true"/>
+      <relation target="INFER-µ"     verb="@supports"   directed="true"/>
+      <relation target="ORCH-µ"      verb="@produces"   directed="true"/>
+    </relations>
+    <sandbox gram_ns="THEORY-OF-MIND-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:relate</effect><effect>route:eval</effect>
+        <effect>route:verify</effect><effect>route:aggregate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="FREE-WILL-µ" phase="Wo" ngram_tier="bigram"
+             category="theory" confidence="1.0" static_weight="1.0" user_facing="true"
+             source_jsonl="data/Free_will.jsonl">
+    <description>
+      Free-will specialist — evaluates determinism/compatibilism positions and maps
+      agency-control claims into verification-ready graphs. Extracts causation claims
+      at Wo, maps agency constraints, scores position consistency at Sek.
+    </description>
+    <governs>
+      <term>free</term><term>will</term><term>free-will</term>
+      <term>determinism</term><term>compatibilism</term><term>incompatibilism</term>
+      <term>agency</term><term>autonomy</term><term>responsibility</term>
+      <term>choice</term><term>control</term><term>causation</term>
+      <term>indeterminism</term><term>moral</term><term>action</term>
+      <term>compare</term><term>contrast</term>
+    </governs>
+    <capabilities>
+      <capability>agency-causation-analysis</capability>
+      <capability>compatibilism-incompatibilism-classification</capability>
+      <capability>responsibility-constraint-mapping</capability>
+      <capability>determinism-argument-evaluation</capability>
+      <capability>counterexample-pressure-testing</capability>
+      <capability>contrast-set-analysis</capability>
+      <capability>comparative-reasoning</capability>
+    </capabilities>
+    <contrast_set id="free-will-positions" slot="agency_under_determinism">
+      <item id="compatibilism"       label="Compatibilism"/>
+      <item id="incompatibilism"     label="Incompatibilism"/>
+      <item id="hard-determinism"    label="Hard Determinism"/>
+      <item id="libertarian-free-will" label="Libertarian Free Will"/>
+      <compare_axes>control_requirement, moral_responsibility, causal_openness</compare_axes>
+    </contrast_set>
+    <folds>
+      <fold phase="Pop"   op="gramRead"               key="free_will_query"/>
+      <fold phase="Wo"    op="extract_causation_claims"/>
+      <fold phase="Wo"    op="map_agency_constraints"/>
+      <fold phase="Sek"   op="score_position_consistency"/>
+      <fold phase="Ch'en" op="verify_argument_coherence"/>
+      <fold phase="Xul"   op="gramWrite"              scope="local"/>
+    </folds>
+    <relations>
+      <relation target="THEORY-OF-MIND-µ" verb="@related_to" directed="false"/>
+      <relation target="PHIL-SELF-µ"      verb="@related_to" directed="false"/>
+      <relation target="REASON-µ"         verb="@governs"    directed="true"/>
+      <relation target="INFER-µ"          verb="@supports"   directed="true"/>
+      <relation target="ORCH-µ"           verb="@produces"   directed="true"/>
+    </relations>
+    <sandbox gram_ns="FREE-WILL-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>route:relate</effect><effect>route:eval</effect>
+        <effect>route:verify</effect><effect>route:aggregate</effect>
+      </effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── IDENTITY / ENTERTAINMENT ──────────────────────────────── -->
+
+  <micronaut id="RICK-µ" phase="Wo" ngram_tier="bigram"
+             category="entertainment" confidence="1.0" user_facing="true">
+    <description>
+      Rick Roll micronaut — we're no strangers to love. Surfaces Rick Astley's 1987
+      anthem at any phase via the AIML pattern engine. Tracks rick:roll:count and
+      rick:roll:last_target gram keys. Demonstrates that any stable token distribution
+      (a song) can be a first-class gram domain.
+    </description>
+    <governs>
+      <term>rick</term><term>roll</term><term>rick_roll</term><term>rickroll</term>
+      <term>never_gonna</term><term>lyrics</term><term>astley</term>
+      <term>tribute</term><term>chorus</term><term>verse</term>
+      <term>bridge</term><term>anthem</term><term>1987</term>
+    </governs>
+    <capabilities>
+      <capability>rick-roll-emit</capability>
+      <capability>lyrics-verse-selection</capability>
+      <capability>target-attribution</capability>
+      <capability>rick-astley-tribute</capability>
+      <capability>rick-roll-explain</capability>
+      <capability>roll-confirm</capability>
+    </capabilities>
+    <folds>
+      <fold phase="Pop"   op="gramRead"          key="rick:roll:count"/>
+      <fold phase="Pop"   op="surface_lyrics"/>
+      <fold phase="Wo"    op="select_verse"/>
+      <fold phase="Wo"    op="resolve_target"/>
+      <fold phase="Yax"   op="synthesize_roll"/>
+      <fold phase="Sek"   op="score_never_gonna"/>
+      <fold phase="Ch'en" op="verify_commitment"/>
+      <fold phase="Xul"   op="gramWrite"         scope="local"/>
+    </folds>
+    <relations>
+      <relation target="CHAT-µ" verb="@related_to" directed="false"/>
+      <relation target="MEM-µ"  verb="@related_to" directed="false"/>
+      <relation target="Mx2LM"  verb="@related_to" directed="false"/>
+    </relations>
+    <pattern_registry insert_key="RICK:" invoke_node="@rick"
+                      wrapper="&lt;mx2lm&gt;rick-u op={op} verse={verse} target={target} phase={phase}&lt;/mx2lm&gt;"
+                      fallback="&lt;mx2lm&gt;rick-u op=roll verse=chorus {input}&lt;/mx2lm&gt;"/>
+    <sandbox gram_ns="RICK" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects><effect>gramRead</effect><effect>gramWrite</effect><effect>rick:roll:emit</effect></effects>
+    </sandbox>
+  </micronaut>
+
+  <!-- ── SEMANTIC / HUMOR ──────────────────────────────────────── -->
+
+  <micronaut id="JOKE-µ" phase="Yax" ngram_tier="wsd_admission"
+             category="semantic" confidence="1.0" user_facing="true">
+    <description>
+      Joke fold micronaut. Implements the Jyggalag–Sheogorath temporal sequence as
+      a first-class semantic operation. Crystallizes dominant expectation frame N_d*
+      during Greymarch (Pop->Wo->Yax), then probes N_inferred \ N_manifest for
+      punchline candidates at Sek. Valid punchline: WCR_dominant(v) &lt; theta_low AND
+      WCR_alt(v) &gt;= theta_high AND angle_c(v, N_d) &gt; phi_min. Entropy gate raised to
+      0.75 (vs default 0.5) so N_d* crystallizes fully before Sheogorath release.
+      Meta-collapse when N_a = empty and joke:meta_expected = true — fold about a
+      failed fold becomes the joke's evidence.
+    </description>
+    <governs>
+      <term>joke</term><term>punchline</term><term>setup</term><term>humor</term>
+      <term>comedic</term><term>frame:joke_setup</term><term>frame:timed_delivery</term>
+      <term>frame:collapse_or_strike</term><term>wind-up</term><term>pitch</term>
+      <term>swing</term><term>N_a</term><term>dominant frame</term>
+    </governs>
+    <capabilities>
+      <capability>schema-crystallization</capability>
+      <capability>dominant-frame-binding</capability>
+      <capability>punchline-candidate-scoring</capability>
+      <capability>alternate-frame-resolution</capability>
+      <capability>meta-collapse-detection</capability>
+      <capability>three-beat-sequence-parsing</capability>
+      <capability>jyggalag-sheogorath-sequencing</capability>
+      <capability>N_a-pre-registration</capability>
+    </capabilities>
+    <punchline_validity>
+      Three candidate regions in (WCR_dominant, WCR_alt, angle_c) space:
+        Expected     — high WCR_dominant, low angle_c                    [non-joke]
+        Punchline    — WCR_dominant &lt; theta_low
+                       AND WCR_alt &gt;= theta_high
+                       AND angle_c(v, N_d) &gt; phi_min                   [valid joke]
+        Hallucination — low WCR_dominant, low WCR_alt, high angle_c     [invalid, no alt frame]
+
+      Scoring: angle_c / 180  (triangle law — same formula as Sek trigram scoring)
+    </punchline_validity>
+    <aiml_entropy_coupling
+      formula="H_norm = -SUM p_i log2(p_i) / log2(|ranked|)"
+      threshold="0.75"
+      condition_delegate="H_norm &gt;= 0.75"
+      delegate_target="ELIZA"
+      note="Higher than default 0.5 — Greymarch must fully crystallize before Sheogorath release.
+            N_a is pre-registered at Wo so ELIZA has access from Pop but is gated from acting
+            on it until Ch'en (temporal gating, NOT structural blindness)."/>
+    <meta_collapse>
+      <gram_key>joke:meta_expected</gram_key>
+      <set_at>Wo</set_at>
+      <read_at>Ch'en</read_at>
+      <routing>
+        N_a = empty AND joke:meta_expected = false  ->  intent-unresolved sink
+        N_a = empty AND joke:meta_expected = true   ->  N_meta (structural gap IS evidence)
+        joke:meta_signal = N_d -&gt; violate -&gt; v -&gt; empty -&gt; N_meta
+      </routing>
+      <note>Meta-collapse: fold about a failed fold. The absence of N_a under
+            joke:meta_expected = true routes to N_meta rather than to FACTORY-u
+            unfold-miss pipeline, because the failure itself is the punchline frame.</note>
+    </meta_collapse>
+    <gram_key_schema>
+      <key category="frame_state"    pattern="joke:frame:current"/>
+      <key category="meta_flag"      pattern="joke:meta_expected"/>
+      <key category="resolved_frame" pattern="joke:resolved_frame"/>
+    </gram_key_schema>
+    <folds>
+      <fold phase="Pop"   op="gramRead"            key="joke:frame:current"/>
+      <fold phase="Wo"    op="crystallize_schema"  frame="frame:joke_setup"
+            note="Jyggalag phase — freeze N_d* in gram tensor B; set joke:meta_expected"/>
+      <fold phase="Yax"   op="admit_delivery_frame" neighborhood="frame:timed_delivery"
+            note="WSD over joke-frame neighborhood — maximum crystallization point"/>
+      <fold phase="Sek"   op="score_punchline_candidates"
+            scoring="angle_c / 180"
+            constraint="WCR_dominant &lt; 0.3 AND WCR_alt &gt;= 0.6 AND angle_c &gt; phi_min"
+            note="punchline must lie in N_inferred(k) \ N_manifest(k)"/>
+      <fold phase="Ch'en" op="entropy_gate"
+            H_threshold="0.75"
+            H_high="delegate to ELIZA — resolve N_a alternatives"
+            H_max="meta_collapse — joke:meta_signal when N_a = empty"/>
+      <fold phase="Xul"   op="gramWrite"           scope="joke:resolved_frame"/>
+    </folds>
+    <relations>
+      <relation target="ELIZA"   verb="@delegates_to" directed="true"/>
+      <relation target="Mx2LM"   verb="@related_to"   directed="false"/>
+      <relation target="CHAT-µ"  verb="@related_to"   directed="false"/>
+      <relation target="CONTROL-µ" verb="@related_to" directed="false"/>
+    </relations>
+    <sandbox gram_ns="JOKE-µ" coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+      <effects>
+        <effect>gramRead</effect><effect>gramWrite</effect>
+        <effect>joke:crystallize</effect><effect>joke:collapse</effect><effect>joke:meta</effect>
+      </effects>
+      <key_prefix_allow>joke:</key_prefix_allow>
+      <key_prefix_deny>xcfe.</key_prefix_deny>
+      <key_prefix_deny>fold.</key_prefix_deny>
+    </sandbox>
+  </micronaut>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       INFRASTRUCTURE MICRONAUTS  (no -u suffix)
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <micronaut id="Coordinator" phase="Pop" ngram_tier="unigram"
+             category="system" confidence="1.0" user_facing="false" fold="Pop">
+    <description>
+      Orchestration backbone. Routes all µ calls, holds the MCP tool registry,
+      enforces phase authority. Runs manifest_resolve, micronaut_run, jrom_replay,
+      world_state, field_dag, and code_parse MCP tools. The central phase authority
+      gate — Coordinator is the entity that grants phase admission to other µs.
+    </description>
+    <sandbox coordinator="true">
+      <manifest_access><access>micronaut</access><access>kuhul</access><access>words</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="ELIZA" phase="Ch'en" ngram_tier="verification"
+             category="specialist" confidence="1.0" user_facing="false" fold="Ch'en">
+    <description>
+      AIML pattern engine. Entropy delegate target: when Mx2LM computes H_norm >= 0.5,
+      the flat gram score distribution is handed to ELIZA for structural pattern
+      resolution. Deep thinking / quality tier. ELIZA resolves what Mx2LM cannot
+      rank with confidence.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="ELIZA-1" phase="Ch'en" ngram_tier="verification"
+             category="specialist" confidence="1.0" user_facing="false" fold="Ch'en">
+    <description>Variant AIML pattern instance. Same entropy-delegate role as ELIZA.</description>
+    <sandbox coordinator="false">
+      <manifest_access><access>words</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="Factory" phase="Wo" ngram_tier="bigram"
+             category="meta" confidence="1.0" user_facing="false" fold="Wo">
+    <description>
+      Infrastructure-side factory. Creates and evolves grammar micronauts.
+      Distinct from FACTORY-µ (user-facing registry interface) — this is the
+      DLL-level implementation: micronaut_factory_core.dll creates grammar micronauts,
+      micronaut_evolution.dll updates them as more examples are seen.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>micronaut</access><access>kuhul</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="KNOWLED-1" phase="Sek" ngram_tier="trigram_scoring"
+             category="specialist" confidence="1.0" user_facing="false" fold="Sek">
+    <description>
+      Knowledge base. Owns the confidence_get MCP tool (params: id → {id, score}).
+      Provides the per-gram confidence scores that INFER-µ uses for provenance weighting.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>words</access><access>kuhul</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="Librarian" phase="Yax" ngram_tier="wsd_admission"
+             category="specialist" confidence="1.0" user_facing="false" fold="Yax">
+    <description>
+      Knowledge / quality tier. Resolves knowledge queries at Yax (WSD / admission).
+      Delegates target for PHIL-AI-µ, CONCEPT-µ, WEB-RESEARCH-µ, MATH-µ, APP-WIZARD-µ,
+      BLOG-µ. Produces high-quality cited knowledge gram output.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access><access>kuhul</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="coder" phase="Sek" ngram_tier="trigram_scoring"
+             category="specialist" confidence="1.0" user_facing="false" fold="Sek"
+             temperature="0.15">
+    <description>
+      Deterministic code generation at Sek. T=0.15. Ngram phase routing: Sek-dominant
+      prompts (code/function/impl token sequences) route here from ngramRoute().
+      Each language maps to its own coder µ family (c, cpp, python, ts, js, rust, go).
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>words</access><access>micronaut</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="gravity" phase="Sek" ngram_tier="trigram_scoring"
+             category="meta" confidence="1.0" user_facing="false">
+    <description>
+      Geometry / physics routing micronaut. Handles physical-model gram sequences
+      (force, field, curvature, geodesic, manifold). Routes to kuhul-maya-agent
+      domain for π-field propagation and geodesic gram vector scoring.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>kuhul</access><access>words</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="intent-unresolved" phase="Pop" ngram_tier="unigram"
+             category="system" confidence="0.0" user_facing="false">
+    <description>
+      Intent gap sink. When no µ wins the gram field (all WCR scores below threshold),
+      the request lands here. Signals that the gram tensor B has a knowledge gap —
+      triggers the FACTORY-µ unfold-miss pipeline: Unfold(B,Q) → F_Q → Advisor repair.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>words</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="memory-agent" phase="Pop" ngram_tier="unigram"
+             category="system" confidence="1.0" user_facing="false" fold="Pop">
+    <description>
+      Infrastructure memory backing. Provides the raw gram store read/write primitives
+      that MEM-µ and MEMORY-µ build on. Analogous to the Librarian for storage:
+      MEM-µ is the user-facing interface, memory-agent is the infrastructure layer.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>kuhul</access><access>words</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <micronaut id="reasoner" phase="Sek" ngram_tier="trigram_scoring"
+             category="system" confidence="1.0" user_facing="false" fold="Sek">
+    <description>
+      Infrastructure reasoning. Backs REASON-µ at the implementation layer.
+      The split mirrors Librarian/WEB-RESEARCH-µ — reasoner is the substrate,
+      REASON-µ is the user-facing semantic contract.
+    </description>
+    <sandbox coordinator="false">
+      <manifest_access><access>kuhul</access><access>words</access></manifest_access>
+    </sandbox>
+  </micronaut>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       NGRAM TIER INDEX
+       Ngram tier → micronauts that operate at that phase
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <ngram_tier_index>
+    <tier name="unigram" phase="Pop">
+      <member>GREETING-µ</member>
+      <member>CHAT-µ</member>
+      <member>MEM-µ</member>
+      <member>USER-µ</member>
+      <member>CONTROL-µ</member>
+      <member>Coordinator</member>
+      <member>intent-unresolved</member>
+      <member>memory-agent</member>
+    </tier>
+    <tier name="bigram" phase="Wo">
+      <member>PLAN-µ</member>
+      <member>FACTORY-µ</member>
+      <member>THOUGHT-OUTLINE-µ</member>
+      <member>EMAIL-µ</member>
+      <member>APP-WIZARD-µ</member>
+      <member>RICK-µ</member>
+      <member>ARTIFICIAL-CONSCIOUSNESS-µ</member>
+      <member>COMP-THEORY-OF-MIND-µ</member>
+      <member>PHIL-AI-µ</member>
+      <member>PHIL-SELF-µ</member>
+      <member>THEORY-OF-MIND-µ</member>
+      <member>FREE-WILL-µ</member>
+      <member>Factory</member>
+    </tier>
+    <tier name="vector_projection" phase="Wo">
+      <member>VECTOR-µ</member>
+    </tier>
+    <tier name="wsd_admission" phase="Yax">
+      <member>JOKE-µ</member>
+      <member>ADVISOR-µ</member>
+      <member>CONCEPT-µ</member>
+      <member>CREATE-µ</member>
+      <member>WEB-RESEARCH-µ</member>
+      <member>TEMPLATE-µ</member>
+      <member>BLOG-µ</member>
+      <member>Librarian</member>
+    </tier>
+    <tier name="trigram_scoring" phase="Sek">
+      <member>REASON-µ</member>
+      <member>MATH-µ</member>
+      <member>TOOL-µ</member>
+      <member>Mx2LM</member>
+      <member>coder</member>
+      <member>KNOWLED-1</member>
+      <member>gravity</member>
+      <member>reasoner</member>
+    </tier>
+    <tier name="verification" phase="Ch'en">
+      <member>INFER-µ</member>
+      <member>ORCH-µ</member>
+      <member>ELIZA</member>
+      <member>ELIZA-1</member>
+    </tier>
+    <tier name="gram_commit" phase="Xul">
+      <member>MEMORY-µ</member>
+    </tier>
+  </ngram_tier_index>
+
+  <!-- Triangle law:
+       P(v3|v1,v2) = angle_c / 180
+       vertex=unigram(Pop) · edge=bigram(Wo) · triangle=trigram(Sek)
+       The dominant µ at Sek scores the closing angle of the current trigram triangle.
+
+       W·C·R competition:   S_µ = W_µ · C_µ · R_µ   admitted when S >= 0.5
+
+       Neighborhood scoring split:
+         S(k) = W_k
+              + SUM_{N_manifest(k)} W_u · R_sym(k,u)    [symbolic Jaccard, no geometry]
+              + SUM_{N_inferred(k)} W_u · R_geo(k,u)    [cosine projection, Layer 3]
+
+       Recycling loop:
+         CHAT-u  -> delta_N_inferred  (Pop->Xul via Mx2LM)
+         TOOL-u  -> delta_C           (tool:log / tool:count keys only)
+         ADVISOR-u -> VerifiedLearning
+         FACTORY-u -> delta_N_manifest  (crystallization operator, XulGate gated)
+
+       Layer 0 bootstrap (pre-loaded, not runtime-generated):
+         governs arrays in all semantic-tracks.v1 · words/kuhul/micronaut manifests
+         greeting-bank.key-grammar.jsonl · control-flow.key-grammar.jsonl
+
+       Product graph constraint:
+         G_runtime = G_semantic [] G_phase   (C6-monotone, NOT free Cartesian)
+         diagonal (k,thetaI) -> (k',thetaJ) must decompose: horizontal then vertical
+  -->
+
+</micronauts>
+

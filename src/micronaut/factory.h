@@ -13,14 +13,41 @@
 namespace khanary::micronaut {
 
 enum class FactoryOp {
-    Create,   // Wo phase
-    Evolve,   // Yax phase
-    List,     // Pop phase
-    Read,     // Pop phase
-    Edit,     // Sek phase
-    Patch,    // Sek phase
-    Status,   // Ch'en phase
-    Delete,   // Xul phase (requires confidence >= floor)
+    Create,      // Wo phase
+    Evolve,      // Yax phase
+    List,        // Pop phase
+    Read,        // Pop phase
+    Edit,        // Sek phase
+    Patch,       // Sek phase
+    TrackVector, // Yax phase (attention-prior learning proposal; commit remains Xul)
+    Status,      // Ch'en phase
+    Delete,      // Xul phase (requires confidence >= floor)
+};
+
+// One observed target vector from a training/learning run.
+// frame_id=0 means "next frame for this micronaut"; nonzero ids must be monotonic.
+struct VectorTrackObservation {
+    float       x = 0.0f;
+    float       y = 0.0f;
+    float       z = 0.0f;
+    float       evidence_weight = 0.5f; // [0,1]; capped internally to bound drift
+    std::string run_id;
+    std::string source;
+    uint64_t    frame_id = 0;
+};
+
+// Committed vector tracking frame. This is attention-prior state, not semantic
+// authority: it changes routing geometry only and never marks facts learned.
+struct VectorTrackFrame {
+    uint64_t    frame_id = 0;
+    uint64_t    base_frame = 0;
+    float       x = 0.0f;
+    float       y = 0.0f;
+    float       z = 0.0f;
+    float       evidence_weight = 0.0f;
+    float       drift = 0.0f;
+    std::string run_id;
+    std::string source;
 };
 
 struct FactoryResult {
@@ -34,12 +61,13 @@ struct FactoryResult {
 // Carries the full mutation snapshot and the scope/identity pair that commit()
 // uses to validate the CommitAuthority matches this exact proposal.
 struct FactoryCandidate {
-    enum class Op { Create, Evolve, Edit, Patch, Remove };
+    enum class Op { Create, Evolve, Edit, Patch, Remove, TrackVector };
     Op             op;
     std::string    id;
     MicronautEntry entry;          // Create/Evolve: full snapshot; Edit/Patch: updated snapshot; Remove: current snapshot
     std::string    scope;
     std::string    proposal_identity;
+    VectorTrackFrame vector_frame; // TrackVector: next frame; ignored by other ops
 };
 
 class Factory {
@@ -84,6 +112,15 @@ public:
     // Returns nullopt if id is empty or not found.
     std::optional<FactoryCandidate> propose_patch(
         const std::string& id, float confidence);
+
+    // Propose the next vector tracking frame for a micronaut. The proposal is
+    // bounded EMA movement over K-vector geometry and requires XulGate commit.
+    std::optional<FactoryCandidate> propose_vector_track(
+        const std::string& id,
+        const VectorTrackObservation& observation);
+
+    // Read the latest committed tracking frame for a micronaut, if any.
+    std::optional<VectorTrackFrame> vector_tracking_frame(const std::string& id) const;
 
     // Status: returns active flag
     FactoryResult status(const std::string& id) const;
@@ -161,6 +198,9 @@ private:
     float tfidf_accept_;
     bool bulk_mode_ = false;
     bool word_index_dirty_ = false;
+
+    mutable std::mutex vector_mtx_;
+    std::unordered_map<std::string, VectorTrackFrame> vector_frames_;
 
     void rebuild_word_index_locked();
     static float lookup_wcr_gate(float key_confidence, float lexical_similarity);

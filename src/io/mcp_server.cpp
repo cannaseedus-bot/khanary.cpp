@@ -681,6 +681,8 @@ JsonPtr MCPServer::tool_jrom_replay(const JsonPtr& params) {
         JsonObject obj;
         obj["seq"]  = json_number((double)e.seq);
         obj["type"] = json_string(e.type);
+        if (!e.epistemic_type.empty())
+            obj["epistemic_type"] = json_string(e.epistemic_type);
         events.push_back(json_object(std::move(obj)));
     });
     return json_array(std::move(events));

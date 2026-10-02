@@ -32,6 +32,94 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "schemes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verbs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "aiml_patterns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "aiml_templates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "key_patterns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "key_templates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "key_grammar": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tokens": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "route_contract": {
+      "type": "object",
+      "properties": {
+        "schemes": { "type": "array", "items": { "type": "string" } },
+        "verbs": { "type": "array", "items": { "type": "string" } },
+        "aiml_patterns": { "type": "array", "items": { "type": "string" } },
+        "aiml_templates": { "type": "array", "items": { "type": "string" } },
+        "key_patterns": { "type": "array", "items": { "type": "string" } },
+        "key_templates": { "type": "array", "items": { "type": "string" } },
+        "key_grammar": { "type": "array", "items": { "type": "string" } },
+        "tokens": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "address": {
+      "type": "object",
+      "properties": {
+        "schemes": { "type": "array", "items": { "type": "string" } },
+        "verbs": { "type": "array", "items": { "type": "string" } },
+        "aiml_patterns": { "type": "array", "items": { "type": "string" } },
+        "aiml_templates": { "type": "array", "items": { "type": "string" } },
+        "key_patterns": { "type": "array", "items": { "type": "string" } },
+        "key_templates": { "type": "array", "items": { "type": "string" } },
+        "key_grammar": { "type": "array", "items": { "type": "string" } },
+        "tokens": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "uri": {
+      "type": "object",
+      "properties": {
+        "schemes": { "type": "array", "items": { "type": "string" } },
+        "verbs": { "type": "array", "items": { "type": "string" } },
+        "aiml_patterns": { "type": "array", "items": { "type": "string" } },
+        "aiml_templates": { "type": "array", "items": { "type": "string" } },
+        "key_patterns": { "type": "array", "items": { "type": "string" } },
+        "key_templates": { "type": "array", "items": { "type": "string" } },
+        "key_grammar": { "type": "array", "items": { "type": "string" } },
+        "tokens": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "callable": {
+      "type": "object",
+      "properties": {
+        "schemes": { "type": "array", "items": { "type": "string" } },
+        "verbs": { "type": "array", "items": { "type": "string" } },
+        "aiml_patterns": { "type": "array", "items": { "type": "string" } },
+        "aiml_templates": { "type": "array", "items": { "type": "string" } },
+        "key_patterns": { "type": "array", "items": { "type": "string" } },
+        "key_templates": { "type": "array", "items": { "type": "string" } },
+        "key_grammar": { "type": "array", "items": { "type": "string" } },
+        "tokens": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "brain_profile": { "$ref": "micronaut-track-types.schema.json#/$defs/ProjectionOnlyObject" },
+    "personality": { "$ref": "micronaut-track-types.schema.json#/$defs/ProjectionOnlyObject" },
+    "capability_grams": { "$ref": "micronaut-track-types.schema.json#/$defs/ProjectionOnlyObject" },
+    "progression": { "$ref": "micronaut-track-types.schema.json#/$defs/ProjectionOnlyObject" },
     "sub_micronauts": {
       "type": "array",
       "items": { "type": "string" }

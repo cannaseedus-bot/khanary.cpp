@@ -146,6 +146,79 @@
     <template><mx2lm>memory-u op=save phase=Xul value=<star/></mx2lm></template>
   </category>
 
+  <!-- ── Key-grammar memory events ─────────────────────────────────────── -->
+  <category>
+    <pattern>MEMORY EVENTS</pattern>
+    <template><mx2lm>memory-u op=list category=event_journal key=memory:event:* phase=Pop event_kind=all fact_authority=false</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>MEMORY EVENT *</pattern>
+    <template><mx2lm>memory-u op=recall category=event_journal key=<star/> phase=Pop memory_scope=event_journal</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>PROMPT EVENTS</pattern>
+    <template><mx2lm>memory-u op=list category=event_journal key=memory:event:prompt:* phase=Pop event_kind=prompt</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>MODEL RESPONSE EVENTS</pattern>
+    <template><mx2lm>memory-u op=list category=event_journal key=memory:event:model_response:* phase=Pop event_kind=model_response</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>PLAN EVENTS</pattern>
+    <template><mx2lm>memory-u op=list category=event_journal key=memory:event:plan:* phase=Pop event_kind=plan</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>REUSE EVENT * AS PATTERN</pattern>
+    <template><mx2lm>memory-u op=promote_event category=event_journal key=<star/> target=aiml_pattern phase=Ch'en requires=SUPPORTED_or_user_verified fact_authority=false</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>CREATE AIML PATTERN FROM EVENT *</pattern>
+    <template><mx2lm>memory-u op=promote_event category=event_journal key=<star/> target=aiml_pattern_template phase=Ch'en requires=SUPPORTED_or_user_verified fact_authority=false</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>CREATE KEY GRAMMAR FROM EVENT *</pattern>
+    <template><mx2lm>memory-u op=promote_event category=event_journal key=<star/> target=key_grammar_candidate phase=Ch'en requires=SUPPORTED_or_user_verified fact_authority=false</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>SEMANTIC BRANCH *</pattern>
+    <template><mx2lm>memory-u op=recall category=semantic_branch key=<star/> phase=Yax law=else_not_not unknown=preserve</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>NORMALIZE SEMANTIC BRANCH *</pattern>
+    <template><mx2lm>memory-u op=normalize_branch_surface category=semantic_branch input=<star/> phase=Wo canonical_order=if_then_else_unknown law=UNKNOWN_not_else</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>CREATE SEMANTIC BRANCH FROM EVENT *</pattern>
+    <template><mx2lm>memory-u op=promote_event category=event_journal key=<star/> target=semantic_branch_candidate phase=Ch'en requires=SUPPORTED_or_user_verified law=UNKNOWN_not_else fact_authority=false</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>CREATE BRANCH PATTERN FROM EVENT *</pattern>
+    <template><mx2lm>memory-u op=promote_event category=event_journal key=<star/> target=semantic_branch_pattern_candidate phase=Ch'en requires=SUPPORTED_or_user_verified source=aiml.semantic_branch law=else_not_not fact_authority=false</mx2lm></template>
+  </category>
+
+
+
+  <category>
+    <pattern>SCFML *</pattern>
+    <template><mx2lm>memory-u op=normalize_branch_surface category=scfml input=<star/> phase=Wo grammar=scfml.runtime-grammar law=UNKNOWN_not_else</mx2lm></template>
+  </category>
+
+  <category>
+    <pattern>PATTERN LEARNING FROM EVENT *</pattern>
+    <template><mx2lm>memory-u op=promote_event category=event_journal key=<star/> target=scfml.pattern_learning phase=Ch'en requires=SUPPORTED_or_user_verified fact_authority=false</mx2lm></template>
+  </category>
+
   <!-- ── Fallback ───────────────────────────────────────────────────────── -->
   <category>
     <pattern>MEMORY *</pattern>

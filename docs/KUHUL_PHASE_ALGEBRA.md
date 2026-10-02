@@ -172,12 +172,12 @@ A_h_active = B_h_active  W_E  B_h_active^T    (semantic activation matrix)
 
 ---
 
-## Phase DLL Driver Lock (Audit / Enforce)
+## Phase Driver Artifact Lock (Audit / Enforce)
 
 Runtime can declare per-phase driver bindings:
 
 ```
-Pop.dll  Wo.dll  Yax.dll  Sek.dll  Chen.dll  Xul.dll
+pop.json  wo.json  yax.json  sek.json  chen.json  xul.json
 ```
 
 Contract location:
@@ -187,11 +187,11 @@ Contract location:
 
 Lock modes:
 
-- `audit` (default): report missing/pending/mismatched drivers, continue execution.
-- `enforce`: deny phase execution when required DLL/hash verification fails.
+- `audit`: report missing/pending/mismatched drivers, continue execution.
+- `enforce`: deny phase execution when required driver artifact/hash verification fails.
 
 This preserves authority order: K'UHUL phase algebra remains the semantic authority, while
-DLLs are bounded runtime adapters whose integrity is checked before they can gate execution.
+Driver artifacts are bounded runtime adapters whose integrity is checked before they can gate execution.
 
 ---
 

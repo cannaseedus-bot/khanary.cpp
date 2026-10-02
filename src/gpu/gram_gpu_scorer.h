@@ -1,6 +1,9 @@
 #pragma once
 #include "d3d11_device.h"
+#include "stb_map.h"
+#include <array>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace khanary::kuhul { class GramStore; }
@@ -12,6 +15,23 @@ struct GramScoreResult {
     float       semantic_score = 0.0f;
     float       base_score     = 0.0f;
     bool        admitted       = false;
+};
+
+struct LorentzBoostRows {
+    std::array<float, 4> row0{1.0f, 0.0f, 0.0f, 0.0f};
+    std::array<float, 4> row1{0.0f, 1.0f, 0.0f, 0.0f};
+    std::array<float, 4> row2{0.0f, 0.0f, 1.0f, 0.0f};
+    std::array<float, 4> row3{0.0f, 0.0f, 0.0f, 1.0f};
+    bool  enabled = false;
+    float alignment_mix = 1.0f;
+    float mass_scale = 1.0f;
+
+    // Host-side constructor for a pure Minkowski(-,+,+,+) boost. Direction is
+    // normalized deterministically; rapidity must be nonnegative finite.
+    static LorentzBoostRows make_pure(float rapidity_rho,
+                                      std::array<float, 3> direction,
+                                      float alignment_mix_value = 1.0f,
+                                      float mass_scale_value = 1.0f);
 };
 
 // GPU batch scorer for GramStore records via attention.hlsl.
@@ -38,13 +58,20 @@ public:
         const std::vector<std::string>& candidate_keys,
         const std::vector<float>&       relevance,
         float admission_threshold = 0.3f,
-        float relation_mix        = 0.5f);
+        float relation_mix        = 0.5f,
+        float tensor_mix          = 0.0f,
+        const std::vector<STBGeodesicRecord>* geodesic_metrics = nullptr,
+        float geodesic_mix        = 0.0f,
+        float beta_diffusion      = 0.0f,
+        const LorentzBoostRows* lorentz_boost = nullptr,
+        const std::unordered_map<std::string, std::array<float, 3>>* vector_overrides = nullptr);
 
 private:
     D3D11Device&                dev_;
     bool                        ready_ = false;
     ComPtr<ID3D11ComputeShader> cs_;
     ComPtr<ID3D11Buffer>        cbuf_;
+    ComPtr<ID3D11Buffer>        lorentz_cbuf_;
 
     // Channel → W (static_weight): reflects how authoritative the gram's channel is.
     static float channel_w(const std::string& ch);

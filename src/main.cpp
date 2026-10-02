@@ -11,15 +11,19 @@
 #include "kuhul/kuhul_vm.h"
 #include "gpu/d3d11_device.h"
 #include "gpu/dml_ops.h"
+#include "gpu/unified_tensor.h"
 #include "gpu/dds_loader.h"
 #include "gpu/hot_swap.h"
 #include "gpu/svg_compute_runtime.h"
 #include "inference/tokenizer.h"
 #include "inference/inference_engine.h"
+#include "inference/semantic_attention.h"
+#include "decision/decision_mu.h"
 #include "micronaut/micronaut_registry.h"
 #include "micronaut/track_loader.h"
 #include "micronaut/aiml_engine.h"
 #include "micronaut/mx2lm-ngram.h"
+#include "micronaut/micronaut_transpiler.h"
 #include "micronaut/factory.h"
 #include "micronaut/greeting_style.h"
 #include "micronaut/control_flow.h"
@@ -40,8 +44,10 @@
 #include "io/runtime_attention.h"
 #include "kuhul/xul_gate.h"
 #include "util/json.h"
+#include "util/sha256.h"
 #include "util/canonical_hash.h"
 #include "world/gyroscope.h"
+#include "world/vector_projection.h"
 
 #include <iostream>
 #include <string>
@@ -50,6 +56,7 @@
 #include <thread>
 #include <filesystem>
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
 #include <ctime>
@@ -198,6 +205,154 @@ static bool read_text_file(const fs::path& path, std::string* out, std::string* 
     std::ostringstream ss;
     ss << in.rdbuf();
     *out = ss.str();
+    return true;
+}
+
+static std::string strip_sha256_prefix(std::string value) {
+    value = lower_copy(trim_copy(value));
+    constexpr const char* kPrefix = "sha256:";
+    if (value.rfind(kPrefix, 0) == 0) value.erase(0, 7);
+    return value;
+}
+
+static bool is_pending_hash(const std::string& value) {
+    const std::string low = lower_copy(value);
+    return low.empty() || low.find("__pending__") != std::string::npos;
+}
+
+static bool load_json_object(const fs::path& path, util::JsonPtr* out, std::string* err) {
+    if (!out) {
+        if (err) *err = "load_json_object: output is null";
+        return false;
+    }
+
+    std::string text;
+    if (!read_text_file(path, &text, err)) return false;
+    util::JsonPtr root;
+    try {
+        root = util::parse(text);
+    } catch (const std::exception& ex) {
+        if (err) *err = "parse failed for " + path.string() + ": " + ex.what();
+        return false;
+    }
+    if (!root || !root->is_object()) {
+        if (err) *err = "JSON root is not an object: " + path.string();
+        return false;
+    }
+    *out = std::move(root);
+    return true;
+}
+
+static bool compute_file_sha256_prefixed(const fs::path& path, std::string* out, std::string* err) {
+    if (!out) {
+        if (err) *err = "compute_file_sha256_prefixed: output is null";
+        return false;
+    }
+    std::string bytes;
+    if (!read_text_file(path, &bytes, err)) return false;
+    *out = "sha256:" + lower_copy(util::sha256_hex(bytes.data(), bytes.size()));
+    return true;
+}
+
+static bool validate_runtime_schema_stack(const std::string& data_dir, std::string* err) {
+    const fs::path schema_dir = fs::path(data_dir) / "schema";
+    const fs::path fold_runtime_path = schema_dir / "fold.runtime.json";
+    const fs::path runtime_meta_path = schema_dir / "kuhul.fold-runtime.json";
+    const fs::path cycle_spec_path = schema_dir / "cycle-hash.spec.json";
+
+    util::JsonPtr fold_runtime;
+    util::JsonPtr runtime_meta;
+    if (!load_json_object(fold_runtime_path, &fold_runtime, err)) return false;
+    if (!load_json_object(runtime_meta_path, &runtime_meta, err)) return false;
+
+    const util::JsonValue* lock = fold_runtime->get("phase_driver_lock");
+    if (!lock || !lock->is_object()) {
+        if (err) *err = "missing phase_driver_lock object in fold.runtime.json";
+        return false;
+    }
+
+    const bool lock_enabled = lock->get_bool("enabled").value_or(false);
+    const std::string lock_mode = lower_copy(lock->get_string("mode").value_or("audit"));
+    if (lock_enabled && lock_mode != "enforce") {
+        if (err) *err = "phase_driver_lock.enabled requires mode=enforce";
+        return false;
+    }
+
+    const util::JsonValue* phases = lock->get("phases");
+    if (!phases || !phases->is_array() || phases->as_array().empty()) {
+        if (err) *err = "phase_driver_lock.phases must be a non-empty array";
+        return false;
+    }
+
+    const util::JsonValue* hash_map = runtime_meta->get("phase_driver_sha256");
+    if (!hash_map || !hash_map->is_object()) {
+        if (err) *err = "missing phase_driver_sha256 object in runtime metadata";
+        return false;
+    }
+    if (lower_copy(hash_map->get_string("algorithm").value_or("")) != "sha256") {
+        if (err) *err = "phase_driver_sha256.algorithm must be sha256";
+        return false;
+    }
+
+    fs::path phase_root = fs::path(lock->get_string("dll_root").value_or("data/drivers/phases"));
+    if (!phase_root.is_absolute())
+        phase_root = fs::path(data_dir).parent_path() / phase_root;
+    phase_root = phase_root.lexically_normal();
+
+    for (const auto& phase_row : phases->as_array()) {
+        if (!phase_row || !phase_row->is_object()) continue;
+        auto phase_name = phase_row->get_string("phase");
+        auto artifact_name = phase_row->get_string("dll");
+        if (!phase_name || phase_name->empty() || !artifact_name || artifact_name->empty()) {
+            if (err) *err = "phase_driver_lock phase row missing phase/dll";
+            return false;
+        }
+        const fs::path artifact_path = (phase_root / *artifact_name).lexically_normal();
+        std::error_code artifact_ec;
+        if (!fs::exists(artifact_path, artifact_ec) || artifact_ec) {
+            if (err) *err = "phase driver artifact missing: " + artifact_path.string();
+            return false;
+        }
+        const std::string declared_hash = hash_map->get_string(*artifact_name).value_or("");
+        if (is_pending_hash(declared_hash)) {
+            if (err) *err = "pending or missing phase_driver_sha256 for " + *artifact_name;
+            return false;
+        }
+        std::string actual_hash;
+        if (!compute_file_sha256_prefixed(artifact_path, &actual_hash, err)) return false;
+        if (strip_sha256_prefix(declared_hash) != strip_sha256_prefix(actual_hash)) {
+            if (err) *err = "phase driver hash mismatch for " + *artifact_name;
+            return false;
+        }
+    }
+
+    const util::JsonValue* stack_hashes = runtime_meta->get("sha256");
+    if (!stack_hashes || !stack_hashes->is_object()) {
+        if (err) *err = "missing sha256 object in runtime metadata";
+        return false;
+    }
+    if (lower_copy(stack_hashes->get_string("algorithm").value_or("")) != "sha256") {
+        if (err) *err = "runtime metadata sha256.algorithm must be sha256";
+        return false;
+    }
+
+    const auto validate_anchor = [&](const std::string& key, const fs::path& target) -> bool {
+        const std::string declared = stack_hashes->get_string(key).value_or("");
+        if (!declared.starts_with("sha256:") || is_pending_hash(declared)) {
+            if (err) *err = "missing hash anchor for " + key;
+            return false;
+        }
+        std::string actual;
+        if (!compute_file_sha256_prefixed(target, &actual, err)) return false;
+        if (strip_sha256_prefix(declared) != strip_sha256_prefix(actual)) {
+            if (err) *err = "hash anchor mismatch for " + key;
+            return false;
+        }
+        return true;
+    };
+
+    if (!validate_anchor("fold_runtime", fold_runtime_path)) return false;
+    if (!validate_anchor("cycle_hash_spec", cycle_spec_path)) return false;
     return true;
 }
 
@@ -446,6 +601,28 @@ static std::string normalize_web_research_query(const std::string& text) {
 
 static std::string infer_micronaut_from_text(const std::string& text) {
     const auto low = lower_copy(text);
+    if (low.rfind("hello", 0) == 0 ||
+        low.rfind("hi ", 0) == 0 ||
+        low == "hi" ||
+        low.rfind("hey", 0) == 0 ||
+        contains_phrase_ci(low, "hows it going") ||
+        contains_phrase_ci(low, "how's it going") ||
+        contains_phrase_ci(low, "how are you"))
+        return "GREETING-µ";
+    if (low.rfind("advise", 0) == 0 ||
+        low.rfind("advisor ", 0) == 0 ||
+        contains_phrase_ci(low, "@advisor") ||
+        contains_phrase_ci(low, "advisor-µ") ||
+        contains_phrase_ci(low, "ask my advisor"))
+        return "ADVISOR-µ";
+    if (contains_phrase_ci(low, "chat-u") ||
+        contains_phrase_ci(low, "chat-µ") ||
+        contains_phrase_ci(low, "help from lfm") ||
+        contains_phrase_ci(low, "ask for help from lfm") ||
+        contains_phrase_ci(low, "lfm tool help") ||
+        contains_phrase_ci(low, " from lfm") ||
+        contains_phrase_ci(low, " lfm "))
+        return "CHAT-µ";
     if (low.rfind("tools:", 0) == 0 || contains_phrase_ci(low, "@tools") ||
         low.rfind("status:", 0) == 0 || contains_phrase_ci(low, "@status") ||
         low.rfind("graph:", 0) == 0 || contains_phrase_ci(low, "@graph") ||
@@ -1300,6 +1477,7 @@ static size_t record_dictionary_similarity_keys(
 
 struct RuntimeGrammarSpecSummary {
     std::string aiml_ebnf_file;
+    std::string scfml_ebnf_file;
     std::string key_grammar_ebnf_file;
 };
 
@@ -1310,23 +1488,32 @@ static bool write_runtime_grammar_specs(
 {
     if (out) *out = {};
     const fs::path aiml_path = grammar_dir / "aiml.runtime-grammar.ebnf";
+    const fs::path scfml_path = grammar_dir / "scfml.runtime-grammar.ebnf";
     const fs::path key_json_path = grammar_dir / "key-grammar-json.runtime.ebnf";
 
-    static const char* kAimlEbnf = R"EBNF((* KHANARY AIML Runtime Grammar v2 *)
+    static const char* kAimlEbnf = R"EBNF((* KHANARY AIML Runtime Grammar v4 *)
+(* Branch/control markup is delegated to SCFML. See scfml.runtime-grammar.ebnf. *)
 aiml_document = "<aiml>", { category }, "</aiml>" ;
-category = "<category>", pattern, [ that ], [ topic ], template, "</category>" ;
-pattern = "<pattern>", pattern_text, "</pattern>" ;
+category = "<category>", ( aiml_pair | scfml_category ), "</category>" ;
+aiml_pair = pattern, [ that ], [ topic ], template ;
+scfml_category = scfml_surface_ref ;
+
+pattern = "<pattern>", { pattern_item }, "</pattern>" ;
+pattern_item = pattern_text | scfml_surface_ref ;
 that = "<that>", pattern_text, "</that>" ;
 topic = "<topic>", pattern_text, "</topic>" ;
 template = "<template>", { template_item }, "</template>" ;
 
 template_item =
-    text | srai | get_var | set_var | star | thatstar | tool_call | graph_call | mx2lm_call ;
+    text | srai | get_var | set_var | star | thatstar | tool_call | graph_call
+  | mx2lm_call | scfml_surface_ref ;
 srai = "<srai>", pattern_text, "</srai>" ;
 get_var = "<get name=\"", ident, "\"/>" ;
 set_var = "<set name=\"", ident, "\">", text, "</set>" ;
 star = "<star", [ " index=\"", integer, "\"" ], "/>" ;
 thatstar = "<thatstar", [ " index=\"", integer, "\"" ], "/>" ;
+
+scfml_surface_ref = ? SCFML semantic control-flow surface; normalized by scfml.runtime-grammar.ebnf before Pattern Learning or XCFE projection ? ;
 
 tool_call = "<tool name=\"", ident, "\">", tool_payload, "</tool>" ;
 graph_call = "<edges .../>" | "<getedge .../>" | "<traverse .../>" | "<node .../>" ;
@@ -1358,17 +1545,119 @@ text = { text_char } ;
 pattern_text = { text_char } ;
 tool_payload = { text_char } ;
 gram_text = { text_char } ;
-text_char = ? any UTF-8 char except unmatched '<' or '>' ? ;
-)EBNF";
+text_char = ? any UTF-8 char except unmatched '<' or '>' ? ;)EBNF";
 
-    static const char* kKeyGrammarJsonEbnf = R"EBNF((* KHANARY key-grammar JSON Runtime EBNF v2 *)
+    static const char* kScfmlEbnf = R"EBNF((* KHANARY SCFML Runtime Grammar v1 *)
+(* SCFML = Semantic Control Flow Machine Learning.
+   It owns semantic control-flow surfaces and Pattern Learning admission.
+   SCFML is above XCFE: it declares branches/pattern candidates, resolves them
+   through epistemic state, then projects legal moves to XCFE. *)
+
+scfml_document = { scfml_unit } ;
+scfml_unit = scfml_branch_row | scfml_pattern_learning_row | scfml_xml_surface ;
+
+(* ── XML/AIML-compatible surface ─────────────────────────────────────── *)
+scfml_xml_surface = branch_element | detached_branch_sequence ;
+branch_element = "<branch", [ branch_attrs ], ">", { branch_part }, "</branch>" ;
+detached_branch_sequence = branch_part, { branch_part } ;
+branch_part = if_block | then_block | else_block | unknown_block ;
+if_block = "<if>", { branch_payload }, "</if>" ;
+then_block = "<then>", { branch_payload }, "</then>" ;
+else_block = "<else>", { branch_payload }, "</else>" ;
+unknown_block = "<unknown>", { branch_payload }, "</unknown>" ;
+branch_payload = aiml_pattern | aiml_template | scfml_xml_surface | branch_text ;
+aiml_pattern = "<pattern>", pattern_text, "</pattern>" ;
+aiml_template = "<template>", template_text, "</template>" ;
+branch_attrs = ? XML attributes; optional schema/key/track metadata ? ;
+branch_text = ? UTF-8 branch text excluding unmatched SCFML branch tags ? ;
+
+(* Surface normalization. Input children may arrive in any order; normalized
+   rows use canonical_order = if, then, else, unknown. *)
+normalization_rule =
+    "if/pattern=>condition"
+  | "then/template=>then_action"
+  | "else/template=>else_action"
+  | "unknown=>unknown_handler"
+  | "then/pattern=>then_pattern_candidate"
+  | "else/pattern=>else_pattern_candidate"
+  | "else/if/then=>nested_else_if"
+  | "pattern_with_branch_markup=>structural_after_normalization" ;
+
+(* ── JSON row emitted into key-grammar / gram-store surfaces ─────────── *)
+scfml_branch_row =
+    "{",
+      q_schema, ",", q_key, ",", q_condition, ",", q_then, ",", q_else,
+      [ ",", q_track ],
+      [ ",", q_epistemic_state ],
+      [ ",", q_unknown ],
+      [ ",", q_source_surface ],
+      [ ",", q_pattern_learning ],
+    "}" ;
+
+q_schema = "\"schema\":", ( "\"scfml.branch.v1\"" | "\"key.grammar.semantic_branch.v1\"" ) ;
+q_key = "\"key\":", scfml_branch_key ;
+q_condition = "\"condition\":", string ;
+q_then = "\"then\":", scfml_branch_target ;
+q_else = "\"else\":", scfml_branch_target ;
+q_track = "\"track\":", string ;
+q_epistemic_state = "\"epistemic_state\":", "\"", epistemic_state, "\"" ;
+q_unknown = "\"unknown\":", scfml_branch_target ;
+q_source_surface = "\"source_surface\":", ( "\"aiml\"" | "\"json\"" | "\"memory_event\"" ) ;
+q_pattern_learning = "\"pattern_learning\":", boolean ;
+scfml_branch_target = string | "null" ;
+scfml_branch_key = "scfml:branch:", epoch_ms, "-", sequence
+                 | "scfml:branch:", gram_text
+                 | "semantic_branch:", epoch_ms, "-", sequence
+                 | "semantic_branch:", gram_text ;
+
+(* ── Pattern Learning rows ───────────────────────────────────────────── *)
+scfml_pattern_learning_row =
+    "{",
+      "\"schema\":", "\"scfml.pattern_learning.v1\"", ",",
+      "\"source_event\":", string, ",",
+      "\"candidate_kind\":", pattern_candidate_kind, ",",
+      "\"requires\":", "\"SUPPORTED_or_user_verified\"",
+      [ ",", "\"target\":", string ],
+    "}" ;
+pattern_candidate_kind =
+    "\"aiml_pattern\"" | "\"aiml_template\"" | "\"semantic_branch\""
+  | "\"key_grammar\"" | "\"route_pattern\"" ;
+
+(* ── Epistemic branch laws ───────────────────────────────────────────── *)
+epistemic_state = "SUPPORTED" | "MISS" | "UNKNOWN" | "CONTRADICTED" ;
+scfml_law =
+    "SUPPORTED(P)=>then"
+  | "CONTRADICTED(P)=>else_as_complement"
+  | "MISS(P)!=CONTRADICTED(P)"
+  | "UNKNOWN(P)!=else"
+  | "else!=not"
+  | "contradicting_one_candidate_does_not_prove_another" ;
+
+(* ── Projection boundary ─────────────────────────────────────────────── *)
+scfml_pipeline =
+    "SCFML_surface", "->", "canonical_branch_row", "->",
+    "epistemic_resolution", "->", "XCFE_move_projection" ;
+xcfe_projection =
+    "guard" | "select_then" | "select_else" | "spawn_unknown" | "preserve"
+  | "retrieve" | "defer" | "merge" | "commit" | "rollback" ;
+
+boolean = "true" | "false" ;
+string = ? JSON string ? ;
+pattern_text = ? AIML pattern text ? ;
+template_text = ? AIML template text ? ;
+gram_text = ? ordered gram text; token order is semantic ? ;
+epoch_ms = ? milliseconds since UNIX epoch ? ;
+sequence = ? per-process sequence number ? ;)EBNF";
+
+    static const char* kKeyGrammarJsonEbnf = R"EBNF((* KHANARY key-grammar JSON Runtime EBNF v3 *)
 (* Typed gram channels are structured, phase-bound, provenance-carrying
    records — never a bag of words. Every channel declares ordered width,
    first-occurrence position, a semantic role, a K'UHUL phase binding,
    a gram-store unit, a key-address form, and a consumption rule. *)
 
 document = lexicon_row | relation_row | greeting_bank_row | greeting_learning_row
-         | control_flow_row | control_plan_row ;
+         | control_flow_row | control_plan_row | scfml_branch_row | semantic_branch_row
+         | memory_event_row | hyperbolic_event_row ;
 
 (* ── Row forms ───────────────────────────────────────────────────────── *)
 lexicon_row =
@@ -1379,6 +1668,7 @@ lexicon_row =
       [ ",", q_definition_ngrams ],
       [ ",", q_definition_keys ],
       [ ",", q_gram_channels ],
+      [ ",", q_hyperbolic_event ],
     "}" ;
 
 q_word           = "\"word\":", string ;
@@ -1392,6 +1682,68 @@ q_synonyms            = "\"synonyms\":", string_array ;
 q_definition_ngrams   = "\"definition_ngrams\":", string_array ;
 q_definition_keys     = "\"definition_keys\":", string_array ;
 q_gram_channels       = "\"gram_channels\":", "{", gram_channel, { ",", gram_channel }, "}" ;
+q_hyperbolic_event    = "\"hyperbolic_event\":", hyperbolic_event_object ;
+
+(* Hyperbolic key-grammar event projection: the key addresses a future-directed
+   candidate continuation from a current origin. Rapidity/direction/interval are
+   routing geometry only; semantic_authority must remain false.
+
+   Preferred v1 shape uses nested hyperbolic_metrics + bounds. Legacy flat
+   rapidity/direction/interval fields are still accepted for existing rows. *)
+hyperbolic_event_row =
+    "{",
+      "\"$schema\":", "\"urn:kuhul:khanary:schema:key-grammar-event:v1\"", ",",
+      "\"generation_id\":", integer, ",",
+      "\"topology_target\":", "\"B\"", ",",
+      "\"space_signature\":", "\"Minkowski_Minus_Plus_Plus_Plus\"", ",",
+      "\"event_record\":", hyperbolic_event_object,
+    "}" ;
+
+hyperbolic_event_object =
+    "{",
+      q_he_type, ",", q_he_origin,
+      [ ",", q_he_track ],
+      [ ",", q_he_phase ],
+      [ ",", q_he_key ],
+      [ ",", q_he_gram ],
+      [ ",", q_he_event_role ],
+      [ ",", q_he_hyperbolic_metrics ],
+      [ ",", q_he_bounds ],
+      (* Legacy flat event metric fields. *)
+      [ ",", q_he_rapidity ],
+      [ ",", q_he_direction ],
+      [ ",", q_he_minkowski_interval ],
+      [ ",", q_he_interval_class ],
+      [ ",", q_he_epistemic_state ],
+      ",", q_he_semantic_authority,
+    "}" ;
+
+q_he_type = "\"@type\":", "\"key_grammar.hyperbolic_event.v1\"" ;
+q_he_origin = "\"origin\":", string ;
+q_he_track = "\"track\":", string ;
+q_he_phase = "\"phase\":", "\"", phase_name, "\"" ;
+q_he_key = "\"key\":", string ;
+q_he_gram = "\"gram\":", string ;
+q_he_event_role = "\"event_role\":", string ;
+q_he_rapidity = "\"rapidity\":", number ;
+q_he_direction = "\"direction\":", number_array ;
+q_he_minkowski_interval = "\"minkowski_interval\":", number ;
+q_he_interval_class = "\"interval_class\":", "\"", interval_class, "\"" ;
+q_he_epistemic_state = "\"epistemic_state\":", "\"", epistemic_state, "\"" ;
+q_he_semantic_authority = "\"semantic_authority\":", "false" ;
+q_he_hyperbolic_metrics = "\"hyperbolic_metrics\":", "{",
+      "\"rapidity_rho\":", number, ",",
+      "\"direction_vector\":", number_array, ",",
+      "\"minkowski_interval\":", number,
+    "}" ;
+q_he_bounds = "\"bounds\":", "{",
+      "\"interval_class\":", "\"", interval_class, "\"", ",",
+      "\"epistemic_state\":", "\"", epistemic_state, "\"", ",",
+      "\"semantic_authority\":", "false",
+    "}" ;
+
+interval_class =
+    "timelike_candidate" | "spacelike_candidate" | "lightlike_boundary" | "unclassified" ;
 
 gram_channel = "\"", gram_class, "\":", "[", [ typed_gram, { ",", typed_gram } ], "]" ;
 
@@ -1527,7 +1879,7 @@ tool_gram_contract =
 key_store_key =
     gram_scope_key | assoc_key | route_hint_key | prompt_key | prompt_ngram_key
   | word_assoc_key | lexicon_key | similarity_key | synonym_key | atom_key
-  | greeting_key | lingo_key | style_profile_key ;
+  | greeting_key | lingo_key | style_profile_key | scfml_branch_key | semantic_branch_key | memory_event_key ;
 
 gram_scope_key   = "gram:", gram_class, ":", gram_text ;
 assoc_key       = "assoc:", gram_class, ":", gram_text ;
@@ -1544,6 +1896,52 @@ greeting_key    = "greeting:observed:", greeting_form
                 | "greeting:variant:", synthesized_word ;
 lingo_key       = "mx2lm:lingo:", lingo_token | "mx2lm:lingo_blend:", synthesized_word ;
 style_profile_key = "mx2lm:style_profile:v1" ;
+scfml_branch_key = "scfml:branch:", epoch_ms, "-", sequence
+                 | "scfml:branch:", gram_text ;
+semantic_branch_key = "semantic_branch:", epoch_ms, "-", sequence
+                    | "semantic_branch:", gram_text ;
+memory_event_key = "memory:event:", memory_event_kind, ":", epoch_ms, "-", sequence ;
+
+(* ── Shared memory-event envelope ────────────────────────────────────── *)
+(* Prompts, model responses, and plans are key-grammar events. They are
+   event-journal evidence, not automatic fact commits. *)
+memory_event_row =
+    "{",
+      q_me_schema, ",", q_me_key, ",", q_me_event_kind, ",", q_me_source, ",",
+      q_me_track, ",", q_me_phase, ",", q_me_memory_scope, ",",
+      q_me_fact_authority, ",", q_me_commit_state,
+      [ ",", q_me_epistemic_state ],
+      [ ",", q_me_observation_authority ],
+      [ ",", q_me_epistemic_causes ],
+      [ ",", q_me_prompt_key ],
+      [ ",", q_me_parent_key ],
+      [ ",", q_me_content ],
+      [ ",", q_me_hyperbolic_event ],
+      [ ",", q_me_payload_json ],
+    "}" ;
+
+q_me_schema = "\"schema\":", "\"key.grammar.memory_event.v1\"" ;
+q_me_key = "\"key\":", memory_event_key ;
+q_me_event_kind = "\"event_kind\":", "\"", memory_event_kind, "\"" ;
+q_me_source = "\"source\":", string ;
+q_me_track = "\"track\":", string ;
+q_me_phase = "\"phase\":", "\"", phase_name, "\"" ;
+q_me_memory_scope = "\"memory_scope\":", "\"event_journal\"" ;
+q_me_fact_authority = "\"fact_authority\":", boolean ;
+q_me_commit_state = "\"commit_state\":", memory_event_commit_state ;
+q_me_epistemic_state = "\"epistemic_state\":", "\"", epistemic_state, "\"" ;
+q_me_observation_authority = "\"observation_authority\":", boolean ;
+q_me_epistemic_causes = "\"epistemic_causes\":", string_array ;
+q_me_prompt_key = "\"prompt_key\":", prompt_key ;
+q_me_parent_key = "\"parent_key\":", memory_event_key | prompt_key | string ;
+q_me_content = "\"content\":", string ;
+q_me_hyperbolic_event = "\"hyperbolic_event\":", hyperbolic_event_object ;
+q_me_payload_json = "\"payload_json\":", string ;
+
+memory_event_kind = "prompt" | "model_response" | "plan" ;
+epistemic_state = "SUPPORTED" | "MISS" | "UNKNOWN" | "CONTRADICTED" ;
+memory_event_commit_state =
+    "\"journaled_not_fact\"" | "\"candidate\"" | "\"Ch'en_pending\"" | "\"Xul_committed\"" ;
 
 (* ── Prompt archive record (gram-store layout per submitted prompt) ──── *)
 (* Every submitted prompt is broken into typed gram channels and archived:
@@ -1563,15 +1961,13 @@ corpus_name = "definitions_and_relations" | "xcfe_control_program" ;
 // A single string literal is capped by the compiler (MSVC: 16384 bytes), and
 // this spec is larger, so it is emitted as adjacent literals that concatenate.
 R"EBNF(
-(* ── Control flow (sugar) ─────────────────────────────────────────────── *)
-(* Control words are first-class *flow* operators, not a bag of operator
-   tokens: a control clause reads like English and lowers to an executable
-   XCFE control node (@if/@then/@else) with every construct bound to a K'UHUL
-   phase. The vocabulary and its contract bounds are declared here; the
-   per-operator values (authority, lowering, phase, block role, arity) are
-   carried by control_flow_row records emitted by the runtime, and
-   tools/grammar/mini_transpilers.py control-check validates the artifact
-   against this contract. *)
+(* ── Semantic branch grammar + control flow projection ──────────────── *)
+(* @if/@then/@else are semantic branch declarations, not XCFE itself.
+   Branching resolves in three layers:
+       Semantic Branch Grammar -> Epistemic Resolution -> XCFE Execution.
+   @else is a complement branch, not @not(P). MISS is not CONTRADICTED.
+   UNKNOWN(P) preserves/spawns/retrieves/defers unless an explicit @unknown
+   handler exists; it must not silently select @else. *)
 
 control_flow_row =
     "{",
@@ -1606,6 +2002,24 @@ q_cp_form       = "\"form\":", control_form ;
 q_cp_structured = "\"structured\":", boolean ;
 q_cp_condition  = "\"condition\":", string ;
 q_cp_steps      = "\"steps\":", "[", [ control_step, { ",", control_step } ], "]" ;
+
+(* AIML/XML surface normalization:
+     if/pattern -> condition; then/template -> branch action; then/pattern ->
+     pattern candidate; else/if/then -> nested else-if branch. *)
+scfml_branch_row = semantic_branch_row ;
+semantic_branch_row =
+    "{",
+      "\"schema\":", ( "\"scfml.branch.v1\"" | "\"key.grammar.semantic_branch.v1\"" ), ",",
+      "\"key\":", ( scfml_branch_key | semantic_branch_key ), ",",
+      "\"condition\":", string, ",",
+      "\"then\":", semantic_branch_target, ",",
+      "\"else\":", semantic_branch_target,
+      [ ",", "\"track\":", string ],
+      [ ",", "\"epistemic_state\":", "\"", epistemic_state, "\"" ],
+      [ ",", "\"unknown\":", semantic_branch_target ],
+    "}" ;
+semantic_branch_target = string | "null" ;
+
 control_step =
     "{",
       q_cs_word, ",", q_cs_operator, ",", q_cs_xcfe, ",", q_cs_role, ",",
@@ -1676,6 +2090,14 @@ control_xcfe_op =
 control_block_role = "open" | "mid" | "close" | "none" ;
 control_arity = "1" | "2" ;
 
+(* Semantic branch epistemic law:
+     SUPPORTED(P) may select @then.
+     CONTRADICTED(P) may select @else as complement, not as @not(P).
+     MISS(P) is not CONTRADICTED(P).
+     UNKNOWN(P) must not silently select @else.
+     Contradicting one candidate sense only eliminates that sense; it does not
+     prove a different candidate sense. *)
+
 (* ── XCFE Node ISA ────────────────────────────────────────────────────── *)
 (* Class, operator, flow phase and authority phase are independent
    coordinates. The invariants are:
@@ -1709,6 +2131,7 @@ xcfe_class_authority =
 
 (* ── Terminals ────────────────────────────────────────────────────────── *)
 string_array = "[", [ string, { ",", string } ], "]" ;
+number_array = "[", [ number, { ",", number } ], "]" ;
 boolean = "true" | "false" ;
 string = ? JSON string ? ;
 number = ? JSON number ? ;
@@ -1737,6 +2160,14 @@ synthesized_word = ? runtime-blended associative word ? ;
         aiml_out << kAimlEbnf << "\n";
     }
     {
+        std::ofstream scfml_out(scfml_path, std::ios::binary | std::ios::trunc);
+        if (!scfml_out) {
+            if (err) *err = "unable to write SCFML runtime grammar EBNF: " + scfml_path.string();
+            return false;
+        }
+        scfml_out << kScfmlEbnf << "\n";
+    }
+    {
         std::ofstream key_out(key_json_path, std::ios::binary | std::ios::trunc);
         if (!key_out) {
             if (err) *err = "unable to write key-grammar runtime EBNF: " + key_json_path.string();
@@ -1746,6 +2177,7 @@ synthesized_word = ? runtime-blended associative word ? ;
     }
     if (out) {
         out->aiml_ebnf_file = aiml_path.string();
+        out->scfml_ebnf_file = scfml_path.string();
         out->key_grammar_ebnf_file = key_json_path.string();
     }
     return true;
@@ -1758,6 +2190,7 @@ struct DictionaryKeyGrammarCompileSummary {
     std::string relations_file;
     std::string meta_file;
     std::string aiml_ebnf_file;
+    std::string scfml_ebnf_file;
     std::string key_grammar_ebnf_file;
 };
 
@@ -1953,6 +2386,7 @@ static DictionaryKeyGrammarCompileSummary compile_dictionary_key_grammar_files(
     meta["lexicon_file"] = util::json_string(lexicon_path.string());
     meta["relations_file"] = util::json_string(relations_path.string());
     meta["aiml_runtime_ebnf_file"] = util::json_string(grammar_specs.aiml_ebnf_file);
+    meta["scfml_runtime_ebnf_file"] = util::json_string(grammar_specs.scfml_ebnf_file);
     meta["key_grammar_runtime_ebnf_file"] = util::json_string(grammar_specs.key_grammar_ebnf_file);
     meta["lexicon_rows"] = util::json_number(static_cast<double>(out.lexicon_rows));
     meta["relation_rows"] = util::json_number(static_cast<double>(out.relation_rows));
@@ -1983,6 +2417,7 @@ static DictionaryKeyGrammarCompileSummary compile_dictionary_key_grammar_files(
     out.relations_file = relations_path.string();
     out.meta_file = meta_path.string();
     out.aiml_ebnf_file = grammar_specs.aiml_ebnf_file;
+    out.scfml_ebnf_file = grammar_specs.scfml_ebnf_file;
     out.key_grammar_ebnf_file = grammar_specs.key_grammar_ebnf_file;
     return out;
 }
@@ -2035,6 +2470,199 @@ static std::string next_prompt_archive_key() {
     const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     return "prompt:" + std::to_string(static_cast<long long>(now_ms)) + "-" + std::to_string(seq);
+}
+
+static uint64_t& memory_event_sequence() {
+    static uint64_t seq = 0;
+    return seq;
+}
+
+static std::mutex& memory_event_mutex() {
+    static std::mutex mu;
+    return mu;
+}
+
+static std::string normalize_memory_event_kind(const std::string& kind) {
+    const std::string k = lower_copy(trim_copy(kind));
+    if (k == "prompt") return "prompt";
+    if (k == "plan") return "plan";
+    return "model_response";
+}
+
+static std::string next_memory_event_key(const std::string& kind) {
+    uint64_t seq = 0;
+    {
+        std::lock_guard<std::mutex> lk(memory_event_mutex());
+        seq = ++memory_event_sequence();
+    }
+    const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    return "memory:event:" + normalize_memory_event_kind(kind) + ":" +
+           std::to_string(static_cast<long long>(now_ms)) + "-" + std::to_string(seq);
+}
+
+static std::string clamp_memory_event_text(std::string text, size_t max_chars = 65536) {
+    if (text.size() <= max_chars) return text;
+    text.resize(max_chars);
+    text += "...[truncated]";
+    return text;
+}
+
+static bool is_valid_epistemic_state(const std::string& state) {
+    return state == "SUPPORTED" || state == "MISS" ||
+           state == "UNKNOWN" || state == "CONTRADICTED";
+}
+
+static std::string normalize_epistemic_state(std::string state) {
+    state = trim_copy(state);
+    std::transform(state.begin(), state.end(), state.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    return is_valid_epistemic_state(state) ? state : "UNKNOWN";
+}
+
+static std::string c6_phase_from_hint(const std::string& hint, const std::string& fallback) {
+    const std::string h = lower_copy(trim_copy(hint));
+    if (h.rfind("pop", 0) == 0 || h.find("phase:pop") != std::string::npos) return "Pop";
+    if (h.rfind("wo", 0) == 0 || h.find("phase:wo") != std::string::npos) return "Wo";
+    if (h.rfind("yax", 0) == 0 || h.find("phase:yax") != std::string::npos) return "Yax";
+    if (h.rfind("sek", 0) == 0 || h.find("phase:sek") != std::string::npos) return "Sek";
+    if (h.rfind("ch'en", 0) == 0 || h.rfind("chen", 0) == 0 ||
+        h.find("phase:ch'en") != std::string::npos || h.find("phase:chen") != std::string::npos)
+        return "Ch'en";
+    if (h.rfind("xul", 0) == 0 || h.find("phase:xul") != std::string::npos) return "Xul";
+    return fallback;
+}
+
+static std::string default_memory_event_phase(const std::string& kind, const std::string& hint = "") {
+    const std::string k = normalize_memory_event_kind(kind);
+    if (k == "prompt") return "Pop";
+    if (k == "plan") return c6_phase_from_hint(hint, "Yax");
+    return c6_phase_from_hint(hint, "Ch'en");
+}
+
+static std::string infer_memory_event_kind_from_payload(const util::JsonPtr& payload) {
+    if (!payload || !payload->is_object()) return "model_response";
+    const std::string status = lower_copy(payload->get_string("status").value_or(""));
+    const std::string source = lower_copy(payload->get_string("source").value_or(""));
+    if (status.find("plan") != std::string::npos ||
+        source.find("plan") != std::string::npos ||
+        payload->get("plan_card") ||
+        payload->get("research") ||
+        payload->get("route_hint"))
+        return "plan";
+    return "model_response";
+}
+
+static std::string infer_memory_event_epistemic_state(
+    const util::JsonPtr& payload,
+    const std::string& event_kind)
+{
+    if (!payload || !payload->is_object()) return "UNKNOWN";
+    if (auto s = payload->get_string("epistemic_state"); s && !s->empty())
+        return normalize_epistemic_state(*s);
+
+    const std::string status = lower_copy(payload->get_string("status").value_or(""));
+    const std::string source = lower_copy(payload->get_string("source").value_or(""));
+    if (status == "no_fact_found" ||
+        status.find("miss") != std::string::npos ||
+        status.find("web_research_dispatched") != std::string::npos ||
+        source == "miss")
+        return "MISS";
+    if (source == "key_store")
+        return "SUPPORTED";
+    (void)event_kind;
+    return "UNKNOWN";
+}
+
+static std::string memory_event_content_from_payload(const util::JsonPtr& payload) {
+    if (!payload || !payload->is_object()) return {};
+    static const std::vector<std::string> kPreferred = {
+        "response", "text", "status", "source"
+    };
+    for (const auto& key : kPreferred) {
+        if (auto s = payload->get_string(key); s && !s->empty())
+            return clamp_memory_event_text(*s, 8192);
+    }
+    return clamp_memory_event_text(util::stringify(payload), 8192);
+}
+
+static std::string record_key_grammar_memory_event(
+    const std::string& event_kind_raw,
+    const std::string& source,
+    const std::string& track,
+    const std::string& phase_hint,
+    const std::string& prompt_key,
+    const std::string& parent_key,
+    const std::string& content,
+    const std::string& payload_json,
+    const std::string& epistemic_state_raw,
+    bool observation_authority,
+    micronaut::Factory* factory,
+    kuhul::GramStore* gram_store,
+    io::JROM* jrom)
+{
+    const std::string event_kind = normalize_memory_event_kind(event_kind_raw);
+    const std::string event_key = next_memory_event_key(event_kind);
+    const std::string phase = default_memory_event_phase(event_kind, phase_hint);
+    const std::string epistemic_state = normalize_epistemic_state(epistemic_state_raw);
+
+    util::JsonObject event;
+    event["schema"] = util::json_string("key.grammar.memory_event.v1");
+    event["key"] = util::json_string(event_key);
+    event["event_kind"] = util::json_string(event_kind);
+    event["source"] = util::json_string(source.empty() ? "runtime" : source);
+    event["track"] = util::json_string(track.empty() ? "Mx2LM" : track);
+    event["phase"] = util::json_string(phase);
+    event["memory_scope"] = util::json_string("event_journal");
+    event["fact_authority"] = util::json_bool(false);
+    event["commit_state"] = util::json_string("journaled_not_fact");
+    event["epistemic_state"] = util::json_string(epistemic_state);
+    event["observation_authority"] = util::json_bool(observation_authority);
+    if (!prompt_key.empty()) event["prompt_key"] = util::json_string(prompt_key);
+    if (!parent_key.empty()) event["parent_key"] = util::json_string(parent_key);
+    if (!content.empty()) event["content"] = util::json_string(clamp_memory_event_text(content, 8192));
+    if (!payload_json.empty()) event["payload_json"] = util::json_string(clamp_memory_event_text(payload_json));
+
+    const std::string event_payload = util::stringify(util::json_object(event));
+    if (gram_store) {
+        gram_store->gramWrite(
+            event_key,
+            event_payload,
+            phase,
+            "memory_event",
+            "definitions_and_relations");
+    }
+    if (factory) {
+        factory->record_key(event_key, event_payload);
+        factory->record_key("memory:event_kind:" + event_kind, event_key);
+        factory->record_key("memory:event:source:" + (source.empty() ? std::string("runtime") : source), event_key);
+        factory->record_key("memory:event:track:" + (track.empty() ? std::string("Mx2LM") : track), event_key);
+        if (!prompt_key.empty())
+            factory->record_key("memory:event:prompt_ref:" + prompt_key, event_key);
+        if (!parent_key.empty())
+            factory->record_key("memory:event:parent_ref:" + parent_key, event_key);
+    }
+    if (jrom)
+        jrom->log("memory_event", event_payload);
+    return event_key;
+}
+
+static void attach_memory_event_metadata(
+    const util::JsonPtr& payload,
+    const std::string& event_key,
+    const std::string& event_kind,
+    const std::string& prompt_event_key,
+    const std::string& prompt_archive_key)
+{
+    if (!payload || !payload->is_object()) return;
+    auto& root = payload->mut_object();
+    root["memory_event_key"] = util::json_string(event_key);
+    root["memory_event_kind"] = util::json_string(normalize_memory_event_kind(event_kind));
+    if (!prompt_event_key.empty())
+        root["prompt_event_key"] = util::json_string(prompt_event_key);
+    if (!prompt_archive_key.empty())
+        root["prompt_archive_key"] = util::json_string(prompt_archive_key);
 }
 
 static bool is_prompt_text_extension(const std::string& ext_lower) {
@@ -3940,6 +4568,22 @@ static util::JsonPtr utility_runtime_payload(
         return util::json_object(std::move(obj));
     }
 
+    const bool asks_moon_composition =
+        contains_phrase_ci(low, "what is the moon made of") ||
+        contains_phrase_ci(low, "what's the moon made of") ||
+        contains_phrase_ci(low, "what is moon made of") ||
+        contains_phrase_ci(low, "whats the moon made of") ||
+        contains_phrase_ci(low, "moon made of") ||
+        contains_phrase_ci(low, "moon composition") ||
+        contains_phrase_ci(low, "composition of the moon");
+    const bool asks_sun_composition =
+        contains_phrase_ci(low, "what is the sun made of") ||
+        contains_phrase_ci(low, "what's the sun made of") ||
+        contains_phrase_ci(low, "what is sun made of") ||
+        contains_phrase_ci(low, "whats the sun made of") ||
+        contains_phrase_ci(low, "sun made of") ||
+        contains_phrase_ci(low, "sun composition") ||
+        contains_phrase_ci(low, "composition of the sun");
     const bool asks_sun =
         contains_phrase_ci(low, "what is the sun") ||
         contains_phrase_ci(low, "what is a sun") ||
@@ -3958,14 +4602,25 @@ static util::JsonPtr utility_runtime_payload(
         (contains_phrase_ci(low, "what is") ||
          contains_phrase_ci(low, "define") ||
          contains_phrase_ci(low, "tell me about"));
-    if (asks_sun || asks_moon || asks_kuhul) {
+    if (asks_sun_composition || asks_moon_composition || asks_sun || asks_moon || asks_kuhul) {
         util::JsonObject obj;
         obj["ok"] = util::json_bool(true);
         obj["source"] = util::json_string("utility-runtime");
         obj["status"] = util::json_string("knowledge_snapshot");
         obj["op"] = util::json_string(asks_kuhul ? "local_file_fact_lookup" : "fact_lookup");
         obj["delegate_track"] = util::json_string(asks_kuhul ? "utility.local_file" : "Librarian");
-        if (asks_sun) {
+        if (asks_moon_composition) {
+            obj["topic"] = util::json_string("moon_composition");
+            obj["response"] = util::json_string(
+                "The Moon is mostly silicate rock and minerals: oxygen, silicon, magnesium, iron, calcium, and aluminum. "
+                "Its maria are basalt-rich, its highlands are anorthosite-rich, and permanently shadowed polar craters "
+                "contain small amounts of water ice.");
+        } else if (asks_sun_composition) {
+            obj["topic"] = util::json_string("sun_composition");
+            obj["response"] = util::json_string(
+                "The Sun is mostly hydrogen and helium plasma. By mass, it is about 74% hydrogen and 24% helium, "
+                "with roughly 2% heavier elements such as oxygen, carbon, neon, and iron.");
+        } else if (asks_sun) {
             obj["topic"] = util::json_string("sun");
             obj["response"] = util::json_string(
                 "The Sun is the star at the center of our solar system. It is a hot sphere of plasma powered by nuclear fusion, and it provides most of Earth's light and heat.");
@@ -4248,6 +4903,7 @@ static FactoryMutationOutcome apply_miss_factory_mutation(
     const std::vector<std::string>& govern_seeds,
     double research_pressure)
 {
+    (void)factory;
     FactoryMutationOutcome out;
     out.attempted = true;
     out.micronaut_id = micronaut_id;
@@ -4662,11 +5318,23 @@ static const std::vector<Mx2LmActionGramRule>& mx2lm_action_gram_rules() {
         {{"how", "are", "you"}, "intent:wellbeing_check", "wellbeing_check", "I'm online and ready to help."},
         {{"who", "are", "you"}, "intent:identity_query", "identity_query", "I'm the KHANARY MX2LM runtime shell."},
         {{"what", "are", "you"}, "intent:identity_query", "identity_query", "I'm the KHANARY MX2LM runtime shell."},
+        {{"what", "is", "your", "name"}, "intent:identity_query", "identity_query", "I'm the KHANARY MX2LM runtime shell."},
+        {{"what", "s", "your", "name"}, "intent:identity_query", "identity_query", "I'm the KHANARY MX2LM runtime shell."},
+        {{"what's", "your", "name"}, "intent:identity_query", "identity_query", "I'm the KHANARY MX2LM runtime shell."},
+        {{"tell", "me", "your", "name"}, "intent:identity_query", "identity_query", "I'm the KHANARY MX2LM runtime shell."},
         {{"what", "can", "you", "do"}, "intent:capability_query", "capability_query", "I can route semantic key queries, tool plans, and runtime operations."},
         {{"how", "can", "you", "help"}, "intent:capability_query", "capability_query", "I can route semantic key queries, tool plans, and runtime operations."},
         {{"do", "you", "learn", "from", "conversation"}, "intent:learning_query", "learning_query", "I learn local facts from explicit memory entries and validated fact-style statements; unknown facts are routed to WEB-RESEARCH-µ for evidence."},
         {{"do", "you", "learn", "from", "conversations"}, "intent:learning_query", "learning_query", "I learn local facts from explicit memory entries and validated fact-style statements; unknown facts are routed to WEB-RESEARCH-µ for evidence."},
         {{"can", "you", "learn", "from", "conversation"}, "intent:learning_query", "learning_query", "I learn local facts from explicit memory entries and validated fact-style statements; unknown facts are routed to WEB-RESEARCH-µ for evidence."},
+        {{"i", "don't", "know", "the", "answer"}, "intent:fact_miss_advisor", "advisor_web_research_trigger", "I don't know the answer to that question. Let me search the web and ask my advisor."},
+        {{"i", "don", "t", "know", "the", "answer"}, "intent:fact_miss_advisor", "advisor_web_research_trigger", "I don't know the answer to that question. Let me search the web and ask my advisor."},
+        {{"i", "do", "not", "know", "the", "answer"}, "intent:fact_miss_advisor", "advisor_web_research_trigger", "I don't know the answer to that question. Let me search the web and ask my advisor."},
+        {{"search", "the", "web", "and", "ask", "my", "advisor"}, "intent:fact_miss_advisor", "advisor_web_research_trigger", "I don't know the answer to that question. Let me search the web and ask my advisor."},
+        {{"i", "m", "not", "sure", "what", "tool", "to", "use"}, "intent:tool_uncertain_lfm", "lfm_tool_help_trigger", "I'm not sure what tool to use. Let me ask for help from LFM."},
+        {{"i", "am", "not", "sure", "what", "tool", "to", "use"}, "intent:tool_uncertain_lfm", "lfm_tool_help_trigger", "I'm not sure what tool to use. Let me ask for help from LFM."},
+        {{"not", "sure", "what", "tool", "to", "use"}, "intent:tool_uncertain_lfm", "lfm_tool_help_trigger", "I'm not sure what tool to use. Let me ask for help from LFM."},
+        {{"ask", "for", "help", "from", "lfm"}, "intent:tool_uncertain_lfm", "lfm_tool_help_trigger", "I'm not sure what tool to use. Let me ask for help from LFM."},
         {{"can", "you", "do", "math"}, "intent:math_capability_query", "math_capability_query", "Yes, I can do math. Ask an expression like 'what is 2 plus 2?'."}
     };
     return kRules;
@@ -6191,17 +6859,24 @@ static std::string compose_mx2lm_text_response(
     learn_semantic_chain_from_payload(payload_text, learned_semantic_facts_out, semantic_relations_out);
 
     std::unordered_set<std::string> seen_hits;
+    std::unordered_set<std::string> seen_uncertainty_triggers;
     std::vector<size_t> salutation_hit_indices;
     bool has_salutation_or_wellbeing = false;
+    bool has_non_salutation_action = false;
     for (const auto& rule : mx2lm_action_gram_rules()) {
         if (!contains_token_sequence(tokens, rule.gram_tokens)) continue;
         const auto gram = join_words(rule.gram_tokens);
         const auto key = gram + "\x1f" + rule.intent + "\x1f" + rule.op;
         if (!seen_hits.insert(key).second) continue;
+        if ((rule.op == "advisor_web_research_trigger" || rule.op == "lfm_tool_help_trigger") &&
+            !seen_uncertainty_triggers.insert(rule.op).second) {
+            continue;
+        }
 
         add_intent(rule.intent);
         const bool adaptive_salutation = (rule.op == "salutation" || rule.op == "wellbeing_check");
         if (adaptive_salutation) has_salutation_or_wellbeing = true;
+        else has_non_salutation_action = true;
         if (!adaptive_salutation) add_clause(rule.response_clause);
         if (action_gram_hits_out) {
             action_gram_hits_out->push_back(Mx2LmActionGramHit{
@@ -6212,6 +6887,26 @@ static std::string compose_mx2lm_text_response(
             });
             if (adaptive_salutation)
                 salutation_hit_indices.push_back(action_gram_hits_out->size() - 1);
+        }
+    }
+
+    const bool has_question_boundary =
+        payload_text.find('?') != std::string::npos ||
+        payload_text.find(',') != std::string::npos ||
+        payload_text.find(';') != std::string::npos;
+    const bool has_compound_question =
+        has_salutation_or_wellbeing &&
+        has_non_salutation_action &&
+        has_question_boundary;
+    if (has_compound_question) {
+        add_intent("intent:compound_question");
+        if (action_gram_hits_out) {
+            action_gram_hits_out->push_back(Mx2LmActionGramHit{
+                "token:compound_question_boundary",
+                "intent:compound_question",
+                "compound_question",
+                ""
+            });
         }
     }
 
@@ -6418,6 +7113,7 @@ static util::JsonPtr mx2lm_ngram_payload(
     auto top_function = top_ranked_grams(taxonomy.function_grams, 6);
     auto top_tool = top_ranked_grams(taxonomy.tool_grams, 6);
     const auto typed_grams = micronaut::Mx2LmNGram::typed_grams(taxonomy, 6);
+    const auto gram_container = micronaut::Mx2LmNGram::compile_gram_container(taxonomy);
     auto projection = micronaut::Mx2LmNGram::compose(model.tokens);
     std::vector<std::string> intent_fragments;
     std::vector<Mx2LmActionGramHit> action_gram_hits;
@@ -6427,6 +7123,17 @@ static util::JsonPtr mx2lm_ngram_payload(
     std::string response_phase;
     const auto inferred_track = infer_micronaut_from_text(payload);
     const std::string governing_track = inferred_track.empty() ? "Mx2LM" : inferred_track;
+    const auto pattern_container = micronaut::Mx2LmNGram::compile_pattern_container(
+        payload,
+        gram_container,
+        governing_track,
+        governing_track == "GREETING-µ" ? "Pop" : "Wo",
+        "response_composed",
+        lower_copy(governing_track) == lower_copy("GREETING-µ") ? "greeting" : "");
+    const auto vector_projection_container =
+        micronaut::Mx2LmNGram::compile_vector_projection_container(
+            gram_container,
+            pattern_container);
     const auto composed_text = compose_mx2lm_text_response(
         model.tokens,
         payload,
@@ -6570,6 +7277,9 @@ static util::JsonPtr mx2lm_ngram_payload(
         obj["intent_count"] = util::json_number((double)intent_fragments.size());
     }
     if (!action_gram_hits.empty()) {
+        bool has_compound_question_token = false;
+        bool has_advisor_web_research_trigger = false;
+        bool has_lfm_tool_help_trigger = false;
         util::JsonArray hits_arr;
         for (const auto& hit : action_gram_hits) {
             util::JsonObject row;
@@ -6578,9 +7288,70 @@ static util::JsonPtr mx2lm_ngram_payload(
             row["op"] = util::json_string(hit.op);
             row["response_clause"] = util::json_string(hit.response_clause);
             hits_arr.push_back(util::json_object(std::move(row)));
+            if (hit.op == "compound_question")
+                has_compound_question_token = true;
+            if (hit.op == "advisor_web_research_trigger")
+                has_advisor_web_research_trigger = true;
+            if (hit.op == "lfm_tool_help_trigger")
+                has_lfm_tool_help_trigger = true;
         }
         obj["action_grams"] = util::json_array(std::move(hits_arr));
         obj["action_gram_count"] = util::json_number((double)action_gram_hits.size());
+        if (has_compound_question_token || has_advisor_web_research_trigger || has_lfm_tool_help_trigger) {
+            util::JsonArray token_flags;
+            if (has_compound_question_token)
+                token_flags.push_back(util::json_string("compound_question_boundary"));
+            if (has_advisor_web_research_trigger)
+                token_flags.push_back(util::json_string("advisor_web_research_trigger"));
+            if (has_lfm_tool_help_trigger)
+                token_flags.push_back(util::json_string("lfm_tool_help_trigger"));
+            obj["token_flags"] = util::json_array(std::move(token_flags));
+        }
+        if (has_advisor_web_research_trigger || has_lfm_tool_help_trigger) {
+            obj["status"] = util::json_string("sandbox_candidate");
+            obj["authority"] = util::json_string("none");
+            obj["commit_phase"] = util::json_string("Ch'en_pending");
+            obj["sandboxed"] = util::json_bool(true);
+
+            util::JsonObject sandbox;
+            sandbox["mode"] = util::json_string("response_only");
+            sandbox["aiml_mutation"] = util::json_string("candidate_only");
+            sandbox["promotion_gate"] = util::json_string("Ch'en_to_Xul_verification_required");
+            sandbox["learning_surface"] = util::json_string("aiml_pattern_template_candidate");
+            obj["sandbox"] = util::json_object(std::move(sandbox));
+
+            util::JsonArray learned_candidates;
+            auto push_candidate = [&](const std::string& event_name,
+                                      const std::string& pattern,
+                                      const std::string& template_text,
+                                      const std::string& track) {
+                util::JsonObject row;
+                row["event"] = util::json_string(event_name);
+                row["pattern"] = util::json_string(pattern);
+                row["template"] = util::json_string(template_text);
+                row["track"] = util::json_string(track);
+                row["authority"] = util::json_string("none");
+                row["commit_phase"] = util::json_string("Ch'en_pending");
+                row["status"] = util::json_string("candidate");
+                learned_candidates.push_back(util::json_object(std::move(row)));
+            };
+
+            if (has_advisor_web_research_trigger) {
+                push_candidate(
+                    "advisor_web_research_trigger",
+                    "I DON'T KNOW THE ANSWER TO THAT QUESTION *",
+                    "<mx2lm>search: event=advisor_web_research_trigger cue=miss_low_confidence advisor=ADVISOR-µ expert=WEB-RESEARCH-µ phase=Yax next=Ch'en card_view=true authority=none proposal=ready <star/></mx2lm>",
+                    "ADVISOR-µ");
+            }
+            if (has_lfm_tool_help_trigger) {
+                push_candidate(
+                    "lfm_tool_help_trigger",
+                    "I'M NOT SURE WHAT TOOL TO USE *",
+                    "<mx2lm>chat-u op=tool_selection_help event=lfm_tool_help_trigger cue=tool_uncertain advisor=ADVISOR-µ expert=CHAT-u phase=Wo next=Sek card_view=true authority=none proposal=ready <star/></mx2lm>",
+                    "CHAT-µ");
+            }
+            obj["learnable_aiml_candidates"] = util::json_array(std::move(learned_candidates));
+        }
     }
     if (!learned_facts.empty()) {
         util::JsonArray learned_arr;
@@ -6634,12 +7405,135 @@ static util::JsonPtr mx2lm_ngram_payload(
             j["gram"] = util::json_string(row.gram);
             j["class"] = util::json_string(row.gram_class);
             j["role"] = util::json_string(row.role);
+            j["phase"] = util::json_string(row.phase);
             j["count"] = util::json_number(static_cast<double>(row.count));
             j["width"] = util::json_number(static_cast<double>(row.width));
             j["tokens"] = util::json_array(json_string_array(row.tokens));
             arr.push_back(util::json_object(std::move(j)));
         }
         return arr;
+    }());
+    obj["mx2lm_gram_container"] = util::json_object([&]() {
+        util::JsonObject root;
+        root["@type"] = util::json_string("mx2lm.gram_container.v1");
+        root["key"] = util::json_string(gram_container.key);
+        root["namespace"] = util::json_string(gram_container.namespace_id);
+        root["authority"] = util::json_string(gram_container.authority);
+        root["phase"] = util::json_string(gram_container.phase);
+        root["total_grams"] = util::json_number(static_cast<double>(gram_container.grams.size()));
+        root["total_observations"] = util::json_number(static_cast<double>(gram_container.total_observations));
+
+        util::JsonObject counts;
+        counts["unigram"] = util::json_number(static_cast<double>(gram_container.unigram_count));
+        counts["bigram"] = util::json_number(static_cast<double>(gram_container.bigram_count));
+        counts["trigram"] = util::json_number(static_cast<double>(gram_container.trigram_count));
+        counts["quadgram"] = util::json_number(static_cast<double>(gram_container.quadgram_count));
+        counts["coarse_gram"] = util::json_number(static_cast<double>(gram_container.coarse_gram_count));
+        counts["function_gram"] = util::json_number(static_cast<double>(gram_container.function_gram_count));
+        counts["tool_gram"] = util::json_number(static_cast<double>(gram_container.tool_gram_count));
+        root["channel_counts"] = util::json_object(std::move(counts));
+
+        util::JsonObject channels;
+        const std::vector<std::string> class_order = {
+            "unigram", "bigram", "trigram", "quadgram",
+            "coarse_gram", "function_gram", "tool_gram"
+        };
+        for (const auto& klass : class_order) {
+            util::JsonArray rows;
+            for (const auto& row : gram_container.grams) {
+                if (row.gram_class != klass) continue;
+                util::JsonObject j;
+                j["gram"] = util::json_string(row.gram);
+                j["class"] = util::json_string(row.gram_class);
+                j["role"] = util::json_string(row.role);
+                j["phase"] = util::json_string(row.phase);
+                j["count"] = util::json_number(static_cast<double>(row.count));
+                j["width"] = util::json_number(static_cast<double>(row.width));
+                j["tokens"] = util::json_array(json_string_array(row.tokens));
+                rows.push_back(util::json_object(std::move(j)));
+            }
+            channels[klass] = util::json_array(std::move(rows));
+        }
+        root["channels"] = util::json_object(std::move(channels));
+        return root;
+    }());
+    obj["mx2lm_pattern_container"] = util::json_object([&]() {
+        util::JsonObject root;
+        root["@type"] = util::json_string("mx2lm.pattern_container.v1");
+        root["key"] = util::json_string(pattern_container.key);
+        root["namespace"] = util::json_string(pattern_container.namespace_id);
+        root["authority"] = util::json_string(pattern_container.authority);
+        root["phase"] = util::json_string(pattern_container.phase);
+        root["event_count"] = util::json_number(static_cast<double>(pattern_container.events.size()));
+
+        util::JsonArray events;
+        for (const auto& event : pattern_container.events) {
+            util::JsonObject row;
+            row["source_track"] = util::json_string(event.source_track);
+            row["source_phase"] = util::json_string(event.source_phase);
+            row["target_namespace"] = util::json_string(event.target_namespace);
+            row["surface"] = util::json_string(event.surface);
+            row["roles"] = util::json_array(json_string_array(event.roles));
+            row["gram_container"] = util::json_string(event.gram_container_key);
+            row["outcome_kind"] = util::json_string(event.outcome_kind);
+            row["outcome_status"] = util::json_string(event.outcome_status);
+            row["accepted"] = util::json_bool(event.accepted);
+            if (!event.card.empty())
+                row["card"] = util::json_string(event.card);
+            events.push_back(util::json_object(std::move(row)));
+        }
+        root["events"] = util::json_array(std::move(events));
+        return root;
+    }());
+    obj["vector_projection_container"] = util::json_object([&]() {
+        util::JsonObject root;
+        root["@type"] = util::json_string("vector.projection_container.v1");
+        root["key"] = util::json_string(vector_projection_container.key);
+        root["namespace"] = util::json_string(vector_projection_container.namespace_id);
+        root["authority"] = util::json_string(vector_projection_container.authority);
+        root["phase"] = util::json_string(vector_projection_container.phase);
+        root["source_semantic_container"] =
+            util::json_string(vector_projection_container.source_semantic_container);
+        root["projection_id"] =
+            util::json_string(vector_projection_container.projection_id);
+        root["generation"] =
+            util::json_number(static_cast<double>(vector_projection_container.generation));
+        root["learner_version"] =
+            util::json_string(vector_projection_container.learner_version);
+        root["topology_version"] =
+            util::json_string(vector_projection_container.topology_version);
+        root["relation_model"] =
+            util::json_string(vector_projection_container.relation_model);
+        root["alignment"] =
+            util::json_string(vector_projection_container.alignment);
+        root["similarity_scope"] =
+            util::json_string(vector_projection_container.similarity_scope);
+        root["dimensions"] =
+            util::json_number(static_cast<double>(vector_projection_container.dimensions));
+        root["projection_count"] =
+            util::json_number(static_cast<double>(vector_projection_container.projections.size()));
+        root["semantic_authority"] = util::json_bool(false);
+        root["responsibility"] =
+            util::json_string("derived_geometry_projection_only");
+
+        util::JsonArray projections;
+        for (const auto& p : vector_projection_container.projections) {
+            util::JsonObject row;
+            row["key"] = util::json_string(p.key);
+            row["source_key"] = util::json_string(p.source_key);
+            row["source_track"] = util::json_string(p.source_track);
+            row["source_phase"] = util::json_string(p.source_phase);
+            row["projection_track"] = util::json_string(p.projection_track);
+            row["basis"] = util::json_string(p.basis);
+            row["x"] = util::json_number(static_cast<double>(p.x));
+            row["y"] = util::json_number(static_cast<double>(p.y));
+            row["z"] = util::json_number(static_cast<double>(p.z));
+            row["norm"] = util::json_number(static_cast<double>(p.norm));
+            row["semantic_authority"] = util::json_bool(p.semantic_authority);
+            projections.push_back(util::json_object(std::move(row)));
+        }
+        root["projections"] = util::json_array(std::move(projections));
+        return root;
     }());
 
     util::JsonArray control_arr;
@@ -7158,6 +8052,8 @@ static ArgParseStatus parse_args(
 }
 
 int main(int argc, char* argv[]) {
+    // Unbuffer stdout so startup diagnostics are visible even when piped.
+    setvbuf(stdout, nullptr, _IONBF, 0);
     AppConfig cfg;
     std::string parse_err;
     const auto parse_status = parse_args(argc, argv, cfg, parse_err);
@@ -7235,6 +8131,7 @@ int main(int argc, char* argv[]) {
     gpu::HotSwapManager hot_swap;
     gpu::DMLOps dml_ops(device);
     dml_ops.init();
+    gpu::UnifiedTensorRegistry unified_tensors;
     gpu::SvgComputeRuntime svg_compute(device);
     const bool svg_compute_ready =
         svg_compute.init(cfg.data_dir + "/shaders/svg_compute.hlsl");
@@ -7263,6 +8160,11 @@ int main(int argc, char* argv[]) {
     kuhul::PhaseDriverLock phase_driver_lock;
 
     {
+        std::string runtime_schema_err;
+        if (!validate_runtime_schema_stack(cfg.data_dir, &runtime_schema_err)) {
+            std::cerr << "ERROR: runtime schema stack gate failed: " << runtime_schema_err << "\n";
+            return 1;
+        }
         const std::string fold_runtime_path = cfg.data_dir + "/schema/fold.runtime.json";
         const std::string runtime_meta_path = cfg.data_dir + "/schema/kuhul.fold-runtime.json";
         std::string lock_err;
@@ -7272,7 +8174,7 @@ int main(int argc, char* argv[]) {
         }
         vm.set_phase_driver_lock(&phase_driver_lock);
         if (phase_driver_lock.enabled())
-            std::cout << "  PhaseDLL: " << phase_driver_lock.summary() << "\n";
+            std::cout << "  PhaseDriver: " << phase_driver_lock.summary() << "\n";
     }
 
     // ── Micronaut Registry ────────────────────────────────────────────────
@@ -7917,6 +8819,8 @@ int main(int argc, char* argv[]) {
             std::cout << "  KeyGrammar: " << summary.relations_file << "\n";
             if (!summary.aiml_ebnf_file.empty())
                 std::cout << "  KeyGrammar: " << summary.aiml_ebnf_file << "\n";
+            if (!summary.scfml_ebnf_file.empty())
+                std::cout << "  KeyGrammar: " << summary.scfml_ebnf_file << "\n";
             if (!summary.key_grammar_ebnf_file.empty())
                 std::cout << "  KeyGrammar: " << summary.key_grammar_ebnf_file << "\n";
         }
@@ -7989,6 +8893,58 @@ int main(int argc, char* argv[]) {
                   << (projected ? " [svg_compute]" : " [cpu_projection]") << "\n";
         if (!gml_paths.empty())
             std::cout << "  GML:     " << gml_paths.size() << " graph(s) overlaid\n";
+    }
+
+    // ── Vector Projection Container — generation 1 (GML topology geometry) ──
+    if (!gml_paths.empty()) {
+        micronaut::Mx2LmVectorProjectionContainer vpc;
+        vpc.generation       = 1;
+        vpc.projection_id    = "vector:projection:gml-topology:v1:g1";
+        vpc.learner_version  = "static.gml_coordinate_geometry.v1";
+        vpc.topology_version = "gml_topology_corpus.v1";
+
+        world::load_gml_topology_vectors(gml_paths, vpc);
+
+        auto vpc_world_dir = cfg.data_dir + "/world";
+        std::ofstream vpc_f(vpc_world_dir + "/vector_projection.json");
+        if (vpc_f) {
+            util::JsonObject root;
+            root["@type"]            = util::json_string("vector.projection_container.v1");
+            root["key"]              = util::json_string(vpc.key);
+            root["generation"]       = util::json_number(static_cast<double>(vpc.generation));
+            root["dimensions"]       = util::json_number(static_cast<double>(vpc.dimensions));
+            root["projection_id"]    = util::json_string(vpc.projection_id);
+            root["learner_version"]  = util::json_string(vpc.learner_version);
+            root["topology_version"] = util::json_string(vpc.topology_version);
+            root["semantic_authority"] = util::json_bool(false);
+
+            util::JsonArray arr;
+            for (const auto& p : vpc.projections) {
+                const float fw = p.norm;
+                const float rw = (fw > 1e-6f)
+                    ? std::sqrt(p.x*p.x + p.y*p.y) / fw : 0.0f;
+                const float pw = (fw > 1e-6f)
+                    ? 0.5f + 0.5f * (p.z / fw) : 0.5f;
+                util::JsonObject row;
+                row["key"]              = util::json_string(p.key);
+                row["source_track"]     = util::json_string(p.source_track);
+                row["basis"]            = util::json_string(p.basis);
+                row["x"]               = util::json_number(static_cast<double>(p.x));
+                row["y"]               = util::json_number(static_cast<double>(p.y));
+                row["z"]               = util::json_number(static_cast<double>(p.z));
+                row["fold_weight"]     = util::json_number(static_cast<double>(fw));
+                row["relation_weight"] = util::json_number(static_cast<double>(rw));
+                row["phase_weight"]    = util::json_number(static_cast<double>(pw));
+                arr.push_back(util::json_object(std::move(row)));
+            }
+            root["projections"] = util::json_array(std::move(arr));
+
+            vpc_f << util::stringify(util::json_object(std::move(root)), true);
+        }
+
+        std::cout << "  VPC:     " << vpc.projections.size()
+                  << " vectors loaded (gen " << vpc.generation << ") -> "
+                  << vpc_world_dir << "/vector_projection.json\n";
     }
 
     // ── Memory Stores ─────────────────────────────────────────────────────
@@ -8107,6 +9063,12 @@ int main(int argc, char* argv[]) {
                xcfe.authorize_phase_transition(kuhul::Phase::Yax, req.phase, context);
     });
 
+    // DECISION-µ: typed action selection under explicit epistemic uncertainty.
+    // The handler may collapse an action choice, but never the underlying UNKNOWN facts.
+    router.register_handler("DECISION-µ", [](const std::string&, const io::RouteRequest& req) -> util::JsonPtr {
+        return decision::evaluate_request(req.query, req.payload.get());
+    });
+
     // TOOL-µ: Governor advisory → concrete dispatch action
     router.register_handler("TOOL-µ", [&](const std::string&, const io::RouteRequest& req) -> util::JsonPtr {
         const auto& adv = req.query;
@@ -8200,6 +9162,7 @@ int main(int argc, char* argv[]) {
         obj["compositional_phrase_score"] = util::json_number(result.compositional_phrase_score);
         obj["coarse_ngram_score"] = util::json_number(result.coarse_ngram_score);
         obj["tool_gram_score"] = util::json_number(result.tool_gram_score);
+        obj["miss_dispatch_score"] = util::json_number(result.miss_dispatch_score);
         obj["semantic_score"]= util::json_number(result.semantic_score);
         obj["score_policy"]  = util::json_string(io::ROUTE_SCORE_POLICY);
         obj["required_capabilities"] = util::json_array(json_string_array(result.required_capabilities));
@@ -8429,6 +9392,73 @@ int main(int argc, char* argv[]) {
             plog["pdf_pending"] = util::json_number(static_cast<double>(prompt_archive.file_pdf_pending_count));
             jrom.log("prompt_archive", util::stringify(util::json_object(std::move(plog))));
         }
+        const std::string prompt_event_key = record_key_grammar_memory_event(
+            "prompt",
+            "key_query",
+            "USER-µ",
+            "Pop",
+            prompt_archive.prompt_key,
+            "",
+            *query,
+            "",
+            "UNKNOWN",
+            false,
+            &factory,
+            &vm.gram_store(),
+            &jrom);
+
+        auto finalize_key_query_event = [&](util::JsonPtr out,
+                                            const std::string& kind_hint,
+                                            const std::string& track_hint,
+                                            const std::string& phase_hint) -> util::JsonPtr {
+            if (!out || out->is_null() || !out->is_object()) return out;
+            const std::string event_kind =
+                kind_hint.empty() ? infer_memory_event_kind_from_payload(out) : normalize_memory_event_kind(kind_hint);
+
+            std::string track = track_hint;
+            if (track.empty()) {
+                track = out->get_string("governing_track").value_or("");
+                if (track.empty()) track = out->get_string("delegate_track").value_or("");
+            }
+            if (track.empty())
+                track = event_kind == "plan" ? "PLAN-µ" : "Mx2LM";
+
+            std::string phase = phase_hint;
+            if (phase.empty())
+                phase = out->get_string("response_phase").value_or("");
+
+            std::string source = out->get_string("source").value_or("key_query");
+            if (source.empty()) source = "key_query";
+
+            const std::string epistemic_state = infer_memory_event_epistemic_state(out, event_kind);
+            bool observation_authority = out->get_bool("observation_authority").value_or(false);
+            if (!observation_authority &&
+                epistemic_state == "SUPPORTED" &&
+                out->get_string("source").value_or("") == "key_store")
+                observation_authority = true;
+
+            const std::string event_key = record_key_grammar_memory_event(
+                event_kind,
+                source,
+                track,
+                phase,
+                prompt_archive.prompt_key,
+                prompt_event_key,
+                memory_event_content_from_payload(out),
+                util::stringify(out),
+                epistemic_state,
+                observation_authority,
+                &factory,
+                &vm.gram_store(),
+                &jrom);
+            attach_memory_event_metadata(
+                out,
+                event_key,
+                event_kind,
+                prompt_event_key,
+                prompt_archive.prompt_key);
+            return out;
+        };
 
         std::string fold_parse_payload;
         const bool fold_parse_prefixed =
@@ -8450,7 +9480,7 @@ int main(int argc, char* argv[]) {
                 false,
                 "fold_graph_parse_requested",
                 "Wo.fold_graph_parse");
-            return payload;
+            return finalize_key_query_event(payload, "", "FGP-µ", "Wo");
         }
 
         std::string synonymize_payload;
@@ -8474,7 +9504,7 @@ int main(int argc, char* argv[]) {
                 false,
                 "lexical_equivalence_requested",
                 "Wo.synonymize");
-            return payload;
+            return finalize_key_query_event(payload, "", "Mx2LM", "Wo");
         }
 
         std::string lexicon_payload;
@@ -8537,7 +9567,8 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
-            return util::json_object(std::move(obj));
+            return finalize_key_query_event(
+                util::json_object(std::move(obj)), "", "Mx2LM", "Pop");
         }
 
         std::string user_manifest_payload;
@@ -8579,7 +9610,8 @@ int main(int argc, char* argv[]) {
 
             obj["count"] = util::json_number(static_cast<double>(rows.size()));
             obj["rows"] = util::json_array(std::move(rows));
-            return util::json_object(std::move(obj));
+            return finalize_key_query_event(
+                util::json_object(std::move(obj)), "", "USER-µ", "Pop");
         }
 
         if (qlow_cmd.rfind("memory:", 0) == 0 || qlow_cmd.rfind("@memory", 0) == 0) {
@@ -8634,7 +9666,8 @@ int main(int argc, char* argv[]) {
                 jrom.log("memory_append", util::stringify(util::json_object(std::move(mlog))));
             }
 
-            return util::json_object(std::move(obj));
+            return finalize_key_query_event(
+                util::json_object(std::move(obj)), "", "MEMORY-µ", "Ch'en");
         }
 
         auto update_last_topic = [&](const TopicConfidenceUpdate& tc) {
@@ -8730,7 +9763,7 @@ int main(int argc, char* argv[]) {
                 "Pop.research_dispatch");
             attach_topic_confidence(out, tc);
             attach_micronaut_confidence(out, mc);
-            return out;
+            return finalize_key_query_event(out, "plan", "WEB-RESEARCH-µ", "Pop");
         }
 
         // ── Explicit popular AI intent keys ───────────────────────────────
@@ -8764,7 +9797,7 @@ int main(int argc, char* argv[]) {
             ilog["intent_key"] = util::json_string(intent->get_string("intent_key").value_or(""));
             ilog["op"] = util::json_string(intent->get_string("op").value_or(""));
             jrom.log("popular_intent_plan", util::stringify(util::json_object(std::move(ilog))));
-            return intent;
+            return finalize_key_query_event(intent, "plan", delegate_track, "Wo");
         }
 
         // ── Explicit common tool-call keys ────────────────────────────────
@@ -8798,7 +9831,7 @@ int main(int argc, char* argv[]) {
             tlog["call_count"] = util::json_number(
                 tool_plan->get_number("call_count").value_or(0.0));
             jrom.log("common_tool_call_plan", util::stringify(util::json_object(std::move(tlog))));
-            return tool_plan;
+            return finalize_key_query_event(tool_plan, "plan", delegate_track, "Wo");
         }
 
         if (auto utility = utility_runtime_payload(*query, &factory, &vm.gram_store()); utility && !utility->is_null()) {
@@ -8829,7 +9862,7 @@ int main(int argc, char* argv[]) {
             ulog["status"] = util::json_string(utility->get_string("status").value_or(""));
             ulog["op"] = util::json_string(utility->get_string("op").value_or(""));
             jrom.log("utility_intent", util::stringify(util::json_object(std::move(ulog))));
-            return utility;
+            return finalize_key_query_event(utility, "", delegate_track, "Pop");
         }
 
         std::string app_type;
@@ -8860,7 +9893,7 @@ int main(int argc, char* argv[]) {
                      "{\"source\":\"app-wizard\",\"app_type\":\"" + (app_type.empty() ? std::string("unknown") : app_type) +
                      "\",\"ops\":[\"compose\",\"scaffold\",\"emit\",\"publish\",\"blueprint\",\"template\",\"policy\"]" +
                      ",\"known\":" + std::string(used_existing_type ? "true" : "false") + "}");
-            return app;
+            return finalize_key_query_event(app, "plan", "APP-WIZARD-µ", "Wo");
         }
 
         if (auto mx = mx2lm_ngram_payload(
@@ -8892,7 +9925,7 @@ int main(int argc, char* argv[]) {
                 jrom.log("check_provenance_weights",
                          "{\"confidence_keys\":" + std::to_string(tc.relation_updates) +
                          ",\"rel_delta\":" + std::to_string(tc.relation_delta) + "}");
-            return mx;
+            return finalize_key_query_event(mx, "", "Mx2LM", "Ch'en");
         }
 
         const bool question_like_after_mx2lm = is_question_like_text(*query);
@@ -8918,7 +9951,7 @@ int main(int argc, char* argv[]) {
                 update_last_topic(tc);
                 update_last_micronaut(branch_default);
                 log_micronaut_feedback(mc);
-                return out;
+                return finalize_key_query_event(out, "model_response", branch_default, "Ch'en");
             }
 
             auto aiml_hit = aiml.match(*query);
@@ -8950,7 +9983,7 @@ int main(int argc, char* argv[]) {
                         jrom.log("check_provenance_weights",
                                  "{\"confidence_keys\":" + std::to_string(tc.relation_updates) +
                                  ",\"rel_delta\":" + std::to_string(tc.relation_delta) + "}");
-                    return mx;
+                    return finalize_key_query_event(mx, "", "Mx2LM", "Ch'en");
                 }
 
                 auto tc = apply_topic_feedback(confidence, *query, resolved_hint(aiml_hit), verified);
@@ -8977,7 +10010,7 @@ int main(int argc, char* argv[]) {
                 update_last_topic(tc);
                 update_last_micronaut(branch_default);
                 log_micronaut_feedback(mc);
-                return out;
+                return finalize_key_query_event(out, "model_response", branch_default, "Wo");
             }
         }
 
@@ -9044,6 +10077,7 @@ int main(int argc, char* argv[]) {
             route_hint["compositional_phrase_score"] = util::json_number(miss_route.compositional_phrase_score);
             route_hint["coarse_ngram_score"] = util::json_number(miss_route.coarse_ngram_score);
             route_hint["tool_gram_score"] = util::json_number(miss_route.tool_gram_score);
+            route_hint["miss_dispatch_score"] = util::json_number(miss_route.miss_dispatch_score);
             route_hint["semantic_score"] = util::json_number(miss_route.semantic_score);
             route_hint["score_policy"] = util::json_string(io::ROUTE_SCORE_POLICY);
             route_hint["required_capabilities"] = util::json_array(
@@ -9455,6 +10489,7 @@ int main(int argc, char* argv[]) {
             miss_log["compositional_phrase_score"] = util::json_number((double)miss_route.compositional_phrase_score);
             miss_log["coarse_ngram_score"] = util::json_number((double)miss_route.coarse_ngram_score);
             miss_log["tool_gram_score"] = util::json_number((double)miss_route.tool_gram_score);
+            miss_log["miss_dispatch_score"] = util::json_number((double)miss_route.miss_dispatch_score);
             miss_log["semantic_score"] = util::json_number((double)miss_route.semantic_score);
             miss_log["runtime_attention_formula"] = util::json_string("A(v)=R*U*D*P");
             miss_log["runtime_attention_score"] = util::json_number(runtime_attention_score);
@@ -9543,7 +10578,11 @@ int main(int argc, char* argv[]) {
         update_last_topic(tc);
         update_last_micronaut(active_micronaut);
         log_micronaut_feedback(mc);
-        return out;
+        return finalize_key_query_event(
+            out,
+            research_dispatch ? "plan" : "model_response",
+            active_micronaut,
+            research_dispatch ? "Ch'en" : "Pop");
     });
 
     // list_keys: enumerate registered agent keys
@@ -9669,6 +10708,542 @@ int main(int argc, char* argv[]) {
         return result.response ? result.response : util::json_null();
     });
 
+    // Runtime projection of micronaut route contracts into key-grammar rows.
+    // This mirrors tools/grammar/mini_transpilers.py micronaut-transpile without
+    // writing artifacts or mutating registry state.
+    rpc_server.register_method("micronaut_transpile", [&](const util::JsonPtr& p) {
+        util::JsonObject out;
+        out["@kind"] = util::json_string("khanary.micronaut_transpile.v1");
+        out["authority_boundary"] = util::json_string(
+            "route_contract_declares_callable_surface_not_fact");
+        if (p && p->is_object()) {
+            if (auto id = p->get_string("id")) {
+                const auto* entry = mu_reg.get(*id);
+                if (!entry) return util::json_null();
+                out["rows"] = util::json_array({micronaut::MicronautTranspiler::compile_entry(*entry)});
+                out["count"] = util::json_number(1.0);
+                return util::json_object(std::move(out));
+            }
+        }
+        const bool include_inactive = p && p->get_bool("include_inactive").value_or(false);
+        auto rows = micronaut::MicronautTranspiler::compile_registry(
+            mu_reg, micronaut::MicronautTranspileOptions{include_inactive});
+        out["count"] = util::json_number(static_cast<double>(rows.size()));
+        out["rows"] = util::json_array(std::move(rows));
+        return util::json_object(std::move(out));
+    });
+
+    // JROM semantic-envelope audit lane. JROM remains the tape/provenance
+    // journal: it records routed observations and proposals; it does not grant
+    // semantic authority, execute SQL, or commit state.
+    rpc_server.register_method("journal_semantic_envelope", [&](const util::JsonPtr& p) {
+        if (!p || !p->is_object()) return util::json_null();
+        static const std::unordered_set<std::string> kEnvelopeTypes = {
+            "think", "reason", "plan", "task", "commands", "sql",
+            "grammar", "route", "decision", "memory", "verify", "commit"
+        };
+        static const std::unordered_set<std::string> kEpistemicTypes = {
+            "observation", "preference", "plan", "generated_output",
+            "verified_fact", "failed_retrieval", "capability_metric",
+            "execution_trace"
+        };
+        const std::string type = p->get_string("type").value_or("unknown");
+        const std::string safe_type = kEnvelopeTypes.count(type) ? type : "unknown";
+        const std::string epistemic_type = p->get_string("epistemic_type").value_or("generated_output");
+        const std::string safe_epistemic_type =
+            kEpistemicTypes.count(epistemic_type) ? epistemic_type : "generated_output";
+        const std::string disposition = p->get_string("disposition").value_or("proposal_only");
+        const std::string status = p->get_string("status").value_or("observed");
+        const std::string content_json = p->get("content")
+            ? util::stringify(*p->get("content")) : "null";
+        const std::string result_json = p->get("result")
+            ? util::stringify(*p->get("result")) : "null";
+
+        util::JsonObject event;
+        event["@kind"] = util::json_string("khanary.semantic_envelope.v1");
+        event["envelope_type"] = util::json_string(safe_type);
+        event["epistemic_type"] = util::json_string(safe_epistemic_type);
+        event["disposition"] = util::json_string(disposition);
+        event["status"] = util::json_string(status);
+        event["content_json"] = util::json_string(content_json);
+        event["result_json"] = util::json_string(result_json);
+        event["fact_authority"] = util::json_bool(false);
+        event["observation_authority"] = util::json_bool(false);
+        event["authority_boundary"] = util::json_string(
+            "jrom_records_routed_observation_not_semantic_authority");
+        const auto seq = jrom.log("semantic_envelope",
+                                  util::stringify(util::json_object(std::move(event))),
+                                  safe_epistemic_type);
+
+        util::JsonObject out;
+        out["ok"] = util::json_bool(true);
+        out["jrom_seq"] = util::json_number(static_cast<double>(seq));
+        out["event_type"] = util::json_string("semantic_envelope");
+        return util::json_object(std::move(out));
+    });
+
+    // Hyperbolic key-grammar event journal. This records a future-directed
+    // candidate continuation address (origin/direction/rapidity/interval) as
+    // replay evidence. It is never a verified fact or topology commit.
+    rpc_server.register_method("journal_hyperbolic_event", [&](const util::JsonPtr& p) {
+        util::JsonObject out;
+        out["@kind"] = util::json_string("khanary.hyperbolic_event.response.v1");
+        if (!p || !p->is_object()) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("missing hyperbolic event spec");
+            return util::json_object(std::move(out));
+        }
+
+        const util::JsonValue* spec = p.get();
+        if (const auto* nested = p->get("hyperbolic_event"))
+            if (nested->is_object()) spec = nested;
+        if (const auto* record = p->get("event_record"))
+            if (record->is_object()) spec = record;
+        const util::JsonValue* metrics = spec->get("hyperbolic_metrics");
+        const util::JsonValue* bounds = spec->get("bounds");
+
+        const auto get_string = [&](const char* key) -> std::optional<std::string> {
+            return spec->get_string(key);
+        };
+        const auto get_number = [&](const char* key) -> std::optional<double> {
+            return spec->get_number(key);
+        };
+
+        const auto key = get_string("key").value_or("");
+        const auto origin = get_string("origin").value_or("");
+        if (key.empty() || origin.empty()) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("key and origin are required");
+            return util::json_object(std::move(out));
+        }
+        const auto semantic_authority = spec->get_bool("semantic_authority");
+        const auto bounds_authority = bounds ? bounds->get_bool("semantic_authority") : std::optional<bool>{};
+        if (!semantic_authority || *semantic_authority ||
+            spec->get_bool("fact_authority").value_or(false) ||
+            (bounds && (!bounds_authority || *bounds_authority))) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("hyperbolic events cannot claim semantic or fact authority");
+            return util::json_object(std::move(out));
+        }
+
+        double rapidity = get_number("rapidity").value_or(0.0);
+        if (metrics) {
+            if (auto nested_rapidity = metrics->get_number("rapidity_rho"))
+                rapidity = *nested_rapidity;
+        }
+        if (!std::isfinite(rapidity) || rapidity < 0.0) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("rapidity must be a nonnegative finite number");
+            return util::json_object(std::move(out));
+        }
+
+        util::JsonArray direction_json;
+        bool has_direction = false;
+        const util::JsonValue* direction = spec->get("direction");
+        if (!direction && metrics) direction = metrics->get("direction_vector");
+        if (direction) {
+            if (!direction->is_array() || direction->as_array().size() != 3) {
+                out["ok"] = util::json_bool(false);
+                out["error"] = util::json_string("direction must be [x,y,z]");
+                return util::json_object(std::move(out));
+            }
+            double norm_sq = 0.0;
+            for (const auto& component : direction->as_array()) {
+                if (!component || !component->is_number() || !std::isfinite(component->as_number())) {
+                    out["ok"] = util::json_bool(false);
+                    out["error"] = util::json_string("direction components must be finite numbers");
+                    return util::json_object(std::move(out));
+                }
+                const double v = component->as_number();
+                norm_sq += v * v;
+                direction_json.push_back(util::json_number(v));
+            }
+            if (norm_sq <= 1e-12) {
+                out["ok"] = util::json_bool(false);
+                out["error"] = util::json_string("direction must be nonzero");
+                return util::json_object(std::move(out));
+            }
+            has_direction = true;
+        }
+
+        static const std::unordered_set<std::string> kIntervalClasses = {
+            "timelike_candidate", "spacelike_candidate", "lightlike_boundary", "unclassified"
+        };
+        std::string interval_class = get_string("interval_class").value_or("unclassified");
+        if (bounds) {
+            if (auto nested_interval = bounds->get_string("interval_class"))
+                interval_class = *nested_interval;
+        }
+        if (!kIntervalClasses.count(interval_class)) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("invalid interval_class");
+            return util::json_object(std::move(out));
+        }
+        const auto expected_interval_class = [](double interval) -> std::string {
+            if (interval < -1e-9) return "timelike_candidate";
+            if (interval > 1e-9) return "spacelike_candidate";
+            return "lightlike_boundary";
+        };
+
+        std::string epistemic_state_raw = get_string("epistemic_state").value_or("UNKNOWN");
+        if (bounds) {
+            if (auto nested_state = bounds->get_string("epistemic_state"))
+                epistemic_state_raw = *nested_state;
+        }
+        const std::string epistemic_state = normalize_epistemic_state(epistemic_state_raw);
+        std::optional<double> minkowski_interval = get_number("minkowski_interval");
+        if (!minkowski_interval && metrics)
+            minkowski_interval = metrics->get_number("minkowski_interval");
+        if (minkowski_interval && !std::isfinite(*minkowski_interval)) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("minkowski_interval must be finite");
+            return util::json_object(std::move(out));
+        }
+        if (minkowski_interval && interval_class != "unclassified" &&
+            expected_interval_class(*minkowski_interval) != interval_class) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("interval_class does not match minkowski_interval sign");
+            return util::json_object(std::move(out));
+        }
+
+        util::JsonObject event;
+        event["@kind"] = util::json_string("key_grammar.hyperbolic_event.v1");
+        event["@type"] = util::json_string("key_grammar.hyperbolic_event.v1");
+        event["key"] = util::json_string(key);
+        event["origin"] = util::json_string(origin);
+        event["track"] = util::json_string(get_string("track").value_or(""));
+        event["phase"] = util::json_string(get_string("phase").value_or(""));
+        event["event_role"] = util::json_string(get_string("event_role").value_or("candidate_continuation"));
+        event["rapidity"] = util::json_number(rapidity);
+        if (has_direction)
+            event["direction"] = util::json_array(std::move(direction_json));
+        if (minkowski_interval)
+            event["minkowski_interval"] = util::json_number(*minkowski_interval);
+        event["interval_class"] = util::json_string(interval_class);
+        event["epistemic_state"] = util::json_string(epistemic_state);
+        event["semantic_authority"] = util::json_bool(false);
+        event["fact_authority"] = util::json_bool(false);
+        event["authority_boundary"] = util::json_string(
+            "hyperbolic_event_is_candidate_not_fact");
+
+        const auto seq = jrom.log("hyperbolic_event",
+                                  util::stringify(util::json_object(std::move(event))),
+                                  "observation");
+        out["ok"] = util::json_bool(true);
+        out["jrom_seq"] = util::json_number(static_cast<double>(seq));
+        out["event_type"] = util::json_string("hyperbolic_event");
+        out["epistemic_type"] = util::json_string("observation");
+        out["epistemic_state"] = util::json_string(epistemic_state);
+        return util::json_object(std::move(out));
+    });
+
+    // Unified tensor registry: logical tensor metadata above TensorBuffer/DMLOps.
+    // This is a KXC/executor surface; lifecycle labels are execution states only.
+    auto phase_to_tensor_lifecycle = [](const std::string& phase) -> std::string {
+        if (phase == "Pop" || phase == "POP") return "POP";
+        if (phase == "Ch'en" || phase == "CHEN") return "CHEN";
+        if (phase == "Xul" || phase == "XUL") return "XUL";
+        if (phase == "KNU") return "KNU";
+        // Wo/Yax/Sek are all executable materialization states here. This is
+        // not a semantic phase collapse; it is the UnifiedTensor lifecycle label.
+        return "SEK";
+    };
+
+    auto parse_tensor_shape_request = [](const util::JsonValue& value,
+                                         std::vector<uint32_t>* out) -> bool {
+        const auto* shape_node = value.get("shape");
+        if (!shape_node || !shape_node->is_array() || shape_node->as_array().empty())
+            return false;
+        std::vector<uint32_t> parsed;
+        parsed.reserve(shape_node->as_array().size());
+        for (const auto& dim : shape_node->as_array()) {
+            if (!dim || !dim->is_number()) return false;
+            const double raw = dim->as_number();
+            if (!std::isfinite(raw) || raw <= 0.0 || raw > 4294967295.0) return false;
+            parsed.push_back(static_cast<uint32_t>(raw));
+        }
+        *out = std::move(parsed);
+        return true;
+    };
+
+    rpc_server.register_method("tensor_register", [&](const util::JsonPtr& p) {
+        util::JsonObject out;
+        out["@kind"] = util::json_string("khanary.unified_tensor.register.v1");
+        if (!p || !p->is_object()) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("missing tensor spec");
+            return util::json_object(std::move(out));
+        }
+        auto tensor = gpu::UnifiedTensor::from_json(*p);
+        if (!tensor) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("invalid tensor spec");
+            return util::json_object(std::move(out));
+        }
+        const bool overwrite = p->get_bool("overwrite").value_or(false);
+        const std::string id = tensor->id();
+        if (!unified_tensors.register_tensor(std::move(*tensor), overwrite)) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("tensor exists or invalid");
+            out["id"] = util::json_string(id);
+            return util::json_object(std::move(out));
+        }
+        auto stored = unified_tensors.get(id);
+        stored->set_cso_id(stored->compute_cso_id());
+        out["ok"] = util::json_bool(true);
+        out["tensor"] = stored->to_json();
+        jrom.log("unified_tensor_register", util::stringify(*stored->to_json()));
+        return util::json_object(std::move(out));
+    });
+
+    rpc_server.register_method("tensor_slot_materialize", [&](const util::JsonPtr& p) {
+        util::JsonObject out;
+        out["@kind"] = util::json_string("khanary.unified_tensor.slot_materialize.v1");
+        if (!p || !p->is_object()) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("missing tensor slot materialization spec");
+            return util::json_object(std::move(out));
+        }
+
+        const auto requested_slot_id = p->get_string("slot_id");
+        const auto requested_micronaut_id = p->get_string("micronaut_id");
+        if (!requested_slot_id && !requested_micronaut_id) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("slot_id or micronaut_id is required");
+            return util::json_object(std::move(out));
+        }
+
+        std::vector<uint32_t> shape;
+        if (!parse_tensor_shape_request(*p, &shape)) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("shape is required for slot materialization");
+            return util::json_object(std::move(out));
+        }
+
+        const fs::path slot_registry_path =
+            fs::path(cfg.data_dir) / "world" / "micronaut_tensor_slots.json";
+        std::string registry_text;
+        std::string registry_err;
+        if (!read_text_file(slot_registry_path, &registry_text, &registry_err)) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("tensor slot registry unavailable: " + registry_err);
+            return util::json_object(std::move(out));
+        }
+
+        util::JsonPtr slot_registry;
+        try {
+            slot_registry = util::parse(registry_text);
+        } catch (const std::exception& exc) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string(std::string("tensor slot registry parse failed: ") + exc.what());
+            return util::json_object(std::move(out));
+        }
+
+        const util::JsonValue* matched_slot = nullptr;
+        if (slot_registry && slot_registry->is_object()) {
+            if (const auto* slots = slot_registry->get("slots");
+                slots && slots->is_array()) {
+                for (const auto& slot_ptr : slots->as_array()) {
+                    if (!slot_ptr || !slot_ptr->is_object()) continue;
+                    const auto sid = slot_ptr->get_string("slot_id");
+                    const auto mid = slot_ptr->get_string("micronaut_id");
+                    const bool slot_match =
+                        requested_slot_id && sid && *requested_slot_id == *sid;
+                    const bool micronaut_match =
+                        requested_micronaut_id && mid && *requested_micronaut_id == *mid;
+                    if (slot_match || micronaut_match) {
+                        matched_slot = slot_ptr.get();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!matched_slot) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("tensor slot not found");
+            if (requested_slot_id) out["slot_id"] = util::json_string(*requested_slot_id);
+            if (requested_micronaut_id) out["micronaut_id"] = util::json_string(*requested_micronaut_id);
+            return util::json_object(std::move(out));
+        }
+
+        const std::string slot_id = matched_slot->get_string("slot_id").value_or("");
+        const std::string micronaut_id = matched_slot->get_string("micronaut_id").value_or("");
+        const std::string phase = matched_slot->get_string("phase").value_or("Sek");
+        const std::string materialization = matched_slot->get_string("materialization").value_or("unknown");
+        if (slot_id.empty() || micronaut_id.empty()) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("matched tensor slot is malformed");
+            return util::json_object(std::move(out));
+        }
+
+        util::JsonArray shape_json;
+        for (uint32_t dim : shape)
+            shape_json.push_back(util::json_number(static_cast<double>(dim)));
+
+        const std::string tensor_id =
+            p->get_string("id").value_or("tensor:" + slot_id);
+        util::JsonObject spec;
+        spec["id"] = util::json_string(tensor_id);
+        spec["slot_id"] = util::json_string(slot_id);
+        spec["micronaut_id"] = util::json_string(micronaut_id);
+        spec["shape"] = util::json_array(std::move(shape_json));
+        spec["dtype"] = util::json_string(p->get_string("dtype").value_or("f32"));
+        spec["layout"] = util::json_string(p->get_string("layout").value_or("row_major"));
+        spec["device"] = util::json_string(p->get_string("device").value_or("cpu"));
+        spec["backend"] = util::json_string(p->get_string("backend").value_or("host"));
+        spec["lifecycle"] = util::json_string(
+            p->get_string("lifecycle").value_or(phase_to_tensor_lifecycle(phase)));
+        if (const auto* data = p->get("data")) {
+            if (!data->is_array()) {
+                out["ok"] = util::json_bool(false);
+                out["error"] = util::json_string("data must be an array when provided");
+                return util::json_object(std::move(out));
+            }
+            util::JsonArray copied_data;
+            copied_data.reserve(data->as_array().size());
+            for (const auto& item : data->as_array()) {
+                if (!item || !item->is_number() || !std::isfinite(item->as_number())) {
+                    out["ok"] = util::json_bool(false);
+                    out["error"] = util::json_string("data contains non-finite or non-number entry");
+                    return util::json_object(std::move(out));
+                }
+                copied_data.push_back(util::json_number(item->as_number()));
+            }
+            spec["data"] = util::json_array(std::move(copied_data));
+        }
+
+        auto tensor = gpu::UnifiedTensor::from_json(*util::json_object(std::move(spec)));
+        if (!tensor) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("slot-backed tensor spec is invalid");
+            return util::json_object(std::move(out));
+        }
+        const bool overwrite = p->get_bool("overwrite").value_or(false);
+        if (!unified_tensors.register_tensor(std::move(*tensor), overwrite)) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("slot-backed tensor exists or is invalid");
+            out["id"] = util::json_string(tensor_id);
+            return util::json_object(std::move(out));
+        }
+
+        auto stored = unified_tensors.get(tensor_id);
+        stored->set_cso_id(stored->compute_cso_id());
+
+        util::JsonObject slot_json;
+        slot_json["slot_id"] = util::json_string(slot_id);
+        slot_json["micronaut_id"] = util::json_string(micronaut_id);
+        slot_json["phase"] = util::json_string(phase);
+        slot_json["materialization"] = util::json_string(materialization);
+        slot_json["authority_boundary"] = util::json_string(
+            "slot_materialization_binds_tensor_runtime_state_not_semantic_truth");
+
+        out["ok"] = util::json_bool(true);
+        out["slot"] = util::json_object(slot_json);
+        out["tensor"] = stored->to_json();
+
+        util::JsonObject event;
+        event["slot_id"] = util::json_string(slot_id);
+        event["micronaut_id"] = util::json_string(micronaut_id);
+        event["tensor_id"] = util::json_string(tensor_id);
+        event["cso_id"] = util::json_string(stored->cso_id());
+        event["semantic_authority"] = util::json_bool(false);
+        event["authority_boundary"] = util::json_string(
+            "unified_tensor_slot_materialize_records_runtime_projection_only");
+        jrom.log("unified_tensor_slot_materialize",
+                 util::stringify(util::json_object(std::move(event))));
+        return util::json_object(std::move(out));
+    });
+
+    rpc_server.register_method("tensor_info", [&](const util::JsonPtr& p) {
+        const auto id = p ? p->get_string("id") : std::nullopt;
+        return id ? unified_tensors.info_json(*id) : util::json_null();
+    });
+
+    rpc_server.register_method("tensor_list", [&](const util::JsonPtr&) {
+        return unified_tensors.list_json();
+    });
+
+    rpc_server.register_method("tensor_stats", [&](const util::JsonPtr&) {
+        return unified_tensors.stats_json();
+    });
+
+    rpc_server.register_method("tensor_gemm", [&](const util::JsonPtr& p) {
+        util::JsonObject out;
+        out["@kind"] = util::json_string("khanary.unified_tensor.gemm.v1");
+        if (!p || !p->is_object()) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("missing gemm params");
+            return util::json_object(std::move(out));
+        }
+        const auto a_id = p->get_string("A");
+        const auto b_id = p->get_string("B");
+        const auto c_id = p->get_string("C");
+        if (!a_id || !b_id || !c_id) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("A, B, and C ids are required");
+            return util::json_object(std::move(out));
+        }
+        auto A = unified_tensors.get(*a_id);
+        auto B = unified_tensors.get(*b_id);
+        auto C = unified_tensors.get(*c_id);
+        if (!A || !B) {
+            out["ok"] = util::json_bool(false);
+            out["error"] = util::json_string("A or B tensor not registered");
+            return util::json_object(std::move(out));
+        }
+        if (!C) {
+            if (A->shape().size() != 2 || B->shape().size() != 2 ||
+                A->shape()[1] != B->shape()[0]) {
+                out["ok"] = util::json_bool(false);
+                out["error"] = util::json_string("A/B shapes are not GEMM-compatible");
+                return util::json_object(std::move(out));
+            }
+            gpu::UnifiedTensorDesc desc;
+            desc.id = *c_id;
+            desc.shape = {A->shape()[0], B->shape()[1]};
+            desc.dtype = gpu::TensorDType::F32;
+            desc.layout = gpu::TensorLayout::RowMajor;
+            gpu::UnifiedTensor tensor(std::move(desc));
+            if (!unified_tensors.register_tensor(std::move(tensor), true)) {
+                out["ok"] = util::json_bool(false);
+                out["error"] = util::json_string("failed to register C tensor");
+                return util::json_object(std::move(out));
+            }
+            C = unified_tensors.get(*c_id);
+        }
+        const float alpha = static_cast<float>(p->get_number("alpha").value_or(1.0));
+        const float beta = static_cast<float>(p->get_number("beta").value_or(0.0));
+        // Phase 1 keeps RPC GEMM host-deterministic by default. GPU residency is
+        // opt-in until the unified registry ↔ DMLOps bridge has a dedicated
+        // conformance lane for the target adapter.
+        const bool prefer_gpu = p->get_bool("prefer_gpu").value_or(false);
+        std::string backend;
+        const bool ok = gpu::gemm_f32_unified(
+            *A, *B, *C, alpha, beta,
+            (prefer_gpu && device.is_valid()) ? &device : nullptr,
+            (prefer_gpu && device.is_valid()) ? &dml_ops : nullptr,
+            &backend);
+        out["ok"] = util::json_bool(ok);
+        out["backend"] = util::json_string(backend);
+        out["A"] = util::json_string(*a_id);
+        out["B"] = util::json_string(*b_id);
+        out["C"] = util::json_string(*c_id);
+        if (ok) {
+            out["tensor"] = C->to_json();
+            util::JsonObject event;
+            event["A"] = util::json_string(*a_id);
+            event["B"] = util::json_string(*b_id);
+            event["C"] = util::json_string(*c_id);
+            event["backend"] = util::json_string(backend);
+            event["cso_id"] = util::json_string(C->cso_id());
+            jrom.log("unified_tensor_gemm", util::stringify(util::json_object(std::move(event))));
+        } else {
+            out["error"] = util::json_string("gemm execution failed");
+        }
+        return util::json_object(std::move(out));
+    });
+
     const bool gemma_learning_enabled = is_gemma_gguf_path(cfg.gguf_model);
     const std::string gemma_model_name =
         cfg.gguf_model.empty() ? std::string("gemma.gguf") : fs::path(cfg.gguf_model).filename().string();
@@ -9762,6 +11337,50 @@ int main(int argc, char* argv[]) {
             plog["pdf_pending"] = util::json_number(static_cast<double>(prompt_archive.file_pdf_pending_count));
             jrom.log("prompt_archive", util::stringify(util::json_object(std::move(plog))));
         }
+        const std::string infer_prompt_event_key = record_key_grammar_memory_event(
+            "prompt",
+            "infer",
+            "USER-µ",
+            "Pop",
+            prompt_archive.prompt_key,
+            "",
+            *prompt,
+            "",
+            "UNKNOWN",
+            false,
+            &factory,
+            &vm.gram_store(),
+            &jrom);
+
+        auto finalize_infer_event = [&](util::JsonObject obj,
+                                        const std::string& response_text,
+                                        bool response_ok,
+                                        const std::string& phase_hint) -> util::JsonPtr {
+            auto out = util::json_object(std::move(obj));
+            const std::string epistemic_state =
+                (response_ok && !response_text.empty()) ? "UNKNOWN" : "MISS";
+            const std::string event_key = record_key_grammar_memory_event(
+                "model_response",
+                "infer",
+                "Mx2LM",
+                phase_hint,
+                prompt_archive.prompt_key,
+                infer_prompt_event_key,
+                response_text,
+                util::stringify(out),
+                epistemic_state,
+                false,
+                &factory,
+                &vm.gram_store(),
+                &jrom);
+            attach_memory_event_metadata(
+                out,
+                event_key,
+                "model_response",
+                infer_prompt_event_key,
+                prompt_archive.prompt_key);
+            return out;
+        };
         // Optional max_tokens override; defaults to 8 for DDS path (full 256 is very slow)
         auto mt_opt = p ? p->get_number("max_tokens") : std::nullopt;
         uint32_t max_tok = mt_opt ? static_cast<uint32_t>(*mt_opt) : 8u;
@@ -9816,6 +11435,92 @@ int main(int argc, char* argv[]) {
             jrom.log("evolve_candidate", util::stringify(util::json_object(std::move(evolve_log))));
         };
 
+        util::JsonObject attention_obj;
+        bool attention_attempted = false;
+        auto run_semantic_attention = [&]() {
+            if (!engine) return;
+            auto candidates = inference::collect_prompt_attention_candidates(
+                vm.gram_store(), prompt_archive.prompt_key, 64);
+            if (candidates.empty()) return;
+
+            auto scores = engine->score_prompt_attention(
+                vm.gram_store(), candidates, 0.3f, 0.35f);
+            attention_attempted = true;
+
+            size_t admitted_count = 0;
+            util::JsonArray top;
+            const size_t top_count = std::min<size_t>(8, scores.size());
+            for (size_t i = 0; i < scores.size(); ++i)
+                if (scores[i].admitted) ++admitted_count;
+            for (size_t i = 0; i < top_count; ++i) {
+                util::JsonObject row;
+                row["key"] = util::json_string(scores[i].key);
+                row["semantic_score"] = util::json_number(scores[i].semantic_score);
+                row["base_score"] = util::json_number(scores[i].base_score);
+                row["admitted"] = util::json_bool(scores[i].admitted);
+                top.push_back(util::json_object(std::move(row)));
+            }
+
+            const auto* boost = engine->lorentz_transition();
+            attention_obj["candidate_count"] = util::json_number(static_cast<double>(candidates.size()));
+            attention_obj["gpu_ready"] = util::json_bool(engine->semantic_attention_ready());
+            attention_obj["dispatched"] = util::json_bool(!scores.empty());
+            attention_obj["admitted_count"] = util::json_number(static_cast<double>(admitted_count));
+            attention_obj["lorentz_enabled"] = util::json_bool(boost && boost->enabled);
+            attention_obj["top"] = util::json_array(std::move(top));
+            attention_obj["semantic_authority"] = util::json_bool(false);
+            attention_obj["responsibility"] = util::json_string("projection_only_attention_bias");
+            jrom.log("semantic_attention",
+                     util::stringify(util::json_object(attention_obj)),
+                     "observation");
+        };
+
+        auto apply_lorentz_transition = [&](const world::GyroResult& gr,
+                                            const std::string& source) {
+            if (!engine) return;
+            // Fold the 6D ABI residual into a deterministic 3D route normal:
+            // field/counterexample → x, evidence/verify → y, infer/commit → z.
+            std::array<float, 3> direction{
+                gr.abi_residual[static_cast<size_t>(world::AbiDim::Field)] +
+                    gr.abi_residual[static_cast<size_t>(world::AbiDim::Counterexample)],
+                gr.abi_residual[static_cast<size_t>(world::AbiDim::Evidence)] +
+                    gr.abi_residual[static_cast<size_t>(world::AbiDim::Verify)],
+                gr.abi_residual[static_cast<size_t>(world::AbiDim::Infer)] +
+                    gr.abi_residual[static_cast<size_t>(world::AbiDim::Xul)]
+            };
+            const float direction_norm2 =
+                direction[0] * direction[0] +
+                direction[1] * direction[1] +
+                direction[2] * direction[2];
+            const float rapidity = std::clamp(gr.r, 0.0f, 2.5f);
+            const float alignment_mix = gr.dynamically_stable ? 1.0f : 0.5f;
+            const float mass_scale = 1.0f;
+
+            if (rapidity <= 1e-6f || direction_norm2 <= 1e-12f) {
+                engine->clear_lorentz_transition();
+            } else {
+                engine->set_lorentz_transition(
+                    rapidity, direction, alignment_mix, mass_scale);
+            }
+
+            util::JsonObject log;
+            log["source"] = util::json_string(source);
+            log["rapidity"] = util::json_number(rapidity);
+            util::JsonArray dir;
+            for (float v : direction) dir.push_back(util::json_number(v));
+            log["direction"] = util::json_array(std::move(dir));
+            log["alignment_mix"] = util::json_number(alignment_mix);
+            log["mass_scale"] = util::json_number(mass_scale);
+            log["r"] = util::json_number(gr.r);
+            log["gamma"] = util::json_number(gr.gamma);
+            log["enabled"] = util::json_bool(
+                engine->lorentz_transition() && engine->lorentz_transition()->enabled);
+            log["semantic_authority"] = util::json_bool(false);
+            jrom.log("lorentz_transition",
+                     util::stringify(util::json_object(std::move(log))),
+                     "observation");
+        };
+
         // ── Projection: build JROM_projection before inference ────────────
         util::JsonObject gyro_obj;
         if (gyro_ready && proj_engine && gyroscope) {
@@ -9856,6 +11561,31 @@ int main(int argc, char* argv[]) {
                     ctx_prompt = "[Context]\n" + proj_ctx + "---\n" + *prompt;
             }
 
+            // ── Pre-dispatch frame estimate: projection vs current prompt ────
+            // This uses the live projection context to set the Lorentz frame
+            // before semantic-attention scoring.  It is projection geometry,
+            // not semantic authority.
+            const auto& gov = gyroscope->make_governs_sets();
+            auto proj_tokens = world::Gyroscope::tokenize(proj.text);
+            auto s_proj = world::Gyroscope::score_tokens(
+                proj_tokens,
+                gov,
+                &dictionary_lexicon.similarity_by_word,
+                0.65f);
+            auto s_prompt = world::Gyroscope::score_tokens(
+                prompt_toks,
+                gov,
+                &dictionary_lexicon.similarity_by_word,
+                0.65f);
+            const float pre_l_bar = engine->mean_token_latency_ms(32) / 1000.0f;
+            const float pre_sigma = engine->router().routing_variance(16);
+            world::GyroInputs pre_inputs{ .omega=1.0f,
+                                          .m_dds = pre_l_bar * (1.0f + pre_sigma),
+                                          .k     = 2.0f };
+            const auto pre_gr = gyroscope->observe(s_proj, s_prompt, pre_inputs);
+            apply_lorentz_transition(pre_gr, "projection_prompt_residual");
+            run_semantic_attention();
+
             // ── DDS inference conditioned on projection context ────────────
             auto result = engine->run(ctx_prompt, max_tok);
             if (!result.ok || result.text.empty()) {
@@ -9865,15 +11595,8 @@ int main(int argc, char* argv[]) {
                 jrom.log("verify_result", "{\"ok\":true}");
             }
 
-            // ── Score both texts with natural-language governs vocabulary ─
-            const auto& gov = gyroscope->make_governs_sets();
-            auto proj_tokens = world::Gyroscope::tokenize(proj.text);
+            // ── Score completion with natural-language governs vocabulary ──
             auto dds_tokens  = world::Gyroscope::tokenize(result.text);
-            auto s_proj = world::Gyroscope::score_tokens(
-                proj_tokens,
-                gov,
-                &dictionary_lexicon.similarity_by_word,
-                0.65f);
             auto s_dds = world::Gyroscope::score_tokens(
                 dds_tokens,
                 gov,
@@ -9887,6 +11610,7 @@ int main(int argc, char* argv[]) {
                                       .m_dds = l_bar * (1.0f + sigma),
                                       .k     = 2.0f };
             auto gr = gyroscope->observe(s_proj, s_dds, inputs);
+            apply_lorentz_transition(gr, "projection_completion_residual");
 
             // ── Log gyro_observe to JROM ──────────────────────────────────
             std::string gyro_json =
@@ -9976,12 +11700,17 @@ int main(int argc, char* argv[]) {
                 obj["tool"] = std::move(tool_result);
             attach_gemma_learning(obj, *prompt, result.text);
             obj["model_presence"] = make_model_presence();
+            if (attention_attempted)
+                obj["semantic_attention"] = util::json_object(std::move(attention_obj));
 
             last_infer_end_seq = jrom.last_seq() + 1;
-            return util::json_object(std::move(obj));
+            return finalize_infer_event(std::move(obj), result.text, result.ok, "Ch'en");
         }
 
-        // Gyroscope not available — plain inference path
+        // Gyroscope not available — plain inference path.  If a previous gyro
+        // pass installed a frame, semantic attention still dispatches through it;
+        // otherwise the scorer uses the disabled identity transition.
+        run_semantic_attention();
         auto result = engine->run(*prompt, max_tok);
         util::JsonObject obj;
         obj["ok"]   = util::json_bool(result.ok);
@@ -9994,7 +11723,37 @@ int main(int argc, char* argv[]) {
         obj["token_ids"] = util::json_array(std::move(toks));
         attach_gemma_learning(obj, *prompt, result.text);
         obj["model_presence"] = make_model_presence();
-        return util::json_object(std::move(obj));
+        if (attention_attempted)
+            obj["semantic_attention"] = util::json_object(std::move(attention_obj));
+        return finalize_infer_event(std::move(obj), result.text, result.ok, "Ch'en");
+    });
+
+    // dds_probe — minimal forward pass test that only requires dds_ready (no GGUF).
+    // Usage: {"prompt": "Hello", "max_tokens": 1}
+    rpc_server.register_method("dds_probe", [&](const util::JsonPtr& p) {
+        util::JsonObject res;
+        if (!dds_ready || !engine) {
+            res["ok"]    = util::json_bool(false);
+            res["error"] = util::json_string("DDS model not loaded — start with --dds-kson/--dds-manifest/--dds-shards");
+            return util::json_object(std::move(res));
+        }
+        auto prompt_str = p ? p->get_string("prompt") : std::nullopt;
+        if (!prompt_str) {
+            res["ok"]    = util::json_bool(false);
+            res["error"] = util::json_string("missing 'prompt' field");
+            return util::json_object(std::move(res));
+        }
+        uint32_t max_tok = 1;
+        if (p) { if (auto v = p->get_number("max_tokens")) max_tok = static_cast<uint32_t>(*v); }
+        auto ir = engine->run(*prompt_str, max_tok);
+        res["ok"]               = util::json_bool(ir.ok);
+        res["text"]             = util::json_string(ir.text);
+        if (!ir.error.empty())
+            res["error"]        = util::json_string(ir.error);
+        res["preload_resident"] = util::json_number(static_cast<double>(engine->dds_preload_resident_tensors()));
+        res["preload_total"]    = util::json_number(static_cast<double>(engine->dds_preload_total_tensors()));
+        res["resident_mib"]     = util::json_number(static_cast<double>(engine->dds_resident_bytes() / (1024ULL * 1024ULL)));
+        return util::json_object(std::move(res));
     });
 
     // Start servers

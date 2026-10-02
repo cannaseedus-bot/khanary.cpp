@@ -4,7 +4,9 @@
 #include "kv_cache.h"
 #include "sampler.h"
 #include "fold_map.h"
+#include "semantic_attention.h"
 #include "../gpu/dml_ops.h"
+#include "../gpu/gram_gpu_scorer.h"
 #include "../gpu/hot_swap.h"
 #include "../kuhul/phase_engine.h"
 #include <string>
@@ -14,6 +16,8 @@
 #include <memory>
 #include <mutex>
 #include <deque>
+#include <optional>
+#include <array>
 
 namespace khanary::inference {
 
@@ -78,6 +82,26 @@ public:
     void load_expert_weights(uint32_t expert_id, const float* data, size_t count);
     void clear_kv();
 
+    // Optional hyperbolic frame transition for future GramGpuScorer dispatch calls.
+    // This is projection geometry only; it does not alter semantic authority.
+    void set_lorentz_transition(float rapidity_rho,
+                                std::array<float, 3> direction,
+                                float alignment_mix = 1.0f,
+                                float mass_scale = 1.0f);
+    void clear_lorentz_transition();
+    const gpu::LorentzBoostRows* lorentz_transition() const;
+
+    // Score bounded prompt GramStore candidates on the semantic-attention GPU
+    // path.  The stored Lorentz transition is passed to the shader as a
+    // projection-only frame transform.  Returns empty when GPU compile/dispatch
+    // is unavailable.
+    std::vector<gpu::GramScoreResult> score_prompt_attention(
+        const kuhul::GramStore& store,
+        const std::vector<PromptAttentionCandidate>& candidates,
+        float admission_threshold = 0.3f,
+        float tensor_mix = 0.25f);
+    bool semantic_attention_ready() const;
+
 private:
     gpu::D3D11Device& dev_;
     InferenceConfig   cfg_;
@@ -88,6 +112,9 @@ private:
     gpu::DMLOps                        dml_;
     kuhul::PhaseEngine                 pe_;
     TokenCallback                      token_cb_;
+    std::optional<gpu::LorentzBoostRows> lorentz_transition_;
+    std::unique_ptr<gpu::GramGpuScorer> semantic_scorer_;
+    mutable std::mutex                  semantic_scorer_mtx_;
 
     // --- DDS model state ---
     std::unique_ptr<FoldMap>             fold_map_;

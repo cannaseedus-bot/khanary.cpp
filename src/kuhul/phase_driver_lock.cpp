@@ -169,7 +169,7 @@ bool PhaseDriverLock::load(const std::string& fold_runtime_path,
         row.verified = row.exists && row.hash_declared && row.hash_match;
 
         if (row.error.empty()) {
-            if (!row.exists) row.error = "missing DLL file";
+            if (!row.exists) row.error = "missing phase driver artifact";
             else if (!row.hash_declared) row.error = "hash missing or pending in runtime metadata";
             else if (!row.hash_match) row.error = "sha256 mismatch";
         }

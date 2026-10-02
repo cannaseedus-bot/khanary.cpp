@@ -1,9 +1,15 @@
 #pragma once
 #include "world_state.h"
+#include "tensor_substrate.h"
+#include "vector_projection.h"
 #include "../micronaut/micronaut_registry.h"
+#include "../gpu/d3d11_device.h"
+#include "../gpu/compute_dispatch.h"
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include <array>
+#include <cstdint>
 
 namespace khanary::world {
 
@@ -35,6 +41,16 @@ struct FieldNode {
     std::string vector_source = "world_position";
     bool        coordinator;
     std::vector<std::string> effects;
+    // field geometry — populated from GML overlay; defaults safe for non-GML nodes
+    float       local_entropy    = 0.0f;  // H(x): point-wise Shannon uncertainty
+    float       geodesic_entropy = 0.0f;  // H_G:  updated by geodesic_propagator dispatch
+    float       unruh_temp       = 0.0f;  // T:    holographic boundary temperature
+    float       divergence       = 0.0f;  // div V: negative = gravity well pull
+    float       circumradius_R   = 0.0f;  // R:    triangle circumcircle horizon
+    float       inradius_r       = 0.0f;  // r:    triangle incircle compression boundary
+    uint32_t    singularity_type = 0u;    // 0=ordinary 1=source 2=sink 3=saddle
+    std::string provider_id;             // from GML overlay; empty for non-GML nodes
+    std::string parameter_id;            // GML parameter_id if present
     // SVG-3D weight layer: intensity per AtomicDOMBlock (Perceive..Evolve)
     std::array<float, 7> block_intensities{};
     // Multi-phase presence declaration (tensors + pipeline stages)
@@ -56,6 +72,10 @@ struct FieldEdge {
     float       delta_theta;  // degrees
     bool        xcfe_required;
     bool        directed = true;  // false → horizontal relation (Δθ=0)
+    // field geometry — populated from GML overlay
+    float       length = 0.0f;              // L_e: metric interval distance
+    float       vx = 0.0f, vy = 0.0f, vz = 0.0f;           // tangent velocity
+    float       eh_x = 0.0f, eh_y = 0.0f, eh_z = 0.0f;     // entropy gradient
 };
 
 struct FieldSvgProjectionNode {
@@ -70,6 +90,20 @@ struct FieldSvgProjectionNode {
 struct FieldSvgProjection {
     std::vector<FieldSvgProjectionNode> nodes;
     bool gpu_projected = false;
+};
+
+// Result of a GPU geodesic propagator dispatch.
+struct PropagatorDispatchResult {
+    std::vector<float> geodesic_entropy; // per-node, indexed by nodes() order
+    bool gpu_ran = false;
+};
+
+struct HyperbolicAttentionGpuBuffer {
+    Microsoft::WRL::ComPtr<ID3D11Buffer> structured_buffer;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+    uint32_t record_count = 0;
+    uint32_t capacity_records = 0;
+    uint32_t stride_bytes = sizeof(HyperbolicAttentionRecord64);
 };
 
 // Builds the 2-D semantic field DAG from WorldState + MicronautRegistry.
@@ -94,12 +128,61 @@ public:
 
     const std::vector<FieldNode>& nodes() const { return nodes_; }
     const std::vector<FieldEdge>& edges() const { return edges_; }
+    const std::unordered_map<std::string, TensorSubstrate>& substrates() const
+        { return substrates_; }
+
+    // ── GPU geodesic propagator ───────────────────────────────────────────────
+    // Bind NodeIn/EdgeIn structured buffers, dispatch geodesic_propagator.hlsl,
+    // read back updated geodesic_entropy onto FieldNodes.
+    // cso: pre-compiled CSO blob for geodesic_propagator.hlsl.
+    // Returns empty result if dev is invalid or cso is null.
+    PropagatorDispatchResult dispatch_geodesic_propagator(
+        gpu::D3D11Device& dev,
+        ID3DBlob*         cso,
+        float             beta_inv,
+        float             kb_boltzmann = 1.0f);
+
+    // ── Ch'en Raychaudhuri gate ───────────────────────────────────────────────
+    // Integrates the discrete geodesic entropy rate along `path` (track_ids).
+    // Returns true = admissible; false = Ch'en drops the branch.
+    bool check_raychaudhuri_gate(
+        const std::vector<std::string>& path,
+        float hg_max = 4.0f) const;
+
+    // ── DirectionStore → cbuffer feed ─────────────────────────────────────────
+    // Translates a co-occurrence delta dM into an updated beta_inv for
+    // PropagatorConstants.  Called by the Factory after mesh re-triangulation.
+    static float compute_beta_inv_from_delta_m(
+        float    delta_m,
+        float    base_beta_inv,
+        uint32_t step);
+
+    // ── Hyperbolic key-grammar event → attention SRV bridge ────────────────
+    // Packs future-sheet HyperbolicEventVector rows into the existing
+    // attention.hlsl 64-byte SemanticRecord slot.  This is a projection-only
+    // GPU upload surface; Ch'en/Xul still own verification and persistence.
+    static bool upload_hyperbolic_attention_records(
+        gpu::D3D11Device& dev,
+        const std::vector<HyperbolicAttentionRecord64>& records,
+        HyperbolicAttentionGpuBuffer& out,
+        uint32_t extra_capacity_records = 32);
+
+    static bool upload_hyperbolic_trajectories(
+        gpu::D3D11Device& dev,
+        const std::vector<HyperbolicEventVector>& events,
+        const std::unordered_map<std::string, float>& wcr_w_map,
+        const std::unordered_map<std::string, float>& wcr_c_map,
+        const std::unordered_map<std::string, float>& wcr_r_map,
+        HyperbolicAttentionGpuBuffer& out,
+        uint32_t extra_capacity_records = 32);
 
 private:
     const WorldState& ws_;
     const micronaut::MicronautRegistry& reg_;
     std::vector<FieldNode> nodes_;
     std::vector<FieldEdge> edges_;
+    std::unordered_map<std::string, TensorSubstrate> substrates_;
+    static uint64_t next_substrate_id_;
 
     static std::string xml_escape(std::string_view s);
 

@@ -1,0 +1,175 @@
+<?xml version='1.0' encoding='utf-8'?>
+<vector_registry id="khanary-vectors" version="1.1.0" phase="Wo" authority="projection-only" semantic_authority="false" tensor_bundle_grounding="true">
+  <summary>TENSOR-µ learns derived tensor-bundle geometry over verified semantic and topology contracts. VECTOR-µ remains the Rank-1/vector provider compatibility path. GML is the graph topology contract; STB, mesh shaders, KLSL, and field.xml are geometry/projection providers.</summary>
+  <authority_boundary>
+    <semantic_authority owner="Mx2LM/FoldGraph/RelationISA/key-books" mutable_by="TENSOR-µ|VECTOR-µ" value="false" />
+    <topology_authority owner="GML/FoldGraph" role="explicit graph shape before coordinates" />
+    <geometry_authority owner="TENSOR-µ" role="learned tensor-bundle projection geometry" derived="true" rebuildable="true" legacy_owner="VECTOR-µ" />
+    <execution_projection owner="KLSL/HLSL/STB/mesh shader" role="runtime projection or shader execution" semantic_authority="false" />
+  </authority_boundary>
+  <pipeline>
+    <stage index="1" id="key-books" role="compressed semantic grammar" source="data/manifest/*.manifest.json" />
+    <stage index="2" id="gml" role="explicit graph topology contract" source="data/manifest/gml.manifest.json" grammar="data/grammar/gml.khanary.ebnf" validator="data/grammar/gml.validator.json" corpus="data/*.gml" />
+    <stage index="3" id="vector-mesh-evidence" role="geometry evidence and provider features" source="vectors.xml" />
+    <stage index="4" id="tensor-projection" role="derived tensor-bundle representation learning" container="tensor:projection_container:v1" track="TENSOR-µ" fold_cd="data/grammar/fold.cd.xml" fold_graph="data/grammar/fold_graph.xml" vector_mml="data/grammar/vectors.mml" legacy_container="vector:projection_container:v1" legacy_track="VECTOR-µ" />
+    <stage index="5" id="shader-runtime" role="optional execution projection" providers="dml,klsl,hlsl,mesh_shader,stb" />
+  </pipeline>
+  <invariants>
+    <invariant id="similarity_subset_relatedness" value="true">Typed semantic relatedness can include contradiction, causality, meronymy, and class membership; it must not collapse to plain cosine similarity.</invariant>
+    <invariant id="gml_before_geometry" value="true">GML preserves nodes and typed edges before TENSOR-µ, VECTOR-µ, STB, or mesh shaders project them into coordinates.</invariant>
+    <invariant id="projection_cannot_redefine_semantics" value="true">A vector, mesh coordinate, or shader result may rank or retrieve candidates but cannot verify or mutate semantic truth.</invariant>
+    <invariant id="delta_vector_not_delta_semantics" value="true">Projection generations may drift; semantic change remains FoldDelta/RelationISA authority.</invariant>
+    <invariant id="vectors_rebuildable" value="true">VECTOR-µ outputs are disposable derived indexes rebuilt from graph, journal, and relation evidence.</invariant>
+    <invariant id="semantic_topology_not_learned_manifold" value="true">B is the authoritative discrete semantic topology; M_mu is TENSOR-µ learned geometry over B and may be rebuilt without changing B.</invariant>
+    <invariant id="metric_field_not_semantic_authority" value="true">A local metric, tangent chart, or geodesic estimate can rank or retrieve candidates but cannot verify, mutate, or commit semantic topology.</invariant>
+    <invariant id="quantum_graph_not_semantic_authority" value="true">Hamiltonians, scattering matrices, plane waves, and flux conservation are derived continuous-field geometry, not FoldGraph authority.</invariant>
+    <invariant id="structural_boundaries_reset_ngrams" value="true">Sentence, paragraph, article, and section delimiters act as declared field boundaries; n-gram windows may not bleed across them without an admitted boundary transition.</invariant>
+    <invariant id="differentiable_curve_projection_boundary" value="true">Token, sentence, paragraph, and article streams may be projected as differentiable curves gamma:I-&gt;X, but those curves are provider geometry over B.</invariant>
+    <invariant id="euclidean_gradient_projection_only" value="true">Flat Euclidean gradient fields provide a conservative fast path for projection scoring; zero-curl checks do not verify semantic truth.</invariant>
+    <invariant id="training_gradient_not_fold_delta" value="true">Training gradients tune projection-provider parameters; they are not FoldDelta evidence and cannot commit semantic topology.</invariant>
+    <invariant id="entropy_gradient_projection_only" value="true">Entropy gradients and free-energy flows track uncertainty, exploration, and repair geometry only; they cannot verify semantic truth.</invariant>
+    <invariant id="inscribed_mesh_projection_only" value="true">Circumradius, inradius, circumcenter, and triangular entropy are local simplicial projection diagnostics; they cannot verify or mutate semantic topology.</invariant>
+    <invariant id="tensor_field_projection_only" value="true">Tensor fields, metric components, Jacobian transforms, curvature scalars, and smooth-section flags are derived geometry over B; they cannot verify semantic truth or mutate FoldGraph topology.</invariant>
+    <invariant id="vector_mu_rank1_provider" value="true">VECTOR-µ is preserved as the Rank-1/vector representation provider under the broader TENSOR-µ tensor-bundle contract.</invariant>
+  </invariants>
+  <semantic_manifold_contract id="vector:semantic_manifold:v1" owner="TENSOR-µ" phase_conditioned="true" relation_conditioned="true" semantic_authority="false" topology_authority="false" rebuildable="true" legacy_owner="VECTOR-µ">
+    <topology symbol="B" owner="GML/FoldGraph" role="authoritative discrete semantic topology" />
+    <learned_geometry symbol="M_mu" over="B" role="learned semantic manifold approximation" projection_only="true" />
+    <local_chart source="N(k)" target="T_k(M_mu)" role="Fold neighborhood to local tangent chart" />
+    <metric symbol="g(F,theta,r)" role="context, phase, and relation conditioned local metric" />
+    <geodesic_distance symbol="d_M(A,B)" role="typed semantic path distance over B projected through M_mu" />
+    <law id="delta_manifold_not_delta_topology">Delta(M_mu) does not imply Delta(B).</law>
+    <law id="phase_conditioned_relevance">R_mu(Q,F,theta,r) is field-dependent and may differ across Pop/Wo/Yax/Sek/Ch'en/Xul.</law>
+  </semantic_manifold_contract>
+  <decision_theory_contract id="vector:decision_theory:v1" owner="TENSOR-µ" semantic_authority="false" topology_authority="false" projection_only="true" legacy_owner="VECTOR-µ">
+    <prior symbol="Lambda(theta)" gml_attr="prior_mass" role="antecedent structural prior over observed semantic trajectories" />
+    <loss symbol="Loss(theta,a)" gml_attr="loss_cost" role="projection action penalty" />
+    <risk symbol="R(theta,delta)" mathml="data/grammar/vectors.mml" role="expected loss for a representation decision rule" />
+    <bayes symbol="BayesRisk(Lambda,delta)" role="average-case geometry optimization" />
+    <minimax symbol="MinimaxRule" error="INADMISSIBLE_VECTOR_RULE" role="worst-case projection admissibility guard" />
+    <differential symbol="DeltaF_diff" role="differential graph/text drift with minimax risk bound" />
+    <law id="risk-not-truth">Risk constrains TENSOR-µ/VECTOR-µ projection admissibility; it does not verify relations or commit B.</law>
+  </decision_theory_contract>
+  <continuous_field_contract id="vector:continuous_field:v1" owner="TENSOR-µ" semantic_authority="false" topology_authority="false" projection_only="true" legacy_owner="VECTOR-µ">
+    <quantum_graph symbol="Gamma=(V,E)" role="metric graph over FoldGraph B; each edge has interval [0,L_e]" />
+    <hamiltonian symbol="GraphHamiltonian" mathml="data/grammar/vectors.mml" gml_attrs="length,potential,boundary_type,vertex_pot" />
+    <flux symbol="FluxConservation" role="Kirchhoff/Robin vertex matching over IncidentEdges(v)" />
+    <plane_wave symbol="PlaneWaveSuperposition" gml_attrs="wave_number,frequency,amplitude_re,amplitude_im,refractive" />
+    <scattering symbol="ScatteringMatrix" role="S_mj^(v)=2/degree(v)-delta_mj under Kirchhoff matching" />
+    <flow symbol="GradientFlow" gml_attrs="vx,vy,vz,divergence,singularity" />
+    <trajectory symbol="DifferentiableCurve" gml_attrs="curve_id,parameter_t,arc_length,curvature" role="token stream as one-dimensional differentiable manifold" />
+    <line_integral symbol="SemanticDisplacement" mathml="data/grammar/vectors.mml" role="DeltaF_curve=int_gamma V(s) dot ds" />
+    <euclidean_gradient symbol="EuclideanGradient" gml_attrs="field_kind,vx,vy,vz,scalar_potential,potential_delta" role="flat conservative provider fast path" />
+    <zero_curl symbol="ZeroCurlConstraint" gml_attrs="curl_x,curl_y,curl_z" error="EUCLIDEAN_CURL_NONZERO" />
+    <entropy symbol="ShannonEntropy" gml_attrs="local_entropy,entropy_spike,entropy_bound" role="local uncertainty and structural spike gating" />
+    <entropy_gradient symbol="EntropyGradient" gml_attrs="eh_x,eh_y,eh_z,entropy_delta" role="direction of steepest uncertainty change" />
+    <free_energy symbol="FreeEnergyFlow" gml_attrs="diffusion_beta_inv,field_kind" role="V=-grad f + beta^-1 grad H" />
+    <fokker_planck symbol="FokkerPlanckFlow" mathml="data/grammar/vectors.mml" role="projection density diffusion" />
+    <inscribed_mesh symbol="EulerTriangleInequality" schema="data/schema/entropic-well.schema.json" source="data/world/entropic_wells.json" gml_attrs="triangle_id,simplex_weight,triangular_scale" role="dual-circle simplicial boundary; requires Circumradius(T) &gt;= 2*Inradius(T)" />
+    <lie symbol="LieBracket" role="order sensitivity between relation-conditioned flows" />
+    <field_index symbol="EulerCharacteristic" role="Poincare-Hopf consistency over FieldZeroes(V)" />
+    <boundary_reset symbol="StructuralBoundaryReset" gml_attrs="text_boundary,boundary_token" role="structural n-gram hierarchy boundary" />
+    <tensor_field symbol="TensorField" gml_attrs="tensor_rank_p,tensor_rank_q,is_smooth_section,g_00,g_01,g_10,g_11,jacobian_w,jacobian_determinant,riemann_curvature_scalar" role="type-(p,q) tensor-bundle projection field over B" />
+    <tensor_transform symbol="TensorTransform" mathml="data/grammar/vectors.mml" fold_cd="data/grammar/fold.cd.xml" role="upper indices by Jacobian; lower indices by inverse Jacobian" />
+    <metric_tensor symbol="MetricTensor" gml_attrs="g_00,g_01,g_10,g_11" error="METRIC_TENSOR_DEGENERATE" role="local covariant metric tensor for raising/lowering and distance projection" />
+    <jacobian symbol="JacobianMatrix" gml_attrs="jacobian_w,jacobian_determinant" error="JACOBIAN_DETERMINANT_ZERO" role="coordinate transition field between projection generations" />
+    <law id="field-not-truth">Continuous fields constrain provider geometry and relevance only; Ch'en/Xul remain verification and topology commit authority.</law>
+    <law id="curve-not-truth">Differentiable curves, tangent vectors, curvature, and Euclidean gradient fast paths score projection trajectories only; they cannot promote relations or mutate B.</law>
+    <law id="entropy-not-truth">Entropy gradients may trigger exploration, repair, or provider gating; they do not verify facts or commit FoldGraph topology.</law>
+    <law id="inscribed-mesh-not-truth">Dual-circle mesh bounds may mask, rank, or flag warped projection neighborhoods; they cannot authorize relations, verify facts, or commit FoldGraph topology.</law>
+    <law id="tensor-not-truth">Tensor bundle fields, metric tensors, Jacobians, and curvature are projection geometry only; they cannot manufacture semantic truth, change RelationISA, or mutate B.</law>
+  </continuous_field_contract>
+  <training_gradient_contract id="vector:training_gradient:v1" owner="VECTOR-µ|METRIC-µ" semantic_authority="false" topology_authority="false" projection_only="true">
+    <parameters symbol="ProviderParameters" gml_attrs="provider_id,parameter_id,parameter_generation" role="projection-provider parameter address phi" />
+    <loss symbol="ProjectionLoss" gml_attrs="loss_value" role="provider training objective L_total" />
+    <gradient symbol="TrainingGradient" mathml="data/grammar/vectors.mml" gml_attrs="grad_norm" role="g_phi=grad_phi L_total" />
+    <update symbol="ParameterUpdate" mathml="data/grammar/vectors.mml" gml_attrs="learning_rate,training_step" role="phi_next=phi-eta*clip(g_phi,c)" />
+    <clip symbol="GradientClip" gml_attrs="gradient_clip" role="positive gradient clipping bound" />
+    <law id="gradient-not-fold-delta">TrainingGradient tunes provider geometry and index state; it is not FoldDelta, not Ch'en proof, and not Xul commit.</law>
+  </training_gradient_contract>
+  <grammar_contracts>
+    <grammar id="gml-ebnf" kind="parser_grammar" role="GML syntax and overlay-id production" source="data/grammar/gml.khanary.ebnf" require="true">
+      <features>graph_block,node_block,edge_block,relation_verb,gml_overlay_id</features>
+    </grammar>
+    <grammar id="gml-validator-contract" kind="semantic_validator" role="ParsedGraph to VerifiedGraph admission law" source="data/grammar/gml.validator.json" require="true">
+      <features>ParsedGraph,VerifiedGraph,RelationCandidate,VerifiedRelation,Proposal,Ch'en,XCFE,XulGate</features>
+    </grammar>
+    <grammar id="fold-content-dictionary" kind="openmath_content_dictionary" role="Fold Graph MathML symbol authority" source="data/grammar/fold.cd.xml" require="true">
+      <features>FoldPair,FoldPairLower,Axis,supp,setbuilder,GraphHamiltonian,FluxConservation,PlaneWaveSuperposition,ScatteringMatrix,GradientFlow,LieBracket,DifferentiableCurve,TangentVelocity,SemanticDisplacement,EuclideanGradient,ZeroCurlConstraint,TrainingGradient,ParameterUpdate,ShannonEntropy,EntropyGradient,FreeEnergyFlow,FokkerPlanckFlow,Circumradius,Inradius,Circumcenter,EulerTriangleInequality,StructuralBoundaryReset,TensorField,TensorRank,MetricTensor,JacobianMatrix,InverseJacobian,TensorTransform,SmoothSection,TensorBundle,CoordinateTransition</features>
+    </grammar>
+    <grammar id="vector-mathml-foldpair" kind="mathml_foldpair_contract" role="FoldPair co-occurrence/context matrix contract" source="data/grammar/vectors.mml" require="true">
+      <features>FoldPair,M_YX,C_YX_transpose,shared_axis_X,M_not_W,no_pattern_inflation,GraphHamiltonian,FluxConservation,PlaneWaveSuperposition,GradientFlow,LieBracket,DifferentiableCurve,TangentVelocity,SemanticDisplacement,EuclideanGradient,ZeroCurlConstraint,TrainingGradient,ParameterUpdate,ShannonEntropy,EntropyGradient,FreeEnergyFlow,FokkerPlanckFlow,Circumradius,Inradius,Circumcenter,EulerTriangleInequality,StructuralBoundaryReset,TensorTransform,MetricTensor,JacobianMatrix,InverseJacobian,TensorField</features>
+    </grammar>
+    <grammar id="fold-graph-laws" kind="fold_graph_lawbook" role="Fold topology and learning invariant authority" source="data/grammar/fold_graph.xml" require="true">
+      <features>topology-symbol:B,C6-cycle,unfold,field,relevance-providers,learning-invariant</features>
+    </grammar>
+  </grammar_contracts>
+  <containers>
+    <container key="vector:projection_container:v1" type="vector.projection_container.v1" owner="VECTOR-µ" phase="Wo" generation="1" dimensions="3" semantic_authority="false" source_semantic_container="mx2lm:pattern_container:v1" topology_source="gml:topology_contract" source="data/world/vector_projection.json" loader="src/world/vector_projection.cpp" basis="gml_coordinate_geometry" />
+    <container key="tensor:projection_container:v1" type="tensor.projection_container.v1" owner="TENSOR-µ" phase="Wo" generation="1" rank_support="0,1,2,n" semantic_authority="false" source_semantic_container="mx2lm:pattern_container:v1" topology_source="gml:topology_contract" source="vectors.xml" basis="tensor_bundle_geometry" legacy_container="vector:projection_container:v1" />
+  </containers>
+  <gml_topology_corpus validator="data/conformance/gml_validator.json" parser="src/world/gml_parser.cpp">
+    <topology id="khanary_topology" source="data/khanary_topology.gml" graph="Q3-hypercube-labelled" nodes="8" edges="12" directed="0" role="core cognitive track adjacency" />
+    <topology id="hypercube_Q3" source="data/hypercube_Q3.gml" graph="Q3-hypercube" nodes="8" edges="12" directed="0" role="3d geodesic reference topology" />
+    <topology id="hypercube_Q4" source="data/hypercube_Q4.gml" graph="Q4-hypercube" nodes="16" edges="32" directed="0" role="4d geodesic reference topology" />
+    <topology id="ccc_n3" source="data/ccc_n3.gml" graph="CCC3-cube-connected-cycles" nodes="24" edges="36" directed="0" role="cubic interconnect topology overlay" />
+    <topology id="ccc_n4" source="data/ccc_n4.gml" graph="CCC4-cube-connected-cycles" nodes="64" edges="96" directed="0" role="higher-order cubic interconnect topology overlay" />
+    <topology id="sample" source="data/sample.gml" graph="directed-3-cycle" nodes="3" edges="3" directed="1" role="parser smoke topology" />
+    <topology id="quantum_field_boundaries" source="data/quantum_field_boundaries.gml" graph="directed-continuous-field-boundary" nodes="3" edges="2" directed="1" role="quantum graph, wave, flow, and structural-boundary projection smoke topology" />
+    <topology id="tensor_field" source="data/tensor_field.gml" graph="directed-tensor-bundle-projection" nodes="2" edges="1" directed="1" role="TENSOR-µ tensor-bundle parser/validator smoke topology" />
+  </gml_topology_corpus>
+  <providers>
+    <provider id="gml-topology" kind="graph_topology" role="topology_contract" source="data/manifest/gml.manifest.json" require="true" topology_authority="true" semantic_authority="false">
+      <features>nodes,typed_edges,relation_phase,fold_direction,graph_family,projection_hooks</features>
+    </provider>
+    <provider id="field-node-vectors" kind="node_field" role="field_projection_metadata" source="data/world/field.xml" require="true" topology_authority="false" semantic_authority="false">
+      <features>x,y,z,vector_source,qkv_role,phase,node_kind</features>
+    </provider>
+    <provider id="projection-abi" kind="abi_book" role="neural_boundary_projection_contract" source="data/projection_abi_v1.json" require="true" topology_authority="false" semantic_authority="false">
+      <features>dimensions,targets,thinking,authorized_events,project_v_contract</features>
+    </provider>
+    <provider id="gyro-abi" kind="abi_book" role="epistemic_measurement_basis" source="data/gyro_abi_v1.json" require="true" topology_authority="false" semantic_authority="false">
+      <features>dimensions,measurement_tracks,track_governs,mapping,lexical_equivalence</features>
+    </provider>
+    <provider id="gml-validator-fixtures" kind="conformance_fixture" role="gml_topology_admission_tests" source="data/conformance/gml_validator.json" require="true" topology_authority="false" semantic_authority="false">
+      <features>valid_graphs,canonical_verbs,coordinate_validation,endpoint_validation,wcr_bounds</features>
+    </provider>
+    <provider id="dml-ops" kind="gpu_operator_projection" role="linear_operator_execution_provider" source="src/gpu/dml_ops.cpp" require="true" topology_authority="false" semantic_authority="false">
+      <header source="src/gpu/dml_ops.h" require="true" />
+      <features>gemm,softmax,reduce_sum,attention,semantic_attention_gate,HLSL_TILED,CPU_fallback</features>
+    </provider>
+    <provider id="birdsong-stb" kind="signal_mesh" role="mesh_graph_evidence" source="models/khanary-geometry-v0.3.0/data/birdsong_mesh.stb" require="true" topology_authority="false" semantic_authority="false">
+      <features>time,freq,energy,delaunay_edges,csr_index,csr_neighbors,geometric_moe_expert_id</features>
+      <sidecar source="models/khanary-geometry-v0.3.0/data/birdsong-brain.json" require="true" />
+      <model source="models/khanary-geometry-v0.3.0/MODEL.json" require="true" />
+      <sidecar source="models/khanary-geometry-v0.3.0/compiler.py" require="true" />
+      <sidecar source="models/khanary-geometry-v0.3.0/12_10_22_25_8bb928fb_CANARIO_CANTANDO_CANTE_DE_CANARIOS_Canario_amarill.wav" require="true" />
+      <sidecar source="models/khanary-geometry-v0.3.0/brain1" require="true" />
+      <sidecar source="models/khanary-geometry-v0.3.0/brain2" require="true" />
+      <sidecar source="tools/pack_geometry_brain_stb.py" require="true" />
+      <sidecar source="models/khanary-geometry-v0.3.0/brain3" require="true" />
+    </provider>
+    <provider id="klsl-mesh-compression" kind="klsl" role="mesh_projection_program" source="drivers/klsl/mesh-compression.kuhul" require="true" topology_authority="false" semantic_authority="false">
+      <features>vertices,kernel,compressed,error</features>
+    </provider>
+    <provider id="asx-triangle-hlsl" kind="hlsl" role="external_mesh_shader_provenance" source="E:/models/.ASX.cpp/.asx/mx2lm-run/d3d12_compute/triangle.hlsl" require="false" topology_authority="false" semantic_authority="false" />
+    <provider id="asx-meshlet-shaders" kind="hlsl_mesh_shader" role="external_mesh_shader_provenance" source="E:/models/.ASX.cpp/Direct3D/src" require="false" topology_authority="false" semantic_authority="false" />
+  </providers>
+  <mesh_feature_contract>
+    <mesh family="surface_mesh" features="vertex_xyz,face_normal,edge_length,dihedral_angle,meshlet_membership" />
+    <mesh family="signal_mesh" features="time,freq,energy,ridge_curvature,csr_neighbors,expert_id" />
+    <mesh family="semantic_graph" features="key,relation,phase,static_weight,confidence,fold_direction" />
+  </mesh_feature_contract>
+  <relations>
+    <edge from="gml-topology" to="VECTOR-µ" verb="@uses" relation_phase="Wo" />
+    <edge from="projection-abi" to="VECTOR-µ" verb="@uses" relation_phase="Wo" />
+    <edge from="gyro-abi" to="VECTOR-µ" verb="@uses" relation_phase="Wo" />
+    <edge from="gml-validator-fixtures" to="gml-topology" verb="@verifies" relation_phase="Ch'en" />
+    <edge from="dml-ops" to="VECTOR-µ" verb="@via" relation_phase="Sek" />
+    <edge from="birdsong-stb" to="VECTOR-µ" verb="@uses" relation_phase="Wo" />
+    <edge from="klsl-mesh-compression" to="VECTOR-µ" verb="@via" relation_phase="Sek" />
+    <edge from="VECTOR-µ" to="Mx2LM" verb="@produces" relation_phase="Xul" output="derived vector projection only" />
+    <edge from="VECTOR-µ" to="TENSOR-µ" verb="@part_of" relation_phase="Wo" role="Rank-1 provider under tensor-bundle geometry" />
+    <edge from="TENSOR-µ" to="Mx2LM" verb="@produces" relation_phase="Xul" output="derived tensor projection only" />
+  </relations>
+</vector_registry>

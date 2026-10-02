@@ -8,15 +8,9 @@
 
 namespace khanary::test {
 // Build/conformance identity. A verdict is not evidence unless it identifies
-// which executable produced it and which conformance set it contained:
-// SourcePresence != ExecutedArtifact. build_stamp is this translation unit's
-// compile time, so a stale executable is distinguishable from a current one
-// even when the case count happens to match.
+// which conformance set it contained: SourcePresence != ExecutedArtifact.
+// Verdict JSON must remain byte-stable for a fixed case set.
 inline constexpr const char* kConformanceVersion = "1";
-inline const std::string& build_stamp() {
-    static const std::string stamp = std::string(__DATE__) + " " + __TIME__;
-    return stamp;
-}
 struct Failure : std::runtime_error { using std::runtime_error::runtime_error; };
 struct Suite {
     std::vector<std::pair<std::string, bool>> cases;
@@ -53,7 +47,6 @@ inline int run(const std::string& name, const std::function<void(Suite&)>& body,
         {"@kind", util::json_string("khanary.contract.verdict.v1")},
         {"suite", util::json_string(name)}, {"cases", util::json_array(std::move(rows))},
         {"conformance_version", util::json_string(kConformanceVersion)},
-        {"build_stamp", util::json_string(build_stamp())},
         {"case_count", util::json_number(static_cast<double>(suite.cases.size()))},
         {"verdict", util::json_string(code == 0 ? "PASS" : code == 1 ? "FAIL" : "ERROR")},
         {"exit_code", util::json_number(code)},

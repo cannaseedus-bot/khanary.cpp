@@ -1,5 +1,7 @@
 #include "ngram_phase_classes.h"
+#include "../util/json.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <numeric>
 #include <sstream>
@@ -37,10 +39,177 @@ ChenMissKind chen_miss_kind_from_name(const std::string& name) {
     return ChenMissKind::none;
 }
 
+namespace {
+
+util::JsonArray string_array_json(const std::vector<std::string>& values) {
+    util::JsonArray arr;
+    arr.reserve(values.size());
+    for (const auto& value : values)
+        arr.push_back(util::json_string(value));
+    return arr;
+}
+
+util::JsonObject gram_channel_count_json(const micronaut::Mx2LmGramContainer& c) {
+    util::JsonObject counts;
+    counts["unigram"] = util::json_number(static_cast<double>(c.unigram_count));
+    counts["bigram"] = util::json_number(static_cast<double>(c.bigram_count));
+    counts["trigram"] = util::json_number(static_cast<double>(c.trigram_count));
+    counts["quadgram"] = util::json_number(static_cast<double>(c.quadgram_count));
+    counts["coarse_gram"] = util::json_number(static_cast<double>(c.coarse_gram_count));
+    counts["function_gram"] = util::json_number(static_cast<double>(c.function_gram_count));
+    counts["tool_gram"] = util::json_number(static_cast<double>(c.tool_gram_count));
+    return counts;
+}
+
+std::string serialize_mx2lm_gram_container(const micronaut::Mx2LmGramContainer& c) {
+    util::JsonObject root;
+    root["@type"] = util::json_string("mx2lm.gram_container.v1");
+    root["key"] = util::json_string(c.key);
+    root["namespace"] = util::json_string(c.namespace_id);
+    root["authority"] = util::json_string(c.authority);
+    root["phase"] = util::json_string(c.phase);
+    root["total_grams"] = util::json_number(static_cast<double>(c.grams.size()));
+    root["total_observations"] = util::json_number(static_cast<double>(c.total_observations));
+    root["channel_counts"] = util::json_object(gram_channel_count_json(c));
+
+    util::JsonObject channels;
+    const std::vector<std::string> class_order = {
+        "unigram", "bigram", "trigram", "quadgram",
+        "coarse_gram", "function_gram", "tool_gram"
+    };
+
+    for (const auto& klass : class_order) {
+        util::JsonArray rows;
+        for (const auto& g : c.grams) {
+            if (g.gram_class != klass) continue;
+            util::JsonObject row;
+            row["gram"] = util::json_string(g.gram);
+            row["class"] = util::json_string(g.gram_class);
+            row["role"] = util::json_string(g.role);
+            row["phase"] = util::json_string(g.phase);
+            row["count"] = util::json_number(static_cast<double>(g.count));
+            row["width"] = util::json_number(static_cast<double>(g.width));
+            row["tokens"] = util::json_array(string_array_json(g.tokens));
+            rows.push_back(util::json_object(std::move(row)));
+        }
+        channels[klass] = util::json_array(std::move(rows));
+    }
+
+    root["channels"] = util::json_object(std::move(channels));
+    return util::stringify(util::json_object(std::move(root)));
+}
+
+std::string mx2lm_gram_key(const micronaut::Mx2LmTypedGram& g) {
+    return "mx2lm:gram:" + g.gram_class + ":" + g.gram;
+}
+
+util::JsonObject pattern_event_json(const micronaut::Mx2LmPatternEvent& event) {
+    util::JsonObject row;
+    row["source_track"] = util::json_string(event.source_track);
+    row["source_phase"] = util::json_string(event.source_phase);
+    row["target_namespace"] = util::json_string(event.target_namespace);
+    row["surface"] = util::json_string(event.surface);
+    row["roles"] = util::json_array(string_array_json(event.roles));
+    row["gram_container"] = util::json_string(event.gram_container_key);
+    row["outcome_kind"] = util::json_string(event.outcome_kind);
+    row["outcome_status"] = util::json_string(event.outcome_status);
+    row["accepted"] = util::json_bool(event.accepted);
+    if (!event.card.empty())
+        row["card"] = util::json_string(event.card);
+    return row;
+}
+
+std::string serialize_mx2lm_pattern_container(const micronaut::Mx2LmPatternContainer& c) {
+    util::JsonObject root;
+    root["@type"] = util::json_string("mx2lm.pattern_container.v1");
+    root["key"] = util::json_string(c.key);
+    root["namespace"] = util::json_string(c.namespace_id);
+    root["authority"] = util::json_string(c.authority);
+    root["phase"] = util::json_string(c.phase);
+    root["event_count"] = util::json_number(static_cast<double>(c.events.size()));
+
+    util::JsonArray events;
+    for (const auto& event : c.events)
+        events.push_back(util::json_object(pattern_event_json(event)));
+    root["events"] = util::json_array(std::move(events));
+    return util::stringify(util::json_object(std::move(root)));
+}
+
+util::JsonObject vector_projection_json(const micronaut::Mx2LmVectorProjection& p) {
+    util::JsonObject row;
+    row["key"] = util::json_string(p.key);
+    row["source_key"] = util::json_string(p.source_key);
+    row["source_track"] = util::json_string(p.source_track);
+    row["source_phase"] = util::json_string(p.source_phase);
+    row["projection_track"] = util::json_string(p.projection_track);
+    row["basis"] = util::json_string(p.basis);
+    row["x"] = util::json_number(static_cast<double>(p.x));
+    row["y"] = util::json_number(static_cast<double>(p.y));
+    row["z"] = util::json_number(static_cast<double>(p.z));
+    row["norm"] = util::json_number(static_cast<double>(p.norm));
+    row["semantic_authority"] = util::json_bool(p.semantic_authority);
+    return row;
+}
+
+std::string serialize_vector_projection_container(
+    const micronaut::Mx2LmVectorProjectionContainer& c)
+{
+    util::JsonObject root;
+    root["@type"] = util::json_string("vector.projection_container.v1");
+    root["key"] = util::json_string(c.key);
+    root["namespace"] = util::json_string(c.namespace_id);
+    root["authority"] = util::json_string(c.authority);
+    root["phase"] = util::json_string(c.phase);
+    root["source_semantic_container"] = util::json_string(c.source_semantic_container);
+    root["projection_id"] = util::json_string(c.projection_id);
+    root["generation"] = util::json_number(static_cast<double>(c.generation));
+    root["learner_version"] = util::json_string(c.learner_version);
+    root["topology_version"] = util::json_string(c.topology_version);
+    root["relation_model"] = util::json_string(c.relation_model);
+    root["alignment"] = util::json_string(c.alignment);
+    root["similarity_scope"] = util::json_string(c.similarity_scope);
+    root["dimensions"] = util::json_number(static_cast<double>(c.dimensions));
+    root["projection_count"] = util::json_number(static_cast<double>(c.projections.size()));
+    root["semantic_authority"] = util::json_bool(false);
+    root["responsibility"] = util::json_string("derived_geometry_projection_only");
+
+    util::JsonArray projections;
+    for (const auto& p : c.projections)
+        projections.push_back(util::json_object(vector_projection_json(p)));
+    root["projections"] = util::json_array(std::move(projections));
+    return util::stringify(util::json_object(std::move(root)));
+}
+
+std::string key_safe(std::string value) {
+    std::string out;
+    out.reserve(value.size());
+    bool last_sep = false;
+    for (unsigned char ch : value) {
+        if (std::isalnum(ch) != 0) {
+            out.push_back(static_cast<char>(std::tolower(ch)));
+            last_sep = false;
+        } else if (!last_sep) {
+            out.push_back('_');
+            last_sep = true;
+        }
+        if (out.size() >= 64) break;
+    }
+    while (!out.empty() && out.back() == '_') out.pop_back();
+    return out.empty() ? "pattern" : out;
+}
+
+std::string mx2lm_pattern_key(const micronaut::Mx2LmPatternEvent& event) {
+    return "mx2lm:pattern:" + key_safe(event.source_track) + ":" +
+           key_safe(event.source_phase) + ":" + key_safe(event.surface);
+}
+
+} // namespace
+
 // ─── Pop ──────────────────────────────────────────────────────────────────
 
 PopNGramResult PopNGram::process(const std::string& text) const {
     PopNGramResult r;
+    r.surface = text;
     r.tokens = micronaut::Mx2LmNGram::tokenize(text);
     r.model  = micronaut::Mx2LmNGram::build(text);
     return r;
@@ -53,6 +222,14 @@ WoNGramResult WoNGram::process(const PopNGramResult& pop, size_t top_k) const {
     r.pop      = pop;
     r.taxonomy = micronaut::Mx2LmNGram::classify_gram_taxonomy(pop.tokens);
     r.typed    = micronaut::Mx2LmNGram::typed_grams(r.taxonomy, top_k);
+    r.gram_container = micronaut::Mx2LmNGram::compile_gram_container(r.taxonomy);
+    r.pattern_container = micronaut::Mx2LmNGram::compile_pattern_container(
+        pop.surface,
+        r.gram_container);
+    r.vector_projection_container =
+        micronaut::Mx2LmNGram::compile_vector_projection_container(
+            r.gram_container,
+            r.pattern_container);
     return r;
 }
 
@@ -398,13 +575,71 @@ XulNGramResult XulNGram::process(const ChenNGramResult& chen) const {
     }
 
     const auto& sek = chen.sek;
-    for (const auto& [gram_text, score] : sek.ranked) {
-        if (score < 0.05f) continue;
-        const std::string key = "ngram:" + gram_text;
-        store_.gramWrite(key, gram_text, "Xul",
-            cert.assertion_class == "AUTHORITY" ? "control" : "similarity",
-            "ngram_phase_pipeline");
-        r.written_keys.push_back(key);
+    const auto& container = sek.yax.wo.gram_container;
+    if (!container.grams.empty()) {
+        store_.gramWrite(
+            container.key,
+            serialize_mx2lm_gram_container(container),
+            "Xul",
+            "mx2lm_gram_container",
+            container.authority);
+        r.written_keys.push_back(container.key);
+
+        for (const auto& gram : container.grams) {
+            const std::string key = mx2lm_gram_key(gram);
+            store_.gramWrite(
+                key,
+                gram.gram,
+                "Xul",
+                "mx2lm_gram_container",
+                container.authority);
+            r.written_keys.push_back(key);
+        }
+    }
+
+    const auto& pattern_container = sek.yax.wo.pattern_container;
+    if (!pattern_container.events.empty()) {
+        store_.gramWrite(
+            pattern_container.key,
+            serialize_mx2lm_pattern_container(pattern_container),
+            "Xul",
+            "mx2lm_pattern_container",
+            pattern_container.authority);
+        r.written_keys.push_back(pattern_container.key);
+
+        for (const auto& event : pattern_container.events) {
+            const std::string key = mx2lm_pattern_key(event);
+            store_.gramWrite(
+                key,
+                event.surface,
+                "Xul",
+                "mx2lm_pattern_container",
+                pattern_container.authority);
+            r.written_keys.push_back(key);
+        }
+    }
+
+    const auto& vector_container = sek.yax.wo.vector_projection_container;
+    if (!vector_container.projections.empty()) {
+        store_.gramWrite(
+            vector_container.key,
+            serialize_vector_projection_container(vector_container),
+            "Xul",
+            "vector_projection_container",
+            vector_container.authority);
+        r.written_keys.push_back(vector_container.key);
+
+        for (const auto& projection : vector_container.projections) {
+            store_.gramWriteVector(
+                projection.key,
+                projection.x,
+                projection.y,
+                projection.z,
+                "Xul",
+                "vector_projection",
+                vector_container.authority);
+            r.written_keys.push_back(projection.key);
+        }
     }
 
     // Also commit advisor-acquired keys (source is the external authority)
@@ -427,11 +662,28 @@ XulNGramResult XulNGram::process(const ChenNGramResult& chen) const {
 
 NGramPipelineResult NGramPipeline::run(
     const std::string& text,
-    const std::vector<std::string>& fold_neighborhood) const
+    const std::vector<std::string>& fold_neighborhood,
+    const std::string& source_track,
+    const std::string& source_phase,
+    const std::string& outcome_kind,
+    const std::string& card,
+    bool accepted) const
 {
     NGramPipelineResult res;
     res.pop  = pop_.process(text);
     res.wo   = wo_.process(res.pop);
+    res.wo.pattern_container = micronaut::Mx2LmNGram::compile_pattern_container(
+        res.pop.surface,
+        res.wo.gram_container,
+        source_track,
+        source_phase,
+        outcome_kind,
+        card,
+        accepted);
+    res.wo.vector_projection_container =
+        micronaut::Mx2LmNGram::compile_vector_projection_container(
+            res.wo.gram_container,
+            res.wo.pattern_container);
     res.yax  = yax_.process(res.wo, fold_neighborhood);
     res.sek  = sek_.process(res.yax);
     res.chen = chen_.process(res.sek);

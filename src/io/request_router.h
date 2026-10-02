@@ -9,6 +9,7 @@
 #include <cmath>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <chrono>
 #include <cctype>
 #include <mutex>
@@ -18,7 +19,7 @@
 namespace khanary::io {
 
 inline constexpr const char* ROUTE_SCORE_POLICY =
-    "mesh_static_pattern_fold_phase_driver_confidence_health_distributional_lexical_nsm_function_wsd_compositional_coarse_ngram_tool_gram_vector_gate_prior";
+    "mesh_static_pattern_fold_phase_driver_confidence_health_distributional_lexical_nsm_function_wsd_compositional_coarse_ngram_tool_gram_miss_dispatch_vector_gate_prior";
 
 // ── Entropy measurement layer (diagnostic only) ─────────────────────────────
 // Order is fixed: Requirements -> Eligibility -> WCR -> EntropyMeasure ->
@@ -174,6 +175,15 @@ inline std::string episode_id_for(const std::string& canonical_query,
     return digest.substr(0, kEpisodeIdChars);
 }
 
+// Per-track gram pool loaded from gram_pool_registry.json (METRIC-µ local pool).
+// Keyed by track name (e.g. "JOKE-µ", "Mx2LM") — matches MicronautEntry::id.
+struct TrackGramPool {
+    std::unordered_set<std::string> unigrams;
+    std::unordered_set<std::string> coarse_grams;
+    std::unordered_set<std::string> function_grams;
+    std::unordered_set<std::string> tool_grams;
+};
+
 struct RouteRequest {
     std::string              query;
     std::vector<std::string> tokens;
@@ -202,6 +212,9 @@ struct RouteResult {
     bool          xcfe_authorized = false;       // Host policy decision, never granted by payload
     bool          dispatch_allowed = false;      // Sek dispatch gate outcome
     std::string   dispatch_block_reason;         // MISS_capability | XCFE_DENIED | NO_SELECTED_RESOLVER | ...
+    std::string   epistemic_state = "SUPPORTED"; // SUPPORTED | MISS | UNKNOWN | CONTRADICTED
+    bool          observation_authority = false; // true only when a trusted observation contract authorizes collapse
+    std::vector<std::string> epistemic_causes; // typed, track-scoped causes for MISS/UNKNOWN states
     // Entropy measurement of the eligible W·C·R distribution. Diagnostic: it can
     // recommend throttling, and can never authorize eligibility.
     size_t        eligible_count = 0;               // policy-admitted candidates ranked
@@ -238,6 +251,7 @@ struct RouteResult {
     float         compositional_phrase_score; // multiword compositional phrase channel [0,1]
     float         coarse_ngram_score; // coarse n-gram structural prior [0,1]
     float         tool_gram_score; // tool-call intent n-gram channel [0,1]
+    float         miss_dispatch_score; // Sek miss-dispatch affinity: capability-based MISS routing [0,1]
     float         vector_relevance_score; // geometric relevance gate: cos(Q,K) normalized to [0,1]
     float         wcr_attention_score; // W*C*R with R = vector_relevance_score
     float         query_vector_x; // Q.x
@@ -291,6 +305,8 @@ private:
     std::array<float, 6> phase_wsd_weights_{};
     std::array<float, 6> phase_function_channel_weights_{};
     std::array<float, 6> phase_tool_channel_weights_{};
+    std::array<float, 6> phase_miss_dispatch_weights_{};
+    std::unordered_map<std::string, TrackGramPool> track_gram_pools_;
     // Bounded ambiguity budget: query fingerprint -> Ω blocks so far. Bounded in
     // size so an unbounded query stream cannot grow it without limit.
     std::unordered_map<std::string, uint32_t> ambiguity_attempts_;
@@ -302,7 +318,9 @@ private:
     float phase_wsd_weight(kuhul::Phase phase) const;
     float phase_function_channel_weight(kuhul::Phase phase) const;
     float phase_tool_channel_weight(kuhul::Phase phase) const;
+    float phase_miss_dispatch_weight(kuhul::Phase phase) const;
     void load_phase_driver_weights(const std::string& data_dir);
+    void load_track_gram_pools(const std::string& data_dir);
 };
 
 } // namespace khanary::io

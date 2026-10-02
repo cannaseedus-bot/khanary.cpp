@@ -1,0 +1,40 @@
+{
+  "id": "phase-driver.sek.v1",
+  "phase": "Sek",
+  "driver_weight": 1.0,
+  "ops": [
+    "compute_over_admitted_structure",
+    "execute_tool_chain",
+    "dispatch_call",
+    "build_ngrams"
+  ],
+  "semantic_channels": {
+    "high_confidence_miss": {
+      "enabled": true,
+      "weight": 1.15,
+      "ops": [
+        "miss_kind_classify",
+        "dispatch_call",
+        "execute_tool_chain"
+      ],
+      "miss_kind_routing": {
+        "semantic":     "unfold_book",
+        "factual":      "web_search_dispatch",
+        "capability":   "delegate_micronaut",
+        "memory":       "jrom_replay",
+        "mathematical": "deterministic_executor",
+        "evidence":     "source_acquisition"
+      }
+    }
+  },
+  "emits": {
+    "data": true,
+    "next_phase_hint": true,
+    "verb": true,
+    "noun": true,
+    "opcode": true,
+    "confidence_delta": true
+  },
+  "default_verb": "@call",
+  "terminal": false
+}

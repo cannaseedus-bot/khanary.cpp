@@ -1,5 +1,6 @@
 # CMake build output
 build/
+_build/
 out/
 cmake-build-*/
 
@@ -48,11 +49,14 @@ data/mx2lm/
 # Build artifacts
 artifacts/
 
-# Large training datasets (download separately)
+# Large training datasets and dataset-derived local artifacts (download/regenerate separately)
 data/*.jsonl
 data/gram/
 data/journal/
 data/templates/
+data/ingest/
+data/grammar/dataset*.key-grammar.candidates.jsonl
+data/grammar/english-dictionary.lexicon.key-grammar.jsonl
 
 # Factory key cache
 data/factory_keys.bin

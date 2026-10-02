@@ -157,7 +157,7 @@
     {
       "name": "phase-dll-drivers",
       "schema_id": "urn:khanary:schema:phase-dll-drivers:1",
-      "description": "Phase DLL driver lock contract for Pop/Wo/Yax/Sek/Chen/Xul with hash anchors declared in runtime metadata.",
+      "description": "Phase driver artifact lock contract for Pop/Wo/Yax/Sek/Chen/Xul with hash anchors declared in runtime metadata.",
       "runtime_critical": true,
       "imports": [
         "data/schema/fold.runtime.json",
@@ -166,12 +166,12 @@
       ],
       "driver_root": "data/drivers/phases",
       "phase_dlls": [
-        "data/drivers/phases/Pop.dll",
-        "data/drivers/phases/Wo.dll",
-        "data/drivers/phases/Yax.dll",
-        "data/drivers/phases/Sek.dll",
-        "data/drivers/phases/Chen.dll",
-        "data/drivers/phases/Xul.dll"
+        "data/drivers/phases/pop.json",
+        "data/drivers/phases/wo.json",
+        "data/drivers/phases/yax.json",
+        "data/drivers/phases/sek.json",
+        "data/drivers/phases/chen.json",
+        "data/drivers/phases/xul.json"
       ],
       "runtime_components": [
         "src/kuhul/phase_driver_lock.h",

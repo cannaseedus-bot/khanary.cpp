@@ -5,15 +5,20 @@
 #include "../memory/semantic_graph.h"
 #include "../memory/scoring.h"
 #include "../micronaut/micronaut_registry.h"
+#include "../micronaut/micronaut_transpiler.h"
+#include "../micronaut/mou_router.h"
 #include "../micronaut/factory.h"
+#include "../decision/decision_mu.h"
 #include "../util/json.h"
 #include "conformance.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <string>
 
 using namespace khanary;
@@ -115,6 +120,672 @@ micronaut::MicronautEntry make_chat_entry() {
     return e;
 }
 
+micronaut::MicronautEntry make_mou_entry(
+    const std::string& id,
+    kuhul::Phase phase,
+    float x,
+    float y,
+    float z,
+    bool active = true)
+{
+    micronaut::MicronautEntry e;
+    e.id = id;
+    e.description = "mou test entry";
+    e.primary_phase = phase;
+    e.category = "cognitive";
+    e.capabilities = {"route"};
+    e.governs = {"route", "test"};
+    e.vector_meta.x = x;
+    e.vector_meta.y = y;
+    e.vector_meta.z = z;
+    e.vector_meta.declared = true;
+    e.vector_meta.source = "test";
+    e.static_weight = 1.0f;
+    e.health = 1.0f;
+    e.confidence = 0.5f;
+    e.no_eval = true;
+    e.active = active;
+    return e;
+}
+
+micronaut::MicronautEntry make_scheme_entry(
+    const std::string& id,
+    kuhul::Phase phase,
+    const std::vector<std::string>& schemes,
+    const std::vector<std::string>& verbs,
+    const std::vector<std::string>& tokens,
+    const std::vector<std::string>& governs,
+    const std::vector<std::string>& capabilities)
+{
+    micronaut::MicronautEntry e;
+    e.id = id;
+    e.description = "scheme test entry";
+    e.primary_phase = phase;
+    e.category = "utility";
+    e.route_contract.schemes = schemes;
+    e.route_contract.verbs = verbs;
+    e.route_contract.tokens = tokens;
+    e.governs.insert(governs.begin(), governs.end());
+    e.capabilities = capabilities;
+    e.static_weight = 1.0f;
+    e.health = 1.0f;
+    e.confidence = 0.8f;
+    e.no_eval = true;
+    e.active = true;
+    return e;
+}
+
+micronaut::MicronautEntry make_decision_entry() {
+    return make_scheme_entry("DECISION-µ", kuhul::Phase::Sek,
+                             {"decision"}, {"choose", "select", "evaluate"},
+                             {"decision", "choose", "utility", "loss", "branch"},
+                             {"decision", "choose", "action", "utility", "loss"},
+                             {"DECISION_EXPECTED_UTILITY", "DECISION_MAXIMIN",
+                              "DECISION_MINIMAX", "DECISION_UNDER_UNCERTAINTY"});
+}
+
+float vec_norm_for_test(float x, float y, float z) {
+    return std::sqrt(x * x + y * y + z * z);
+}
+
+bool json_array_contains_string(const util::JsonPtr& root,
+                                const std::string& key,
+                                const std::string& value) {
+    if (!root || !root->is_object()) return false;
+    const auto* arr = root->get(key);
+    if (!arr || !arr->is_array()) return false;
+    for (const auto& item : arr->as_array()) {
+        if (item && item->is_string() && item->as_string() == value) return true;
+    }
+    return false;
+}
+
+util::JsonPtr make_decision_payload(bool include_probabilities,
+                                    bool explicit_expected_utility,
+                                    bool unknown_rain_branch) {
+    util::JsonObject rain;
+    rain["id"] = util::json_string("rain");
+    rain["epistemic_state"] = util::json_string(unknown_rain_branch ? "UNKNOWN" : "SUPPORTED");
+    if (include_probabilities) rain["probability"] = util::json_number(0.7);
+
+    util::JsonObject clear;
+    clear["id"] = util::json_string("clear");
+    clear["epistemic_state"] = util::json_string("SUPPORTED");
+    if (include_probabilities) clear["probability"] = util::json_number(0.3);
+
+    util::JsonObject carry_outcomes;
+    carry_outcomes["rain"] = util::json_object({{"utility", util::json_number(10.0)}});
+    carry_outcomes["clear"] = util::json_object({{"utility", util::json_number(-1.0)}});
+    util::JsonObject carry;
+    carry["id"] = util::json_string("carry_umbrella");
+    carry["outcomes"] = util::json_object(std::move(carry_outcomes));
+
+    util::JsonObject leave_outcomes;
+    leave_outcomes["rain"] = util::json_object({{"utility", util::json_number(-8.0)}});
+    leave_outcomes["clear"] = util::json_object({{"utility", util::json_number(2.0)}});
+    util::JsonObject leave;
+    leave["id"] = util::json_string("leave_umbrella");
+    leave["outcomes"] = util::json_object(std::move(leave_outcomes));
+
+    util::JsonObject decision;
+    decision["objective"] = util::json_string("maximize_utility");
+    if (explicit_expected_utility)
+        decision["decision_model"] = util::json_string("expected_utility");
+    decision["branches"] = util::json_array({
+        util::json_object(std::move(rain)),
+        util::json_object(std::move(clear))
+    });
+    decision["actions"] = util::json_array({
+        util::json_object(std::move(carry)),
+        util::json_object(std::move(leave))
+    });
+
+    util::JsonObject root;
+    root["decision"] = util::json_object(std::move(decision));
+    return util::json_object(std::move(root));
+}
+
+std::optional<kuhul::CommitAuthority> make_test_commit_authority(
+    const std::string& scope,
+    const std::string& identity) {
+    kuhul::XulGate gate;
+    gate.set_authorizer([](kuhul::Phase phase, const std::string& value) {
+        return phase == kuhul::Phase::Xul && !value.empty();
+    });
+    kuhul::CommitDecision decision;
+    decision.proposal_verified = true;
+    decision.mutation_authorized = true;
+    decision.scope_permitted = true;
+    decision.phase = kuhul::Phase::Xul;
+    return gate.authorize_commit(decision, scope, identity);
+}
+
+bool commit_factory_candidate(micronaut::Factory& factory,
+                              micronaut::FactoryCandidate candidate) {
+    auto authority = make_test_commit_authority(candidate.scope, candidate.proposal_identity);
+    if (!authority) return false;
+    return factory.commit(std::move(candidate), std::move(*authority)).ok;
+}
+
+io::RouteResult route_decision_payload(const util::JsonPtr& payload,
+                                       const std::string& query) {
+    memory::PerceptionStore perception;
+    memory::ConfidenceStore confidence;
+    memory::SemanticGraph graph;
+    memory::MicronautScorer scorer(perception, confidence, graph);
+    micronaut::MicronautRegistry reg;
+    reg.add(make_decision_entry());
+    confidence.set("DECISION-µ", 0.9f);
+
+    io::RequestRouter router(reg, scorer, "data");
+    router.set_authorizer([](const io::RouteRequest&, const std::string&) { return true; });
+    router.register_handler("DECISION-µ", [](const std::string&, const io::RouteRequest& req) {
+        return decision::evaluate_request(req.query, req.payload.get());
+    });
+
+    io::RouteRequest req;
+    req.query = query;
+    req.phase = kuhul::Phase::Sek;
+    req.payload = payload;
+    return router.route(req);
+}
+
+bool test_factory_vector_track_commits_monotonic_frame() {
+    micronaut::MicronautRegistry reg;
+    reg.add(make_mou_entry("VECTOR-TEST-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+    micronaut::Factory factory(reg);
+
+    micronaut::VectorTrackObservation observation;
+    observation.x = 0.0f;
+    observation.y = 1.0f;
+    observation.z = 0.0f;
+    observation.evidence_weight = 0.5f;
+    observation.run_id = "run-1";
+    observation.source = "unit";
+    observation.frame_id = 1;
+
+    auto candidate = factory.propose_vector_track("VECTOR-TEST-u", observation);
+    if (!expect_true("vector track proposal exists", candidate.has_value())) return false;
+    if (!expect_eq("vector track scope", candidate->scope, "micronaut-vector-tracking")) return false;
+    if (!expect_eq("vector track identity", candidate->proposal_identity,
+                   "vector_track:VECTOR-TEST-u:1")) return false;
+    if (!expect_true("vector track commit", commit_factory_candidate(factory, std::move(*candidate)))) return false;
+
+    const auto* entry = reg.get("VECTOR-TEST-u");
+    if (!expect_true("vector track entry exists", entry != nullptr)) return false;
+    if (!expect_true("vector track declares vector", entry->vector_meta.declared)) return false;
+    if (!expect_eq("vector track source", entry->vector_meta.source, "unit:run-1:f1")) return false;
+    const auto frame = factory.vector_tracking_frame("VECTOR-TEST-u");
+    if (!expect_true("vector tracking frame stored", frame.has_value())) return false;
+    if (!expect_true("vector tracking frame id", frame->frame_id == 1)) return false;
+    if (!expect_true("vector tracking base frame", frame->base_frame == 0)) return false;
+
+    auto duplicate = factory.propose_vector_track("VECTOR-TEST-u", observation);
+    if (!expect_true("vector track rejects non-monotonic frame", !duplicate.has_value())) return false;
+    return true;
+}
+
+bool test_factory_vector_track_bounds_drift_and_normalizes() {
+    micronaut::MicronautRegistry reg;
+    reg.add(make_mou_entry("VECTOR-DRIFT-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+    micronaut::Factory factory(reg);
+
+    micronaut::VectorTrackObservation observation;
+    observation.x = -100.0f;
+    observation.y = 0.0f;
+    observation.z = 0.0f;
+    observation.evidence_weight = 1.0f;
+    observation.run_id = "run-drift";
+    observation.source = "unit";
+    observation.frame_id = 1;
+
+    auto candidate = factory.propose_vector_track("VECTOR-DRIFT-u", observation);
+    if (!expect_true("drift proposal exists", candidate.has_value())) return false;
+    if (!expect_true("drift is bounded", candidate->vector_frame.drift <= 0.2501f)) return false;
+    if (!expect_true("drift proposal normalized",
+                     candidate->vector_frame.x > 0.9f &&
+                     candidate->vector_frame.y > 0.2f &&
+                     std::fabs(candidate->vector_frame.z) < 1e-3f &&
+                     std::fabs(vec_norm_for_test(candidate->vector_frame.x,
+                                                 candidate->vector_frame.y,
+                                                 candidate->vector_frame.z) - 1.0f) < 1e-3f)) return false;
+    if (!expect_true("drift proposal commits", commit_factory_candidate(factory, std::move(*candidate)))) return false;
+    const auto* entry = reg.get("VECTOR-DRIFT-u");
+    if (!expect_true("drift entry normalized",
+                     entry && entry->vector_meta.x > 0.9f && entry->vector_meta.y > 0.2f)) return false;
+    return true;
+}
+
+bool test_factory_vector_tracking_state_roundtrip() {
+    const auto base = std::filesystem::current_path();
+    const auto json_path = base / "factory-vector-state-test.json";
+    const auto bin_path = base / "factory-vector-state-test.bin";
+
+    {
+        micronaut::MicronautRegistry reg;
+        reg.add(make_mou_entry("VECTOR-PERSIST-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+        micronaut::Factory factory(reg);
+        micronaut::VectorTrackObservation observation;
+        observation.x = 0.0f;
+        observation.y = 1.0f;
+        observation.z = 0.0f;
+        observation.evidence_weight = 0.25f;
+        observation.run_id = "run-persist";
+        observation.source = "unit";
+        observation.frame_id = 1;
+        auto candidate = factory.propose_vector_track("VECTOR-PERSIST-u", observation);
+        if (!expect_true("persist proposal exists", candidate.has_value())) return false;
+        if (!expect_true("persist proposal commits", commit_factory_candidate(factory, std::move(*candidate)))) return false;
+        auto authority = make_test_commit_authority("keystore", "factory-vector-persist-test");
+        if (!expect_true("persist authority minted", authority.has_value())) return false;
+        if (!expect_true("factory state persisted",
+                         factory.persist(std::move(*authority), json_path.string(), bin_path.string()))) return false;
+    }
+
+    {
+        micronaut::MicronautRegistry reg;
+        reg.add(make_mou_entry("VECTOR-PERSIST-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+        micronaut::Factory restored(reg);
+        if (!expect_true("json state restored", restored.load_state(json_path.string()))) return false;
+        const auto frame = restored.vector_tracking_frame("VECTOR-PERSIST-u");
+        const auto* entry = reg.get("VECTOR-PERSIST-u");
+        if (!expect_true("json frame restored", frame && frame->frame_id == 1)) return false;
+        if (!expect_true("json vector applied", entry && entry->vector_meta.y > 0.05f)) return false;
+    }
+
+    {
+        micronaut::MicronautRegistry reg;
+        reg.add(make_mou_entry("VECTOR-PERSIST-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+        micronaut::Factory restored(reg);
+        if (!expect_true("binary state restored", restored.load_state_binary(bin_path.string()))) return false;
+        const auto frame = restored.vector_tracking_frame("VECTOR-PERSIST-u");
+        const auto* entry = reg.get("VECTOR-PERSIST-u");
+        if (!expect_true("binary frame restored", frame && frame->frame_id == 1)) return false;
+        if (!expect_true("binary vector applied", entry && entry->vector_meta.y > 0.05f)) return false;
+    }
+
+    std::error_code ec;
+    std::filesystem::remove(json_path, ec);
+    std::filesystem::remove(bin_path, ec);
+    return true;
+}
+
+bool test_micronaut_attraction_capture_formula() {
+    micronaut::GravityField field;
+    field.register_nodes("HIGH-u", {"solve", "matrix"}, kuhul::Phase::Sek,
+                         1.0f, 0.0f, 0.0f, true,
+                         1.0f, 0.9f, 1.0f, 0.0f,
+                         true, true, true);
+    field.register_nodes("LOW-u", {"solve", "matrix"}, kuhul::Phase::Sek,
+                         1.0f, 0.0f, 0.0f, true,
+                         1.0f, 0.2f, 1.0f, 0.0f,
+                         true, true, true);
+    field.register_nodes("ENTROPY-u", {"solve", "matrix"}, kuhul::Phase::Sek,
+                         1.0f, 0.0f, 0.0f, true,
+                         1.0f, 1.0f, 1.0f, 999.0f,
+                         true, true, true);
+    field.register_nodes("DENIED-u", {"solve", "matrix"}, kuhul::Phase::Sek,
+                         1.0f, 0.0f, 0.0f, true,
+                         1.0f, 1.0f, 1.0f, 0.0f,
+                         false, true, true);
+
+    const auto rows = field.capture({"solve", "matrix"}, kuhul::Phase::Sek, 0.1f);
+    auto find = [&](const std::string& id) -> const micronaut::MicronautAttraction* {
+        for (const auto& row : rows)
+            if (row.micronaut_id == id) return &row;
+        return nullptr;
+    };
+
+    const auto* high = find("HIGH-u");
+    const auto* low = find("LOW-u");
+    const auto* entropy = find("ENTROPY-u");
+    const auto* denied = find("DENIED-u");
+    if (!expect_true("attraction high exists", high != nullptr)) return false;
+    if (!expect_true("attraction low exists", low != nullptr)) return false;
+    if (!expect_true("attraction entropy exists", entropy != nullptr)) return false;
+    if (!expect_true("attraction denied exists", denied != nullptr)) return false;
+
+    const float expected_phi =
+        high->semantic_mass * high->geometric_alignment * high->wcr_prior;
+    if (!expect_true("attraction formula multiplies mass alignment wcr",
+                     std::fabs(high->phi - expected_phi) < 1e-6f)) return false;
+    if (!expect_true("high confidence increases attraction",
+                     high->capture_score > low->capture_score)) return false;
+    if (!expect_true("entropy overbalances capture",
+                     !entropy->captured && entropy->capture_score == 0.0f)) return false;
+    if (!expect_true("policy denial blocks capture",
+                     !denied->legal && !denied->captured && denied->capture_score == 0.0f)) return false;
+    if (!expect_eq("best match uses attraction", field.best_match({"solve", "matrix"},
+                                                                  kuhul::Phase::Sek, 0.1f),
+                   "HIGH-u")) return false;
+    return true;
+}
+
+bool test_micronaut_transpiler_compiles_key_contract() {
+    auto entry = make_decision_entry();
+    entry.route_contract.key_patterns = {"decision:choose:*", "decision:choose:*"};
+    entry.route_contract.key_templates = {"decision:result:selected"};
+    entry.route_contract.key_grammar = {"schema:scfml.pattern_learning.v1"};
+    util::JsonObject profile;
+    profile["projection_only"] = util::json_bool(true);
+    profile["authority_boundary"] = util::json_string("test_profile");
+    entry.profile_projection = util::json_object(std::move(profile));
+
+    const auto row = micronaut::MicronautTranspiler::compile_entry(entry);
+    if (!expect_true("micronaut transpiler row is object", row && row->is_object())) return false;
+    if (!expect_eq("micronaut transpiler schema", row->get_string("schema").value_or(""),
+                   "key.grammar.micronaut_route.v1")) return false;
+    if (!expect_eq("micronaut transpiler track", row->get_string("track").value_or(""),
+                   "DECISION-µ")) return false;
+    if (!expect_true("micronaut transpiler fact boundary",
+                     !row->get_bool("fact_authority").value_or(true))) return false;
+    const auto* contract = row->get("route_contract");
+    if (!expect_true("micronaut transpiler contract object", contract && contract->is_object())) return false;
+    const auto* patterns = contract->get("key_patterns");
+    if (!expect_true("micronaut transpiler key patterns", patterns && patterns->is_array() &&
+                     patterns->as_array().size() == 1)) return false;
+    const auto* grammar = contract->get("key_grammar");
+    if (!expect_true("micronaut transpiler key grammar", grammar && grammar->is_array() &&
+                     grammar->as_array().size() == 1)) return false;
+    const auto* klass = row->get("micronaut_class");
+    if (!expect_true("micronaut class projection object", klass && klass->is_object())) return false;
+    if (!expect_eq("micronaut class schema", klass->get_string("schema").value_or(""),
+                   "micronaut.class_projection.example.v1")) return false;
+    if (!expect_true("micronaut class is example-only",
+                     klass->get_bool("example_only").value_or(false))) return false;
+    const auto* identity = klass->get("identity");
+    if (!expect_true("micronaut class identity", identity && identity->is_object() &&
+                     identity->get_string("name").value_or("") == "DECISION-µ")) return false;
+    const auto* profile_row = row->get("micronaut_profile");
+    if (!expect_true("micronaut profile projection surfaced",
+                     profile_row && profile_row->is_object() &&
+                     profile_row->get_bool("projection_only").value_or(false))) return false;
+    return true;
+}
+
+bool test_mou_router_phase_filter_and_weight_norm() {
+    micronaut::MicronautRegistry reg;
+    memory::ConfidenceStore confidence;
+
+    reg.add(make_mou_entry("CHAT-u", kuhul::Phase::Wo, 1.0f, 0.0f, 0.0f));
+    reg.add(make_mou_entry("TOOL-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+    reg.add(make_mou_entry("MATH-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+
+    confidence.set("CHAT-u", 1.0f);
+    confidence.set("TOOL-u", 0.8f);
+    confidence.set("MATH-u", 0.2f);
+
+    micronaut::MouRouter router(reg, confidence);
+    router.sync_index();
+    router.sync_bias();
+
+    const auto allocs = router.route(kuhul::Phase::Sek, {"tool", "call", "web"}, 2);
+    if (!expect_true("mou phase route nonempty", !allocs.empty())) return false;
+    if (!expect_true("mou phase route bounded", allocs.size() <= 2)) return false;
+
+    bool all_at_phase = true;
+    float sum = 0.0f;
+    for (const auto& alloc : allocs) {
+        sum += alloc.weight;
+        const auto* entry = reg.get(alloc.id);
+        if (!entry || entry->primary_phase != kuhul::Phase::Sek) {
+            all_at_phase = false;
+            break;
+        }
+    }
+
+    if (!expect_true("mou phase filter keeps requested phase", all_at_phase)) return false;
+    if (!expect_true("mou weights normalized", std::fabs(sum - 1.0f) < 1e-4f)) return false;
+    if (!expect_eq("mou phase route prefers higher confidence", allocs.front().id, "TOOL-u")) return false;
+    return true;
+}
+
+bool test_mou_router_phase_fallback_unfiltered() {
+    micronaut::MicronautRegistry reg;
+    memory::ConfidenceStore confidence;
+
+    reg.add(make_mou_entry("CHAT-u", kuhul::Phase::Wo, 1.0f, 0.0f, 0.0f));
+    reg.add(make_mou_entry("TOOL-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+
+    confidence.set("CHAT-u", 1.0f);
+    confidence.set("TOOL-u", 0.5f);
+
+    micronaut::MouRouter router(reg, confidence);
+    router.sync_index();
+    router.sync_bias();
+
+    const auto allocs = router.route(kuhul::Phase::Chen, {"status"}, 2);
+    if (!expect_true("mou phase fallback nonempty", !allocs.empty())) return false;
+
+    bool contains_non_phase = false;
+    float sum = 0.0f;
+    for (const auto& alloc : allocs) {
+        sum += alloc.weight;
+        const auto* entry = reg.get(alloc.id);
+        if (entry && entry->primary_phase != kuhul::Phase::Chen)
+            contains_non_phase = true;
+    }
+
+    if (!expect_true("mou fallback returns unfiltered entries", contains_non_phase)) return false;
+    if (!expect_true("mou fallback weights normalized", std::fabs(sum - 1.0f) < 1e-4f)) return false;
+    return true;
+}
+
+bool test_mou_router_sync_bias_refresh() {
+    micronaut::MicronautRegistry reg;
+    memory::ConfidenceStore confidence;
+
+    reg.add(make_mou_entry("A-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+    reg.add(make_mou_entry("B-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+
+    confidence.set("A-u", 0.1f);
+    confidence.set("B-u", 0.9f);
+
+    micronaut::MouRouter router(reg, confidence);
+    router.sync_index();
+    router.sync_bias();
+
+    auto first = router.route(kuhul::Phase::Sek, {"bias", "probe"}, 1);
+    if (!expect_true("mou bias initial route exists", !first.empty())) return false;
+    if (!expect_eq("mou bias initial winner", first.front().id, "B-u")) return false;
+
+    confidence.set("A-u", 1.0f);
+    confidence.set("B-u", 0.0f);
+
+    auto stale = router.route(kuhul::Phase::Sek, {"bias", "probe"}, 1);
+    if (!expect_true("mou stale route exists", !stale.empty())) return false;
+    if (!expect_eq("mou bias remains stale before sync", stale.front().id, "B-u")) return false;
+
+    router.sync_bias();
+    auto refreshed = router.route(kuhul::Phase::Sek, {"bias", "probe"}, 1);
+    if (!expect_true("mou refreshed route exists", !refreshed.empty())) return false;
+    if (!expect_eq("mou bias winner flips after sync", refreshed.front().id, "A-u")) return false;
+    return true;
+}
+
+bool test_mou_router_dispatch_variance_contract() {
+    micronaut::MicronautRegistry reg;
+    memory::ConfidenceStore confidence;
+
+    reg.add(make_mou_entry("ALPHA-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+    reg.add(make_mou_entry("BETA-u", kuhul::Phase::Sek, 0.0f, 1.0f, 0.0f));
+    confidence.set("ALPHA-u", 0.7f);
+    confidence.set("BETA-u", 0.6f);
+
+    micronaut::MouRouter router(reg, confidence);
+    router.sync_index();
+    router.sync_bias();
+
+    for (int i = 0; i < 12; ++i) {
+        const auto allocs = router.route(kuhul::Phase::Sek, {"variance", "probe", std::to_string(i % 2)}, 2);
+        if (!allocs.empty())
+            router.record_dispatch(allocs.front().id);
+    }
+
+    // Unknown IDs are ignored (no throw, no mutation requirement).
+    router.record_dispatch("UNKNOWN-u");
+
+    const float sigma2 = router.routing_variance(8);
+    if (!expect_true("mou variance is finite and non-negative",
+                     std::isfinite(sigma2) && sigma2 >= 0.0f)) return false;
+    if (!expect_true("mou index count tracks registry", router.n_micronauts() == 2u)) return false;
+    return true;
+}
+
+bool test_scheme_uri_routes_to_declared_micronaut() {
+    memory::PerceptionStore perception;
+    memory::ConfidenceStore confidence;
+    memory::SemanticGraph graph;
+    memory::MicronautScorer scorer(perception, confidence, graph);
+    micronaut::MicronautRegistry reg;
+
+    reg.add(make_scheme_entry("MATH-u", kuhul::Phase::Sek,
+                              {"math"}, {"solve"}, {"algebra"},
+                              {"algebra", "equation"}, {"solve"}));
+    reg.add(make_scheme_entry("CHAT-u", kuhul::Phase::Sek,
+                              {"chat"}, {"talk"}, {"chat"},
+                              {"chat", "talk"}, {"smalltalk"}));
+    confidence.set("MATH-u", 0.9f);
+    confidence.set("CHAT-u", 0.3f);
+
+    io::RequestRouter router(reg, scorer, "data");
+    router.set_authorizer([](const io::RouteRequest&, const std::string&) { return true; });
+    router.register_handler("MATH-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("math");
+    });
+    router.register_handler("CHAT-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("chat");
+    });
+
+    io::RouteRequest req;
+    req.query = "math://solve?expr=2%2B2 algebra";
+    req.phase = kuhul::Phase::Sek;
+    const auto result = router.route(req);
+    if (!expect_eq("scheme uri selected resolver", result.micronaut_id, "MATH-u")) return false;
+    if (!expect_eq("scheme uri selected op", result.selected_task_op, "solve")) return false;
+    if (!expect_true("scheme uri dispatch allowed", result.dispatch_allowed)) return false;
+    return true;
+}
+
+bool test_scheme_uri_verb_filtering() {
+    memory::PerceptionStore perception;
+    memory::ConfidenceStore confidence;
+    memory::SemanticGraph graph;
+    memory::MicronautScorer scorer(perception, confidence, graph);
+    micronaut::MicronautRegistry reg;
+
+    reg.add(make_scheme_entry("MATH-u", kuhul::Phase::Sek,
+                              {"math"}, {"solve"}, {"algebra"},
+                              {"algebra"}, {"solve"}));
+    reg.add(make_scheme_entry("REASON-u", kuhul::Phase::Sek,
+                              {"math"}, {"prove"}, {"theorem"},
+                              {"theorem", "proof"}, {"prove"}));
+    confidence.set("MATH-u", 0.9f);
+    confidence.set("REASON-u", 0.8f);
+
+    io::RequestRouter router(reg, scorer, "data");
+    router.set_authorizer([](const io::RouteRequest&, const std::string&) { return true; });
+    router.register_handler("MATH-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("math");
+    });
+    router.register_handler("REASON-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("reason");
+    });
+
+    io::RouteRequest req;
+    req.query = "math://prove?topic=theorem";
+    req.phase = kuhul::Phase::Sek;
+    const auto result = router.route(req);
+    if (!expect_eq("scheme uri verb-filter resolver", result.micronaut_id, "REASON-u")) return false;
+    if (!expect_eq("scheme uri verb-filter op", result.selected_task_op, "prove")) return false;
+    return true;
+}
+
+bool test_scheme_uri_scopes_explicit_decision_field() {
+    memory::PerceptionStore perception;
+    memory::ConfidenceStore confidence;
+    memory::SemanticGraph graph;
+    memory::MicronautScorer scorer(perception, confidence, graph);
+    micronaut::MicronautRegistry reg;
+
+    reg.add(make_decision_entry());
+    reg.add(make_scheme_entry("MATH-u", kuhul::Phase::Sek,
+                              {"math"}, {"solve"}, {"algebra"},
+                              {"algebra", "equation"}, {"solve"}));
+    reg.add(make_scheme_entry("PLAN-u", kuhul::Phase::Sek,
+                              {"plan"}, {"outline"}, {"plan"},
+                              {"plan", "outline"}, {"outline"}));
+    reg.add(make_scheme_entry("CHAT-u", kuhul::Phase::Sek,
+                              {"chat"}, {"talk"}, {"chat"},
+                              {"chat", "talk"}, {"smalltalk"}));
+    confidence.set("DECISION-µ", 0.9f);
+    confidence.set("MATH-u", 0.9f);
+    confidence.set("PLAN-u", 0.9f);
+    confidence.set("CHAT-u", 0.9f);
+
+    io::RequestRouter router(reg, scorer, "data");
+    router.set_authorizer([](const io::RouteRequest&, const std::string&) { return true; });
+    router.register_handler("DECISION-µ", [](const std::string&, const io::RouteRequest& req) {
+        return decision::evaluate_request(req.query, req.payload.get());
+    });
+    router.register_handler("MATH-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("math");
+    });
+    router.register_handler("PLAN-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("plan");
+    });
+    router.register_handler("CHAT-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("chat");
+    });
+
+    io::RouteRequest req;
+    req.query = "decision://choose";
+    req.phase = kuhul::Phase::Sek;
+    req.payload = make_decision_payload(true, true, false);
+    const auto result = router.route(req);
+    if (!expect_eq("explicit decision uri resolver", result.micronaut_id, "DECISION-µ")) return false;
+    if (!expect_true("explicit decision uri dispatch allowed", result.dispatch_allowed)) return false;
+    if (!expect_true("explicit decision uri scopes eligible field", result.eligible_count == 1)) return false;
+    if (!expect_eq("explicit decision uri handler", result.handler_id, "DECISION-µ")) return false;
+    if (!expect_eq("explicit decision uri action",
+                   result.response->get_string("action").value_or(""), "carry_umbrella")) return false;
+    return true;
+}
+
+bool test_scheme_uri_id_alias_default() {
+    memory::PerceptionStore perception;
+    memory::ConfidenceStore confidence;
+    memory::SemanticGraph graph;
+    memory::MicronautScorer scorer(perception, confidence, graph);
+    micronaut::MicronautRegistry reg;
+
+    auto plan = make_scheme_entry("PLAN-u", kuhul::Phase::Sek,
+                                  {}, {}, {"outline"},
+                                  {"plan", "outline"}, {"outline"});
+    reg.add(plan);
+    reg.add(make_scheme_entry("CHAT-u", kuhul::Phase::Sek,
+                              {"chat"}, {"talk"}, {"chat"},
+                              {"chat"}, {"smalltalk"}));
+    confidence.set("PLAN-u", 0.6f);
+    confidence.set("CHAT-u", 0.6f);
+
+    io::RequestRouter router(reg, scorer, "data");
+    router.set_authorizer([](const io::RouteRequest&, const std::string&) { return true; });
+    router.register_handler("PLAN-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("plan");
+    });
+    router.register_handler("CHAT-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("chat");
+    });
+
+    io::RouteRequest req;
+    req.query = "plan://outline";
+    req.phase = kuhul::Phase::Sek;
+    const auto result = router.route(req);
+    if (!expect_eq("scheme uri id-alias resolver", result.micronaut_id, "PLAN-u")) return false;
+    return true;
+}
+
 bool test_policy_filters_then_ranks() {
     memory::PerceptionStore perception;
     memory::ConfidenceStore confidence;
@@ -148,6 +819,131 @@ bool test_policy_filters_then_ranks() {
     if (!expect_true("dispatch allowed", result.dispatch_allowed)) return false;
     if (!expect_true("math eligible", contains_value(result.eligible_resolvers, "MATH-u"))) return false;
     if (!expect_true("coder filtered out", contains_value(result.ineligible_resolvers, "coder"))) return false;
+    return true;
+}
+
+bool test_epistemic_contract_for_miss_and_unknown() {
+    io::RouteResult miss;
+    miss.dispatch_block_reason = "MISS_capability";
+    miss.epistemic_state = "MISS";
+    miss.observation_authority = false;
+    miss.epistemic_causes = {"local_miss", "insufficient_observability"};
+
+    util::JsonObject miss_response;
+    miss_response["status"] = util::json_string("miss_capability");
+    miss_response["epistemic_state"] = util::json_string(miss.epistemic_state);
+    miss_response["observation_authority"] = util::json_bool(miss.observation_authority);
+    util::JsonArray miss_causes;
+    for (const auto& cause : miss.epistemic_causes)
+        miss_causes.push_back(util::json_string(cause));
+    miss_response["epistemic_causes"] = util::json_array(std::move(miss_causes));
+    miss.response = util::json_object(std::move(miss_response));
+
+    if (!expect_eq("capability miss epistemic state", miss.epistemic_state, "MISS")) return false;
+    if (!expect_true("capability miss denies observation authority", !miss.observation_authority)) return false;
+    if (!expect_eq("capability miss response state", miss.response->get_string("epistemic_state").value_or(""), "MISS")) return false;
+
+    io::RouteResult unknown;
+    unknown.dispatch_block_reason = "MISS_ambiguity";
+    unknown.epistemic_state = "UNKNOWN";
+    unknown.observation_authority = false;
+    unknown.epistemic_causes = {"local_miss", "insufficient_observability", "cross_track_evidence_not_checked"};
+    util::JsonObject unknown_response;
+    unknown_response["status"] = util::json_string("miss_ambiguity");
+    unknown_response["epistemic_state"] = util::json_string(unknown.epistemic_state);
+    unknown_response["observation_authority"] = util::json_bool(unknown.observation_authority);
+    util::JsonArray unknown_causes;
+    for (const auto& cause : unknown.epistemic_causes)
+        unknown_causes.push_back(util::json_string(cause));
+    unknown_response["epistemic_causes"] = util::json_array(std::move(unknown_causes));
+    unknown.response = util::json_object(std::move(unknown_response));
+
+    if (!expect_eq("ambiguity epistemic state", unknown.epistemic_state, "UNKNOWN")) return false;
+    if (!expect_true("ambiguity gate blocks flat field",
+                     io::ambiguity_gate(io::routing_entropy({1.0, 1.0}), 0) == io::AmbiguityGate::BlockAmbiguity)) return false;
+    if (!expect_eq("ambiguity response state", unknown.response->get_string("epistemic_state").value_or(""), "UNKNOWN")) return false;
+    return true;
+}
+
+bool test_decision_expected_utility_selects_action_without_fact_collapse() {
+    const auto result = route_decision_payload(
+        make_decision_payload(true, true, false), "decision://choose");
+    if (!expect_eq("decision scheme resolver", result.micronaut_id, "DECISION-µ")) return false;
+    if (!expect_eq("decision scheme op", result.selected_task_op, "choose")) return false;
+    if (!expect_true("decision dispatch allowed", result.dispatch_allowed)) return false;
+    if (!result.response || !result.response->is_object()) {
+        std::cerr << "[FAIL] decision response shape\n";
+        return false;
+    }
+    if (!expect_eq("decision status", result.response->get_string("status").value_or(""),
+                   "decision_selected")) return false;
+    if (!expect_eq("decision action", result.response->get_string("action").value_or(""),
+                   "carry_umbrella")) return false;
+    if (!expect_eq("decision model", result.response->get_string("decision_model").value_or(""),
+                   "expected_utility")) return false;
+    if (!expect_eq("decision epistemic state",
+                   result.response->get_string("epistemic_state").value_or(""),
+                   "SUPPORTED")) return false;
+    if (!expect_eq("decision probability state",
+                   result.response->get_string("probability_state").value_or(""),
+                   "SPECIFIED")) return false;
+    if (!expect_true("decision does not collapse facts",
+                     !result.response->get_bool("fact_collapsed").value_or(true))) return false;
+    return true;
+}
+
+bool test_decision_unknown_probability_uses_robust_action_only() {
+    const auto result = route_decision_payload(
+        make_decision_payload(false, false, true), "decision://select");
+    if (!expect_eq("decision robust resolver", result.micronaut_id, "DECISION-µ")) return false;
+    if (!expect_eq("decision robust op", result.selected_task_op, "select")) return false;
+    if (!expect_true("decision robust dispatch allowed", result.dispatch_allowed)) return false;
+    if (!result.response || !result.response->is_object()) {
+        std::cerr << "[FAIL] robust decision response shape\n";
+        return false;
+    }
+    if (!expect_eq("robust decision status", result.response->get_string("status").value_or(""),
+                   "decision_selected")) return false;
+    if (!expect_eq("robust decision action", result.response->get_string("action").value_or(""),
+                   "carry_umbrella")) return false;
+    if (!expect_eq("robust decision model", result.response->get_string("decision_model").value_or(""),
+                   "maximin")) return false;
+    if (!expect_eq("robust epistemic state",
+                   result.response->get_string("epistemic_state").value_or(""),
+                   "UNKNOWN")) return false;
+    if (!expect_eq("robust probability state",
+                   result.response->get_string("probability_state").value_or(""),
+                   "UNKNOWN")) return false;
+    if (!expect_true("robust decision preserves unknown branch",
+                     json_array_contains_string(result.response, "unresolved_branches", "rain"))) return false;
+    if (!expect_true("robust decision does not collapse facts",
+                     !result.response->get_bool("fact_collapsed").value_or(true))) return false;
+    return true;
+}
+
+bool test_decision_expected_utility_rejects_missing_probability() {
+    const auto result = route_decision_payload(
+        make_decision_payload(false, true, false), "decision://evaluate");
+    if (!expect_eq("decision missing-probability resolver", result.micronaut_id, "DECISION-µ")) return false;
+    if (!expect_true("decision missing-probability dispatch allowed", result.dispatch_allowed)) return false;
+    if (!result.response || !result.response->is_object()) {
+        std::cerr << "[FAIL] missing-probability decision response shape\n";
+        return false;
+    }
+    if (!expect_eq("missing-probability status", result.response->get_string("status").value_or(""),
+                   "decision_unknown")) return false;
+    if (!expect_true("missing-probability has no action",
+                     !result.response->get_bool("action_selected").value_or(true))) return false;
+    if (!expect_true("missing-probability has no decision collapse",
+                     !result.response->get_bool("decision_collapse").value_or(true))) return false;
+    if (!expect_eq("missing-probability probability state",
+                   result.response->get_string("probability_state").value_or(""),
+                   "UNKNOWN")) return false;
+    if (!expect_true("missing-probability requires probability evidence",
+                     json_array_contains_string(result.response, "required_evidence",
+                                                "branch_probability:rain"))) return false;
+    if (!expect_true("missing-probability does not collapse facts",
+                     !result.response->get_bool("fact_collapsed").value_or(true))) return false;
     return true;
 }
 
@@ -218,8 +1014,25 @@ bool test_tool_gram_channel_biases_tool_track() {
 int main() {
     return test::run("router", [](test::Suite& suite) {
         suite.check("policy_filters_then_ranks", test_policy_filters_then_ranks());
+        suite.check("epistemic_contract_for_miss_and_unknown", test_epistemic_contract_for_miss_and_unknown());
+        suite.check("decision_expected_utility_selects_action_without_fact_collapse", test_decision_expected_utility_selects_action_without_fact_collapse());
+        suite.check("decision_unknown_probability_uses_robust_action_only", test_decision_unknown_probability_uses_robust_action_only());
+        suite.check("decision_expected_utility_rejects_missing_probability", test_decision_expected_utility_rejects_missing_probability());
         suite.check("empty_eligibility_is_capability_miss", test_empty_eligibility_is_capability_miss());
         suite.check("tool_gram_channel_biases_tool_track", test_tool_gram_channel_biases_tool_track());
+        suite.check("factory_vector_track_commits_monotonic_frame", test_factory_vector_track_commits_monotonic_frame());
+        suite.check("factory_vector_track_bounds_drift_and_normalizes", test_factory_vector_track_bounds_drift_and_normalizes());
+        suite.check("factory_vector_tracking_state_roundtrip", test_factory_vector_tracking_state_roundtrip());
+        suite.check("micronaut_attraction_capture_formula", test_micronaut_attraction_capture_formula());
+        suite.check("micronaut_transpiler_compiles_key_contract", test_micronaut_transpiler_compiles_key_contract());
+        suite.check("mou_router_phase_filter_and_weight_norm", test_mou_router_phase_filter_and_weight_norm());
+        suite.check("mou_router_phase_fallback_unfiltered", test_mou_router_phase_fallback_unfiltered());
+        suite.check("mou_router_sync_bias_refresh", test_mou_router_sync_bias_refresh());
+        suite.check("mou_router_dispatch_variance_contract", test_mou_router_dispatch_variance_contract());
+        suite.check("scheme_uri_routes_to_declared_micronaut", test_scheme_uri_routes_to_declared_micronaut());
+        suite.check("scheme_uri_verb_filtering", test_scheme_uri_verb_filtering());
+        suite.check("scheme_uri_scopes_explicit_decision_field", test_scheme_uri_scopes_explicit_decision_field());
+        suite.check("scheme_uri_id_alias_default", test_scheme_uri_id_alias_default());
         memory::PerceptionStore perception;
         memory::ConfidenceStore confidence;
         memory::SemanticGraph graph;
@@ -482,5 +1295,5 @@ int main() {
             std::filesystem::remove(in_path, ignored);
             std::filesystem::remove(out_path, ignored);
         }
-    }, 63);
+    }, 80);
 }

@@ -1,0 +1,610 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+
+  <!--
+    metric_graph.mml
+
+    METRIC-µ contract:
+      METRIC-µ learns measurement geometry inside admitted track compartments.
+      It supplies traversal cost L_e and relevance R to WCR/Yax.
+      It cannot mutate B, verify GOOD/BAD, or commit Xul topology.
+      It does not build one global metric space across all Mx2LM semantics.
+
+    Content dictionary used here: urn:kuhul:metric-graph:v1
+  -->
+
+  <semantics>
+    <mrow>
+      <mi>Track</mi>
+      <mo>_</mo>
+      <mi>&#x03C4;</mi>
+      <mo>=</mo>
+      <mo>&#x27E8;</mo>
+      <msub><mi>G</mi><mi>&#x03C4;</mi></msub>
+      <mo>,</mo>
+      <msub><mi>N</mi><mi>&#x03C4;</mi></msub>
+      <mo>,</mo>
+      <msub><mi>R</mi><mi>&#x03C4;</mi></msub>
+      <mo>&#x27E9;</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><selector/><ci>Track</ci><ci>tau</ci></apply>
+        <list>
+          <apply><selector/><ci>G</ci><ci>tau</ci></apply>
+          <apply><selector/><ci>N</ci><ci>tau</ci></apply>
+          <apply><selector/><ci>R</ci><ci>tau</ci></apply>
+        </list>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+Track_tau = &lt;G_tau, N_tau, R_tau&gt;
+G_tau: track-owned grams / key-word evidence.
+N_tau: track-local neighborhoods.
+R_tau: track-local relation structure.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>M</mi><mi>&#x03C4;</mi></msub>
+      <mo>=</mo>
+      <mi>METRIC</mi>
+      <mo>_</mo>
+      <mi>&#x03BC;</mi>
+      <mo>(</mo>
+      <mi>Track</mi>
+      <mo>_</mo>
+      <mi>&#x03C4;</mi>
+      <mo>)</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><selector/><ci>M</ci><ci>tau</ci></apply>
+        <apply>
+          <csymbol cd="urn:kuhul:metric-graph:v1">TrackMetric</csymbol>
+          <apply><selector/><ci>Track</ci><ci>tau</ci></apply>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+M_tau = METRIC_mu(Track_tau)
+METRIC_mu learns only over G_tau unless an explicit Bridge_alpha_beta is admitted.
+There is no required global semantic metric over union_tau G_tau.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>L</mi><mi>e</mi></msub>
+      <mo>=</mo>
+      <mi>MetricCost</mi>
+      <mo>(</mo>
+      <mi>A</mi>
+      <mo>,</mo>
+      <mi>r</mi>
+      <mo>,</mo>
+      <mi>B</mi>
+      <mo>|</mo>
+      <mi>F</mi>
+      <mo>,</mo>
+      <mi>&#x03B8;</mi>
+      <mo>,</mo>
+      <mi>J</mi>
+      <mo>,</mo>
+      <mi>&#x0394;F</mi>
+      <mo>)</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><selector/><ci>L</ci><ci>e</ci></apply>
+        <apply>
+          <csymbol cd="urn:kuhul:metric-graph:v1">MetricCost</csymbol>
+          <ci>A</ci>
+          <ci>r</ci>
+      <ci>B</ci>
+          <ci>tau</ci>
+          <ci>F</ci>
+          <ci>theta</ci>
+          <ci>J</ci>
+          <ci>DeltaF</ci>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+L_e = MetricCost(A,r,B | tau,F,theta,J,DeltaF)
+L_e is learned traversal cost over edge e=(A,r,B).
+The relation r remains RelationISA/FoldGraph authority; METRIC-mu cannot rewrite r.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>R</mi><mi>&#x03C4;</mi></msub>
+      <mo>=</mo>
+      <mi>Relevance</mi>
+      <mo>(</mo>
+      <mi>Q</mi>
+      <mo>,</mo>
+      <mi>K</mi>
+      <mo>|</mo>
+      <mi>r</mi>
+      <mo>,</mo>
+      <mi>F</mi>
+      <mo>,</mo>
+      <mi>&#x03B8;</mi>
+      <mo>,</mo>
+      <mi>provider</mi>
+      <mo>)</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><selector/><ci>R</ci><ci>tau</ci></apply>
+        <apply>
+          <csymbol cd="urn:kuhul:metric-graph:v1">Relevance</csymbol>
+          <ci>Q</ci>
+          <ci>K</ci>
+          <ci>tau</ci>
+          <ci>r</ci>
+          <ci>F</ci>
+          <ci>theta</ci>
+          <ci>provider</ci>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+R_tau = Relevance(Q,K | tau,r,F,theta,provider)
+Yax may consume R_tau as S = W * C * R.
+Different providers may compute R_metric, R_vector, R_sdr, R_graph, or R_scx.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <mi>R</mi>
+      <mo>=</mo>
+      <mrow>
+        <mo>{</mo>
+        <mtable columnalign="left left">
+          <mtr>
+            <mtd><msub><mi>R</mi><mi>&#x03C4;</mi></msub><mo>(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>)</mo></mtd>
+            <mtd><mtext>within admitted Track_tau</mtext></mtd>
+          </mtr>
+          <mtr>
+            <mtd><msub><mi>R</mi><mrow><mi>&#x03B1;</mi><mi>&#x03B2;</mi></mrow></msub><mo>(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>)</mo></mtd>
+            <mtd><mtext>if Bridge_alpha_beta is admitted</mtext></mtd>
+          </mtr>
+          <mtr>
+            <mtd><mn>0</mn></mtd>
+            <mtd><mtext>otherwise not comparable</mtext></mtd>
+          </mtr>
+        </mtable>
+      </mrow>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <csymbol cd="urn:kuhul:metric-graph:v1">TrackRelevanceSwitch</csymbol>
+        <ci>Q</ci>
+        <ci>K</ci>
+        <ci>Track</ci>
+        <ci>Bridge</ci>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+R = R_tau(Q,K) inside one admitted track.
+R = R_alpha_beta(Q,K) only when Bridge_alpha_beta is admitted.
+R = 0/NA when no track bridge exists; not every gram competes with every gram.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <mi>D</mi>
+      <mo>=</mo>
+      <mi>PrincipalDirection</mi>
+      <mo>(</mo>
+      <msub><mi>&#x1D4D3;</mi><mi>Q</mi></msub>
+      <mo>|</mo>
+      <msub><mi>M</mi><mi>Q</mi></msub>
+      <mo>)</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <ci>D</ci>
+        <apply>
+          <csymbol cd="urn:kuhul:metric-graph:v1">PrincipalDirection</csymbol>
+          <apply><selector/><ci>Deltas</ci><ci>Q</ci></apply>
+          <apply><selector/><ci>M</ci><ci>Q</ci></apply>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+D = PrincipalDirection(D_Q | M_Q)
+PrincipalDirection is metric-aware and provider-independent.
+Vector PCA is one provider implementation, not the definition.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <mi>&#x0394;L</mi>
+      <mo>&#x2260;</mo>
+      <mi>&#x0394;B</mi>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <neq/>
+        <apply><csymbol cd="urn:kuhul:metric-graph:v1">DeltaMetric</csymbol></apply>
+        <apply><csymbol cd="urn:kuhul:metric-graph:v1">DeltaTopology</csymbol></apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+Delta L != Delta B.
+METRIC-mu may relearn costs, relevance, provider mixtures, and path estimates.
+Only Proposal -> Ch'en -> XCFE -> Xul may commit topology B.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <mi>score</mi>
+      <mo>_</mo>
+      <mi>&#x03C4;</mi>
+      <mo>(</mo>
+      <mi>Q</mi>
+      <mo>,</mo>
+      <mi>K</mi>
+      <mo>|</mo>
+      <mi>r</mi>
+      <mo>,</mo>
+      <mi>F</mi>
+      <mo>,</mo>
+      <mi>&#x03B8;</mi>
+      <mo>,</mo>
+      <mi>p</mi>
+      <mo>)</mo>
+      <mo>=</mo>
+      <mo>-</mo>
+      <mfrac>
+        <mrow>
+          <mi>d</mi>
+          <mo>_</mo>
+          <mi>p</mi>
+          <mo>(</mo>
+          <mi>Q</mi>
+          <mo>,</mo>
+          <mi>K</mi>
+          <mo>|</mo>
+          <mi>&#x03C4;</mi>
+          <mo>,</mo>
+          <mi>r</mi>
+          <mo>,</mo>
+          <mi>F</mi>
+          <mo>,</mo>
+          <mi>&#x03B8;</mi>
+          <mo>)</mo>
+        </mrow>
+        <msub><mi>T</mi><mi>&#x03C4;</mi></msub>
+      </mfrac>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply>
+          <csymbol cd="urn:kuhul:metric-graph:v1">MetricScore</csymbol>
+          <ci>Q</ci>
+          <ci>K</ci>
+          <ci>tau</ci>
+          <ci>r</ci>
+          <ci>F</ci>
+          <ci>theta</ci>
+          <ci>provider</ci>
+        </apply>
+        <apply>
+          <divide/>
+          <apply>
+            <minus/>
+            <apply>
+              <csymbol cd="urn:kuhul:metric-graph:v1">ProviderDistance</csymbol>
+              <ci>Q</ci>
+              <ci>K</ci>
+              <ci>tau</ci>
+              <ci>r</ci>
+              <ci>F</ci>
+              <ci>theta</ci>
+              <ci>provider</ci>
+            </apply>
+          </apply>
+          <apply><selector/><ci>T</ci><ci>tau</ci></apply>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+score_tau(Q,K | tau,r,F,theta,provider) = -ProviderDistance(Q,K | tau,r,F,theta,provider) / T_tau
+The score is local to one admitted track compartment unless Bridge_alpha_beta is admitted.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>L</mi><mtext>contrast</mtext></msub>
+      <mo>=</mo>
+      <mo>-</mo>
+      <mi>log</mi>
+      <mo>(</mo>
+      <mfrac>
+        <mrow>
+          <mi>exp</mi>
+          <mo>(</mo>
+          <msup><mi>s</mi><mo>+</mo></msup>
+          <mo>)</mo>
+        </mrow>
+        <mrow>
+          <mi>exp</mi>
+          <mo>(</mo>
+          <msup><mi>s</mi><mo>+</mo></msup>
+          <mo>)</mo>
+          <mo>+</mo>
+          <munder>
+            <mo>&#x2211;</mo>
+            <mrow>
+              <msup><mi>K</mi><mo>-</mo></msup>
+              <mo>&#x2208;</mo>
+              <msubsup><mi>Neg</mi><mi>&#x03C4;</mi><mo>-</mo></msubsup>
+            </mrow>
+          </munder>
+          <mi>exp</mi>
+          <mo>(</mo>
+          <msup><mi>s</mi><mo>-</mo></msup>
+          <mo>)</mo>
+        </mrow>
+      </mfrac>
+      <mo>)</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><csymbol cd="urn:kuhul:metric-graph:v1">MetricContrastiveLoss</csymbol></apply>
+        <apply>
+          <minus/>
+          <apply>
+            <ln/>
+            <apply>
+              <divide/>
+              <apply><exp/><ci>score_pos</ci></apply>
+              <apply>
+                <plus/>
+                <apply><exp/><ci>score_pos</ci></apply>
+                <apply>
+                  <sum/>
+                  <bvar><ci>K_negative</ci></bvar>
+                  <condition>
+                    <apply>
+                      <in/>
+                      <ci>K_negative</ci>
+                      <apply><selector/><ci>Neg</ci><ci>tau</ci></apply>
+                    </apply>
+                  </condition>
+                  <apply><exp/><ci>score_negative</ci></apply>
+                </apply>
+              </apply>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+L_contrast = -log(exp(score_pos)/(exp(score_pos)+sum_{K- in Neg_tau} exp(score_neg)))
+score_pos uses K+ from Pos_tau(Q,r,theta): GOOD FoldDelta, admitted RelationISA edge, or declared key-book neighborhood.
+score_neg uses same-track hard negatives and admitted bridge negatives only; no global all-grams negative pool.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>d</mi><mrow><mi>&#x03B1;</mi><mi>&#x03B2;</mi></mrow></msub>
+      <mo>(</mo>
+      <mi>Q</mi>
+      <mo>,</mo>
+      <mi>K</mi>
+      <mo>)</mo>
+      <mo>=</mo>
+      <msub><mi>d</mi><mi>&#x03B1;</mi></msub>
+      <mo>(</mo>
+      <mi>Q</mi>
+      <mo>,</mo>
+      <mi>m</mi>
+      <mo>)</mo>
+      <mo>+</mo>
+      <msub><mi>L</mi><mi>m</mi></msub>
+      <mo>+</mo>
+      <msub><mi>d</mi><mi>&#x03B2;</mi></msub>
+      <mo>(</mo>
+      <mi>m</mi>
+      <mo>,</mo>
+      <mi>K</mi>
+      <mo>)</mo>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply>
+          <csymbol cd="urn:kuhul:metric-graph:v1">BridgeTraversalCost</csymbol>
+          <ci>Q</ci>
+          <ci>K</ci>
+          <ci>alpha</ci>
+          <ci>beta</ci>
+          <ci>mesh</ci>
+        </apply>
+        <apply>
+          <plus/>
+          <apply><csymbol cd="urn:kuhul:metric-graph:v1">TrackDistance</csymbol><ci>Q</ci><ci>mesh</ci><ci>alpha</ci></apply>
+          <apply><selector/><ci>L</ci><ci>mesh</ci></apply>
+          <apply><csymbol cd="urn:kuhul:metric-graph:v1">TrackDistance</csymbol><ci>mesh</ci><ci>K</ci><ci>beta</ci></apply>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+d_alpha_beta(Q,K) = d_alpha(Q,m) + L_m + d_beta(m,K)
+BridgeTraversalCost is defined only when Bridge_alpha_beta admits mesh node m.
+L_bridge = -log(exp(-d_alpha_beta/T_bridge)) for admitted bridge positives.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>L</mi><mtext>diff</mtext></msub>
+      <mo>=</mo>
+      <msup>
+        <mrow>
+          <mo>||</mo>
+          <mi>Proj</mi>
+          <mo>(</mo>
+          <mi>&#x0394;G</mi>
+          <mo>)</mo>
+          <mo>-</mo>
+          <mi>&#x0394;F</mi>
+          <mo>||</mo>
+        </mrow>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><csymbol cd="urn:kuhul:metric-graph:v1">DifferentialDriftLoss</csymbol></apply>
+        <apply>
+          <power/>
+          <apply>
+            <norm/>
+            <apply>
+              <minus/>
+              <apply><csymbol cd="urn:kuhul:metric-graph:v1">Projection</csymbol><ci>DeltaG</ci></apply>
+              <ci>DeltaF</ci>
+            </apply>
+          </apply>
+          <cn>2</cn>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+L_diff = ||Projection(DeltaG) - DeltaF||^2
+DeltaG is the differential comparison graph over edits or prompt drift.
+DeltaF is the verified semantic displacement supplied by FoldDelta/Ch'en evidence.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>L</mi><mtext>risk</mtext></msub>
+      <mo>=</mo>
+      <msup>
+        <mrow>
+          <mi>max</mi>
+          <mo>(</mo>
+          <mn>0</mn>
+          <mo>,</mo>
+          <mi>Risk</mi>
+          <mo>(</mo>
+          <mi>&#x03B8;</mi>
+          <mo>,</mo>
+          <mi>&#x03B4;</mi>
+          <mo>)</mo>
+          <mo>-</mo>
+          <mi>risk</mi>
+          <mo>_</mo>
+          <mi>bound</mi>
+          <mo>)</mo>
+        </mrow>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><csymbol cd="urn:kuhul:metric-graph:v1">RiskPenalty</csymbol></apply>
+        <apply>
+          <power/>
+          <apply>
+            <max/>
+            <cn>0</cn>
+            <apply>
+              <minus/>
+              <apply><csymbol cd="urn:kuhul:fold-graph:v1">Risk</csymbol><ci>theta</ci><ci>delta</ci></apply>
+              <ci>risk_bound</ci>
+            </apply>
+          </apply>
+          <cn>2</cn>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+L_risk = max(0, Risk(theta,delta) - risk_bound)^2
+The risk term suppresses inadmissible provider geometry; it does not make METRIC-mu a verifier.
+    </annotation>
+  </semantics>
+
+  <mspace linebreak="newline" indentalign="center"/>
+
+  <semantics>
+    <mrow>
+      <msub><mi>L</mi><mtext>total</mtext></msub>
+      <mo>=</mo>
+      <mi>&#x03B1;</mi>
+      <msub><mi>L</mi><mtext>contrast</mtext></msub>
+      <mo>+</mo>
+      <mi>&#x03B2;</mi>
+      <msub><mi>L</mi><mtext>bridge</mtext></msub>
+      <mo>+</mo>
+      <mi>&#x03B3;</mi>
+      <msub><mi>L</mi><mtext>diff</mtext></msub>
+      <mo>+</mo>
+      <mi>&#x03B7;</mi>
+      <msub><mi>L</mi><mtext>risk</mtext></msub>
+    </mrow>
+    <annotation-xml encoding="MathML-Content">
+      <apply>
+        <eq/>
+        <apply><csymbol cd="urn:kuhul:metric-graph:v1">MetricTotalLoss</csymbol></apply>
+        <apply>
+          <plus/>
+          <apply><times/><ci>alpha</ci><apply><csymbol cd="urn:kuhul:metric-graph:v1">MetricContrastiveLoss</csymbol></apply></apply>
+          <apply><times/><ci>beta</ci><apply><csymbol cd="urn:kuhul:metric-graph:v1">BridgeLoss</csymbol></apply></apply>
+          <apply><times/><ci>gamma</ci><apply><csymbol cd="urn:kuhul:metric-graph:v1">DifferentialDriftLoss</csymbol></apply></apply>
+          <apply><times/><ci>eta</ci><apply><csymbol cd="urn:kuhul:metric-graph:v1">RiskPenalty</csymbol></apply></apply>
+        </apply>
+      </apply>
+    </annotation-xml>
+    <annotation encoding="text/plain">
+L_total = alpha*L_contrast + beta*L_bridge + gamma*L_diff + eta*L_risk
+The objective trains METRIC-mu provider geometry. It cannot change relation truth, Ch'en verdicts, or committed FoldGraph topology.
+    </annotation>
+  </semantics>
+</math>

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import struct
 import sys
 import zlib
@@ -53,6 +54,16 @@ def contains_phrase_ci(text_lower: str, phrase_lower: str) -> bool:
 
 def infer_micronaut_from_text(text: str) -> str:
     low = lower_copy(text)
+    if (
+        low.startswith("hello")
+        or low.startswith("hi ")
+        or low == "hi"
+        or low.startswith("hey")
+        or contains_phrase_ci(low, "hows it going")
+        or contains_phrase_ci(low, "how's it going")
+        or contains_phrase_ci(low, "how are you")
+    ):
+        return "GREETING-\u00b5"
     if (
         low.startswith("tools:")
         or contains_phrase_ci(low, "@tools")
@@ -506,6 +517,32 @@ def is_function_word(token: str) -> bool:
     return token in FUNCTION_WORDS
 
 
+TOOL_TOKENS: set[str] = {
+    "tool", "tools", "function", "functions", "call", "invoke", "run", "execute",
+    "command", "commands", "mcp", "api", "rpc", "plugin", "route", "router",
+    "delegate", "dispatch", "plan", "search", "research", "lookup", "query",
+    "fetch", "scrape", "read", "write", "build", "compile", "test", "lint",
+    "deploy", "convert", "quantize", "web", "file", "shell", "terminal",
+    "runtime",
+}
+
+TOOL_ACTION_TOKENS: set[str] = {
+    "call", "invoke", "run", "execute", "dispatch", "delegate", "search",
+    "research", "lookup", "query", "fetch", "build", "compile", "test",
+    "lint", "deploy", "convert", "quantize", "read", "write", "plan",
+}
+
+TOOL_TARGET_TOKENS: set[str] = {
+    "tool", "tools", "function", "functions", "command", "commands", "api",
+    "mcp", "plugin", "route", "router", "web", "file", "shell", "terminal",
+    "runtime", "model", "grammar", "dataset",
+}
+
+
+def is_tool_token(token: str) -> bool:
+    return token in TOOL_TOKENS
+
+
 def extract_coarse_ngrams(tokens: list[str], width: int) -> Counter[str]:
     coarse_tokens: list[str] = []
     for tok in tokens:
@@ -516,6 +553,343 @@ def extract_coarse_ngrams(tokens: list[str], width: int) -> Counter[str]:
         else:
             coarse_tokens.append("c")
     return count_ngrams(coarse_tokens, width)
+
+
+def extract_function_grams(tokens: list[str]) -> Counter[str]:
+    out: Counter[str] = Counter()
+    for width in range(1, 4):
+        if len(tokens) < width:
+            break
+        for i in range(len(tokens) - width + 1):
+            window = tokens[i : i + width]
+            if all(is_function_word(tok) for tok in window):
+                out[" ".join(window)] += 1
+    return out
+
+
+def extract_tool_grams(tokens: list[str]) -> Counter[str]:
+    out: Counter[str] = Counter()
+    for width in range(1, 5):
+        if len(tokens) < width:
+            break
+        for i in range(len(tokens) - width + 1):
+            window = tokens[i : i + width]
+            has_tool = any(is_tool_token(tok) for tok in window)
+            if not has_tool:
+                continue
+            if width > 1:
+                has_action = any(tok in TOOL_ACTION_TOKENS for tok in window)
+                has_target = any(tok in TOOL_TARGET_TOKENS for tok in window)
+                if not (has_action and has_target):
+                    continue
+            out[" ".join(window)] += 1
+    return out
+
+
+def gram_row(gram: str, count: int, gram_class: str, role: str, phase: str) -> dict[str, Any]:
+    tokens = [tok for tok in gram.split(" ") if tok]
+    return {
+        "gram": gram,
+        "class": gram_class,
+        "role": role,
+        "phase": phase,
+        "count": int(count),
+        "width": int(len(tokens) or 1),
+        "tokens": tokens,
+    }
+
+
+def sorted_gram_items(freq: Counter[str] | dict[str, int]) -> list[tuple[str, int]]:
+    return sorted(
+        ((str(gram), int(count)) for gram, count in freq.items()),
+        key=lambda item: (-item[1], item[0]),
+    )
+
+
+def build_mx2lm_gram_container(
+    *,
+    unigram_map: Counter[str],
+    bigram_map: Counter[str],
+    trigram_map: Counter[str],
+    quadgram_map: Counter[str],
+    coarse_gram_map: Counter[str],
+    function_gram_map: Counter[str],
+    tool_gram_map: Counter[str],
+) -> dict[str, Any]:
+    channel_specs: list[tuple[str, Counter[str], str, str]] = [
+        ("unigram", unigram_map, "semantic_address", "Pop"),
+        ("bigram", bigram_map, "context_association", "Wo"),
+        ("trigram", trigram_map, "context_association", "Wo"),
+        ("quadgram", quadgram_map, "context_association", "Wo"),
+        ("coarse_gram", coarse_gram_map, "structural_shape", "Yax"),
+        ("function_gram", function_gram_map, "function_word_structure", "Yax"),
+        ("tool_gram", tool_gram_map, "tool_dispatch_intent", "Sek"),
+    ]
+
+    channels: dict[str, list[dict[str, Any]]] = {}
+    total_observations = 0
+    for gram_class, freq, role, phase in channel_specs:
+        rows = [
+            gram_row(gram, count, gram_class, role, phase)
+            for gram, count in sorted_gram_items(freq)
+        ]
+        total_observations += sum(row["count"] for row in rows)
+        channels[gram_class] = rows
+
+    return {
+        "@type": "mx2lm.gram_container.v1",
+        "key": "mx2lm:gram_container:v1",
+        "namespace": "Mx2LM",
+        "authority": "mx2lm:ngram-build",
+        "phase": "Wo",
+        "total_grams": sum(len(rows) for rows in channels.values()),
+        "total_observations": total_observations,
+        "channel_counts": {name: len(rows) for name, rows in channels.items()},
+        "channels": channels,
+    }
+
+
+def pattern_roles_from_gram_container(
+    gram_container: dict[str, Any],
+    source_track: str,
+) -> list[str]:
+    roles: list[str] = []
+    seen: set[str] = set()
+
+    def push(role: str) -> None:
+        clean = trim_copy(role)
+        if not clean or clean in seen:
+            return
+        seen.add(clean)
+        roles.append(clean)
+
+    push("pattern_observation")
+    push(f"track:{source_track or 'Mx2LM'}")
+    channels = gram_container.get("channels", {})
+    if isinstance(channels, dict):
+        for channel_name in (
+            "unigram",
+            "bigram",
+            "trigram",
+            "quadgram",
+            "coarse_gram",
+            "function_gram",
+            "tool_gram",
+        ):
+            rows = channels.get(channel_name, [])
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                push(str(row.get("role", "")))
+                if channel_name == "tool_gram":
+                    push("tool_dispatch_pattern")
+                elif channel_name == "function_gram":
+                    push("function_word_pattern")
+                elif channel_name == "coarse_gram":
+                    push("structural_shape_pattern")
+                if len(roles) >= 12:
+                    return roles
+    return roles
+
+
+def build_mx2lm_pattern_container(
+    *,
+    surface: str,
+    gram_container: dict[str, Any],
+    source_track: str = "Mx2LM",
+    source_phase: str = "Wo",
+    outcome_kind: str = "pattern_observed",
+    card: str = "",
+    accepted: bool = True,
+) -> dict[str, Any]:
+    track = source_track or "Mx2LM"
+    phase = source_phase or "Wo"
+    event: dict[str, Any] = {
+        "source_track": track,
+        "source_phase": phase,
+        "target_namespace": "Mx2LM",
+        "surface": surface,
+        "roles": pattern_roles_from_gram_container(gram_container, track),
+        "gram_container": str(gram_container.get("key", "mx2lm:gram_container:v1")),
+        "outcome_kind": outcome_kind or "pattern_observed",
+        "outcome_status": "accepted" if accepted else "rejected",
+        "accepted": bool(accepted),
+    }
+    if card:
+        event["card"] = card
+
+    return {
+        "@type": "mx2lm.pattern_container.v1",
+        "key": "mx2lm:pattern_container:v1",
+        "namespace": "Mx2LM",
+        "authority": "mx2lm:pattern-learn",
+        "phase": "Xul",
+        "event_count": 1,
+        "events": [event],
+    }
+
+
+def fnv1a64(value: str) -> int:
+    h = 1469598103934665603
+    for byte in value.encode("utf-8"):
+        h ^= byte
+        h = (h * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+    return h
+
+
+def signed_component(h: int, shift: int) -> float:
+    part = (h >> shift) & 0xFFFF
+    return (float(part) / 32767.5) - 1.0
+
+
+def mix_projection_seed(seed: str, weight: float, coords: list[float]) -> None:
+    if not seed or weight <= 0.0:
+        return
+    h0 = fnv1a64(seed)
+    h1 = fnv1a64(f"y:{seed}")
+    h2 = fnv1a64(f"z:{seed}")
+    coords[0] += signed_component(h0, 0) * weight
+    coords[1] += signed_component(h1, 8) * weight
+    coords[2] += signed_component(h2, 16) * weight
+
+
+def vector_key_safe(value: str) -> str:
+    out: list[str] = []
+    last_sep = False
+    for ch in value:
+        if ch.isascii() and ch.isalnum():
+            out.append(ch.lower())
+            last_sep = False
+        elif not last_sep:
+            out.append("_")
+            last_sep = True
+        if len(out) >= 64:
+            break
+    while out and out[-1] == "_":
+        out.pop()
+    return "".join(out) or "projection"
+
+
+def build_vector_projection_container(
+    *,
+    gram_container: dict[str, Any],
+    pattern_container: dict[str, Any],
+) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    events = pattern_container.get("events", [])
+    if not isinstance(events, list):
+        events = []
+
+    channel_rows: list[dict[str, Any]] = []
+    channels = gram_container.get("channels", {})
+    if isinstance(channels, dict):
+        for channel_name in (
+            "unigram",
+            "bigram",
+            "trigram",
+            "quadgram",
+            "coarse_gram",
+            "function_gram",
+            "tool_gram",
+        ):
+            rows_for_channel = channels.get(channel_name, [])
+            if isinstance(rows_for_channel, list):
+                channel_rows.extend(r for r in rows_for_channel if isinstance(r, dict))
+
+    if not events and channel_rows:
+        events = [
+            {
+                "source_track": "Mx2LM",
+                "source_phase": str(gram_container.get("phase", "Wo") or "Wo"),
+                "surface": "mx2lm:gram_container:v1",
+                "roles": pattern_roles_from_gram_container(gram_container, "Mx2LM"),
+                "gram_container": str(gram_container.get("key", "mx2lm:gram_container:v1")),
+            }
+        ]
+
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        source_track = str(event.get("source_track", "Mx2LM") or "Mx2LM")
+        source_phase = str(event.get("source_phase", "Wo") or "Wo")
+        surface = str(event.get("surface", ""))
+        source_key = str(event.get("gram_container", gram_container.get("key", "mx2lm:gram_container:v1")))
+        coords = [0.0, 0.0, 0.0]
+
+        mix_projection_seed(f"surface:{surface}", 1.0, coords)
+        mix_projection_seed(f"track:{source_track}", 0.75, coords)
+        mix_projection_seed(f"phase:{source_phase}", 0.50, coords)
+
+        roles = event.get("roles", [])
+        if isinstance(roles, list):
+            for role in roles:
+                mix_projection_seed(f"role:{role}", 0.40, coords)
+
+        for gram in channel_rows[:32]:
+            gram_text = str(gram.get("gram", ""))
+            gram_class = str(gram.get("class", ""))
+            try:
+                width = max(1.0, float(gram.get("width", 1)))
+            except (TypeError, ValueError):
+                width = 1.0
+            try:
+                count = float(gram.get("count", 1))
+            except (TypeError, ValueError):
+                count = 1.0
+            weight = min(1.0, count / width)
+            mix_projection_seed(f"gram:{gram_class}:{gram_text}", 0.25 * weight, coords)
+
+        norm = math.sqrt(coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2])
+        if math.isfinite(norm) and norm > 1e-6:
+            coords = [coords[0] / norm, coords[1] / norm, coords[2] / norm]
+            norm = 1.0
+        else:
+            coords = [1.0, 0.0, 0.0]
+            norm = 1.0
+
+        rows.append(
+            {
+                "key": (
+                    "vector:projection:"
+                    f"{vector_key_safe(source_track)}:"
+                    f"{vector_key_safe(source_phase)}:"
+                    f"{vector_key_safe(surface)}"
+                ),
+                "source_key": source_key,
+                "source_track": source_track,
+                "source_phase": source_phase,
+                "projection_track": "VECTOR-\u00b5",
+                "basis": "deterministic_semantic_hash_projection",
+                "x": coords[0],
+                "y": coords[1],
+                "z": coords[2],
+                "norm": norm,
+                "semantic_authority": False,
+            }
+        )
+
+    return {
+        "@type": "vector.projection_container.v1",
+        "key": "vector:projection_container:v1",
+        "namespace": "VECTOR-\u00b5",
+        "authority": "vector:projection-only",
+        "phase": "Wo",
+        "source_semantic_container": str(pattern_container.get("key", "mx2lm:pattern_container:v1")),
+        "projection_id": "vector:projection:bootstrap:v1:g0",
+        "generation": 0,
+        "learner_version": "bootstrap.deterministic_hash.v1",
+        "topology_version": "runtime.semantic_containers",
+        "relation_model": "relationisa_conditioned_geometry",
+        "alignment": "bootstrap_no_cross_generation_alignment",
+        "similarity_scope": "semantic_similarity_subset_of_relatedness",
+        "dimensions": 3,
+        "projection_count": len(rows),
+        "semantic_authority": False,
+        "responsibility": "derived_geometry_projection_only",
+        "projections": rows,
+    }
 
 
 def extract_compositional_signatures(tokens: list[str]) -> list[str]:
@@ -1240,14 +1614,32 @@ def build_payload(
     manifest_reg: ManifestRegistry,
 ) -> dict[str, Any]:
     tokens = tokenize(payload)
+    unigram_map = count_ngrams(tokens, 1)
     bigram_map = count_ngrams(tokens, 2)
     trigram_map = count_ngrams(tokens, 3)
+    quadgram_map = count_ngrams(tokens, 4)
     coarse_bigram_map = extract_coarse_ngrams(tokens, 2)
     coarse_trigram_map = extract_coarse_ngrams(tokens, 3)
+    coarse_gram_map = coarse_bigram_map + coarse_trigram_map
+    function_gram_map = extract_function_grams(tokens)
+    tool_gram_map = extract_tool_grams(tokens)
+    top_uni = top_ngrams(unigram_map, top_k)
     top_bi = top_ngrams(bigram_map, top_k)
     top_tri = top_ngrams(trigram_map, top_k)
+    top_quad = top_ngrams(quadgram_map, top_k)
     top_coarse_bi = top_ngrams(coarse_bigram_map, top_k)
     top_coarse_tri = top_ngrams(coarse_trigram_map, top_k)
+    top_function_grams = top_ngrams(function_gram_map, top_k)
+    top_tool_grams = top_ngrams(tool_gram_map, top_k)
+    mx2lm_gram_container = build_mx2lm_gram_container(
+        unigram_map=unigram_map,
+        bigram_map=bigram_map,
+        trigram_map=trigram_map,
+        quadgram_map=quadgram_map,
+        coarse_gram_map=coarse_gram_map,
+        function_gram_map=function_gram_map,
+        tool_gram_map=tool_gram_map,
+    )
     projection = compose(tokens)
     relation_templates = infer_relation_templates(tokens)
     taxonomy_relations = infer_taxonomy_relations(tokens)
@@ -1255,6 +1647,20 @@ def build_payload(
     compositional_signatures = extract_compositional_signatures(tokens)
     word_senses = resolve_word_senses(tokens)
     top_content_words, top_function_words, content_function = content_function_profile(tokens, top_k)
+    inferred_track = infer_micronaut_from_text(payload) or "Mx2LM"
+    mx2lm_pattern_container = build_mx2lm_pattern_container(
+        surface=payload,
+        gram_container=mx2lm_gram_container,
+        source_track=inferred_track,
+        source_phase="Pop" if inferred_track == "GREETING-\u00b5" else "Wo",
+        outcome_kind="payload_built",
+        card="greeting" if inferred_track == "GREETING-\u00b5" else "",
+        accepted=True,
+    )
+    vector_projection_container = build_vector_projection_container(
+        gram_container=mx2lm_gram_container,
+        pattern_container=mx2lm_pattern_container,
+    )
 
     relations: list[dict[str, Any]] = []
     for relation in projection.relations:
@@ -1318,24 +1724,41 @@ def build_payload(
         "response": "<mx2lm>{ngrams}</mx2lm>",
         "payload": payload,
         "tokens": len(tokens),
+        "unigrams": [{"gram": gram, "count": count} for gram, count in top_uni],
         "bigrams": [{"gram": gram, "count": count} for gram, count in top_bi],
         "trigrams": [{"gram": gram, "count": count} for gram, count in top_tri],
+        "quadgrams": [{"gram": gram, "count": count} for gram, count in top_quad],
         "coarse_bigrams": [{"gram": gram, "count": count} for gram, count in top_coarse_bi],
         "coarse_trigrams": [{"gram": gram, "count": count} for gram, count in top_coarse_tri],
+        "function_grams": [{"gram": gram, "count": count} for gram, count in top_function_grams],
+        "tool_grams": [{"gram": gram, "count": count} for gram, count in top_tool_grams],
+        "mx2lm_gram_container": mx2lm_gram_container,
+        "mx2lm_pattern_container": mx2lm_pattern_container,
+        "vector_projection_container": vector_projection_container,
         "content_words": top_content_words,
         "function_words": top_function_words,
         "content_function_profile": content_function,
+        "mx2lm_unigram_map": {k: int(v) for k, v in sorted(unigram_map.items())},
         "mx2lm_bigram_map": {k: int(v) for k, v in sorted(bigram_map.items())},
         "mx2lm_trigram_map": {k: int(v) for k, v in sorted(trigram_map.items())},
+        "mx2lm_quadgram_map": {k: int(v) for k, v in sorted(quadgram_map.items())},
+        "mx2lm_coarse_gram_map": {k: int(v) for k, v in sorted(coarse_gram_map.items())},
         "mx2lm_coarse_bigram_map": {k: int(v) for k, v in sorted(coarse_bigram_map.items())},
         "mx2lm_coarse_trigram_map": {k: int(v) for k, v in sorted(coarse_trigram_map.items())},
+        "mx2lm_function_gram_map": {k: int(v) for k, v in sorted(function_gram_map.items())},
+        "mx2lm_tool_gram_map": {k: int(v) for k, v in sorted(tool_gram_map.items())},
         "mx2lm_checkpoint": {
             "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "token_count": len(tokens),
+            "unigram_count": len(unigram_map),
             "bigram_count": len(bigram_map),
             "trigram_count": len(trigram_map),
+            "quadgram_count": len(quadgram_map),
+            "coarse_gram_count": len(coarse_gram_map),
             "coarse_bigram_count": len(coarse_bigram_map),
             "coarse_trigram_count": len(coarse_trigram_map),
+            "function_gram_count": len(function_gram_map),
+            "tool_gram_count": len(tool_gram_map),
             "source": source,
         },
         "control_bindings": projection.control_bindings,

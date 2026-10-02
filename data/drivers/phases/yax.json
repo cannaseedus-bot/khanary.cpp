@@ -1,0 +1,21 @@
+{
+  "id": "phase-driver.yax.v1",
+  "phase": "Yax",
+  "driver_weight": 1.0,
+  "ops": [
+    "admit_neighborhood",
+    "compose",
+    "aggregate",
+    "graph_bfs"
+  ],
+  "emits": {
+    "data": true,
+    "next_phase_hint": true,
+    "verb": true,
+    "noun": true,
+    "opcode": true,
+    "confidence_delta": true
+  },
+  "default_verb": "@compose",
+  "terminal": false
+}

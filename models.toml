@@ -1,0 +1,104 @@
+# models.toml — KHANARY model registry
+#
+# Consumed by ProviderRouter (src/inference/model_provider.h).
+# Providers are selected in priority order; first available match wins.
+#
+# Micronaut authority boundary:
+# - Models can contribute semantic review/edit suggestions.
+# - KHANARY/micronauts remain authoritative for commit/status/phase/track.
+# - Semantic edits are advisory until Ch'en/Xul verification gates pass.
+#
+# provider types:
+#   local      — InferenceEngine via GGUF -> SDDS -> GPU/CPU
+#   lmstudio   — LM Studio local REST API (OpenAI-compat, localhost:1234)
+#
+# Cloud execution changes privacy, cost, and network requirements.
+# A failed local provider will NOT forward to a remote provider unless
+# that remote provider appears in the priority list and policy permits it.
+
+[router]
+policy   = "local_first"
+priority = [
+  "gpt-oss-20b",
+  "gemma-3-1b-semantic-auditor",
+  "gemma-3-1b-f16",
+  "lmstudio-lfm2.5-1.2b",
+  "lmstudio-gemma-3-1b-semantic-auditor",
+  "lmstudio-qwen3-4b",
+  "lmstudio-qwen3-1.7b",
+  "lmstudio-gemma-3-1b-it",
+]
+
+# ── Local models ─────────────────────────────────────────────────────────────
+# sdds: pre-converted F32 shard directory.
+#   Present  → LocalModelProvider seeks directly into shard files (fast start).
+#   Absent   → provider converts on first load via gguf_to_sdds.py (slow start).
+#
+# semantic capability tags used by agent surfaces:
+#   semantic_audit        — analyze semantic consistency against runtime intent.
+#   semantic_edit_flagger — propose precise edit flags/patch hints only.
+#   confidence_scoring    — return confidence surface for MISS/low-confidence gates.
+
+[[models]]
+id           = "gpt-oss-20b"
+provider     = "local"
+gguf         = "E:/models/GPT2/gpt-oss-20b-MXFP4.gguf"
+sdds         = "E:/models/GPT2/sdds"
+capabilities = ["chat_completion", "code", "context:4096"]
+
+[[models]]
+id           = "gemma-3-1b-f16"
+provider     = "local"
+gguf         = "E:/models/GEMMA/gemma-3-1b-F16.gguf"
+capabilities = ["chat_completion", "context:8192"]
+
+[[models]]
+id           = "gemma-3-1b-semantic-auditor"
+provider     = "local"
+gguf         = "E:/models/GEMMA/gemma-3-1b-F16.gguf"
+capabilities = ["chat_completion", "semantic_audit", "semantic_edit_flagger", "confidence_scoring", "context:8192"]
+
+[[models]]
+id           = "gemma-3-1b-q4"
+provider     = "local"
+gguf         = "E:/models/GEMMA/gemma-3-1b-Q4_K_M.gguf"
+capabilities = ["chat_completion", "context:8192"]
+
+# ── LM Studio models ──────────────────────────────────────────────────────────
+# endpoint: LM Studio default. Start LM Studio and load the model before use.
+# model_id: the identifier LM Studio exposes in its API for this model.
+
+[[models]]
+id           = "lmstudio-lfm2.5-1.2b"
+provider     = "lmstudio"
+endpoint     = "http://localhost:1234/v1"
+model_id     = "lmstudio-community/LFM2.5-1.2B-Instruct-GGUF"
+capabilities = ["chat_completion", "streaming", "context:32768"]
+
+[[models]]
+id           = "lmstudio-qwen3-4b"
+provider     = "lmstudio"
+endpoint     = "http://localhost:1234/v1"
+model_id     = "lmstudio-community/Qwen3-4B-GGUF"
+capabilities = ["chat_completion", "streaming", "function_calling", "context:32768"]
+
+[[models]]
+id           = "lmstudio-qwen3-1.7b"
+provider     = "lmstudio"
+endpoint     = "http://localhost:1234/v1"
+model_id     = "lmstudio-community/Qwen3-1.7B-GGUF"
+capabilities = ["chat_completion", "streaming", "context:32768"]
+
+[[models]]
+id           = "lmstudio-gemma-3-1b-it"
+provider     = "lmstudio"
+endpoint     = "http://localhost:1234/v1"
+model_id     = "lmstudio-community/gemma-3-1B-it-QAT-GGUF"
+capabilities = ["chat_completion", "streaming", "context:8192"]
+
+[[models]]
+id           = "lmstudio-gemma-3-1b-semantic-auditor"
+provider     = "lmstudio"
+endpoint     = "http://localhost:1234/v1"
+model_id     = "lmstudio-community/gemma-3-1B-it-QAT-GGUF"
+capabilities = ["chat_completion", "streaming", "semantic_audit", "semantic_edit_flagger", "confidence_scoring", "context:8192"]

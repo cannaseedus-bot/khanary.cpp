@@ -5,6 +5,7 @@
 #include <numeric>
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <chrono>
 #include <unordered_set>
@@ -34,6 +35,74 @@ void InferenceEngine::load_expert_weights(uint32_t expert_id,
 }
 
 void InferenceEngine::clear_kv() { kv_cache_->clear(); }
+
+void InferenceEngine::set_lorentz_transition(float rapidity_rho,
+                                             std::array<float, 3> direction,
+                                             float alignment_mix,
+                                             float mass_scale)
+{
+    auto rows = gpu::LorentzBoostRows::make_pure(
+        rapidity_rho, direction, alignment_mix, mass_scale);
+    if (!rows.enabled) {
+        lorentz_transition_.reset();
+        return;
+    }
+    lorentz_transition_ = rows;
+}
+
+void InferenceEngine::clear_lorentz_transition() {
+    lorentz_transition_.reset();
+}
+
+const gpu::LorentzBoostRows* InferenceEngine::lorentz_transition() const {
+    return lorentz_transition_ ? &*lorentz_transition_ : nullptr;
+}
+
+std::vector<gpu::GramScoreResult> InferenceEngine::score_prompt_attention(
+    const kuhul::GramStore& store,
+    const std::vector<PromptAttentionCandidate>& candidates,
+    float admission_threshold,
+    float tensor_mix)
+{
+    if (candidates.empty()) return {};
+
+    std::lock_guard lock(semantic_scorer_mtx_);
+    if (!semantic_scorer_) {
+        semantic_scorer_ = std::make_unique<gpu::GramGpuScorer>(dev_);
+        if (!semantic_scorer_->init()) {
+            semantic_scorer_.reset();
+            return {};
+        }
+    }
+
+    std::vector<std::string> keys;
+    std::vector<float> relevance;
+    keys.reserve(candidates.size());
+    relevance.reserve(candidates.size());
+    for (const auto& candidate : candidates) {
+        keys.push_back(candidate.key);
+        relevance.push_back(candidate.relevance);
+    }
+    const auto overrides = prompt_attention_vector_overrides(candidates);
+
+    return semantic_scorer_->score_batch(
+        store,
+        keys,
+        relevance,
+        admission_threshold,
+        0.5f,
+        tensor_mix,
+        nullptr,
+        0.0f,
+        0.0f,
+        lorentz_transition(),
+        &overrides);
+}
+
+bool InferenceEngine::semantic_attention_ready() const {
+    std::lock_guard lock(semantic_scorer_mtx_);
+    return semantic_scorer_ && semantic_scorer_->is_ready();
+}
 
 size_t InferenceEngine::dds_resident_bytes() const {
     return hot_swap_ ? hot_swap_->resident_bytes() : 0;
@@ -396,8 +465,9 @@ std::vector<float> InferenceEngine::load_mxfp4_expert_f32(
     const TensorRef* tref = fold_map_->get_tensor(tensor_name);
     if (!tref || tref->shards.empty() || rows == 0 || cols == 0) return {};
 
-    // MXFP4: (cols/32)*17 raw bytes per row
-    const uint64_t row_bytes  = (static_cast<uint64_t>(cols) / 32u) * 17u;
+    const bool is_f32_exp = (tref->dtype == TensorDtype::F32);
+    const uint64_t row_bytes  = is_f32_exp ? static_cast<uint64_t>(cols) * 4u
+                                           : (static_cast<uint64_t>(cols) / 32u) * 17u;
     const uint64_t slice_size = static_cast<uint64_t>(rows) * row_bytes;
     const uint64_t tensor_off = static_cast<uint64_t>(expert_id) * slice_size;
     if (slice_size == 0) return {};
@@ -423,21 +493,26 @@ std::vector<float> InferenceEngine::load_mxfp4_expert_f32(
         }
     }
 
-    // Dequantize MXFP4 blocks: 17 bytes each, 32 elements per block
-    const uint64_t n_elems  = static_cast<uint64_t>(rows) * cols;
-    const uint64_t n_blocks = n_elems / 32u;
+    const uint64_t n_elems = static_cast<uint64_t>(rows) * cols;
     std::vector<float> out(n_elems, 0.0f);
 
-    for (uint64_t b = 0; b < n_blocks; ++b) {
-        const uint64_t byte_off = b * 17u;
-        if (byte_off + 17u > slice_size) break;
-        const uint8_t* blk   = raw.data() + byte_off;
-        const float    scale = fp32_from_e8m0(blk[0]);
-        const uint8_t* qs    = blk + 1;
-        float*         dst   = out.data() + b * 32u;
-        for (uint64_t j = 0; j < 16; ++j) {
-            dst[j]      = k_mxfp4_e2m1[qs[j] & 0xFu]  * scale;
-            dst[j + 16] = k_mxfp4_e2m1[qs[j] >> 4u]   * scale;
+    if (is_f32_exp) {
+        if (slice_size >= n_elems * 4u)
+            std::memcpy(out.data(), raw.data(), n_elems * 4u);
+    } else {
+        // MXFP4: 17-byte blocks, 32 elements each
+        const uint64_t n_blocks = n_elems / 32u;
+        for (uint64_t b = 0; b < n_blocks; ++b) {
+            const uint64_t byte_off = b * 17u;
+            if (byte_off + 17u > slice_size) break;
+            const uint8_t* blk   = raw.data() + byte_off;
+            const float    scale = fp32_from_e8m0(blk[0]);
+            const uint8_t* qs    = blk + 1;
+            float*         dst   = out.data() + b * 32u;
+            for (uint64_t j = 0; j < 16; ++j) {
+                dst[j]      = k_mxfp4_e2m1[qs[j] & 0xFu]  * scale;
+                dst[j + 16] = k_mxfp4_e2m1[qs[j] >> 4u]   * scale;
+            }
         }
     }
     return out;
@@ -480,10 +555,9 @@ std::vector<float> InferenceEngine::embed_dds(const std::vector<uint32_t>& token
     uint32_t d   = cfg_.d_model;
     std::vector<float> emb(seq * d, 0.0f);
 
-    // Q8_0 bytes per row = (d / 32) * 34
-    constexpr uint64_t BLOCK_BYTES = 34;
-    constexpr uint64_t BLOCK_ELEMS = 32;
-    uint64_t row_bytes = (uint64_t)(d / BLOCK_ELEMS) * BLOCK_BYTES;
+    const bool is_f32_emb = (tref->dtype == TensorDtype::F32);
+    uint64_t row_bytes = is_f32_emb ? (uint64_t)d * 4u
+                                    : (uint64_t)(d / 32u) * 34u;
 
     std::vector<uint8_t> row_buf(row_bytes);
 
@@ -512,17 +586,21 @@ std::vector<float> InferenceEngine::embed_dds(const std::vector<uint32_t>& token
             }
         }
 
-        // Dequantize Q8_0 row → emb[t*d .. t*d+d-1]
-        uint64_t n_blocks = (uint64_t)(d / BLOCK_ELEMS);
         float* dst = emb.data() + t * d;
-        for (uint64_t b = 0; b < n_blocks; ++b) {
-            const uint8_t* blk = row_buf.data() + b * BLOCK_BYTES;
-            uint16_t scale_bits;
-            std::memcpy(&scale_bits, blk, 2);
-            float scale = fp16_to_f32(scale_bits);
-            const int8_t* qs = reinterpret_cast<const int8_t*>(blk + 2);
-            for (uint64_t i = 0; i < BLOCK_ELEMS; ++i)
-                dst[b * BLOCK_ELEMS + i] = (float)qs[i] * scale;
+        if (is_f32_emb) {
+            std::memcpy(dst, row_buf.data(), (size_t)d * 4);
+        } else {
+            // Q8_0: (d / 32) blocks of 34 bytes
+            uint64_t n_blocks = (uint64_t)(d / 32u);
+            for (uint64_t b = 0; b < n_blocks; ++b) {
+                const uint8_t* blk = row_buf.data() + b * 34u;
+                uint16_t scale_bits;
+                std::memcpy(&scale_bits, blk, 2);
+                float scale = fp16_to_f32(scale_bits);
+                const int8_t* qs = reinterpret_cast<const int8_t*>(blk + 2);
+                for (uint64_t i = 0; i < 32u; ++i)
+                    dst[b * 32u + i] = (float)qs[i] * scale;
+            }
         }
     }
 
@@ -782,9 +860,8 @@ std::vector<float> InferenceEngine::forward_dds(const std::vector<uint32_t>& tok
 // compute_output_logits_chunked
 // ============================================================
 
-// Reads output.weight in 4096-vocab chunks, dequantizes Q8_0 rows, and
-// computes dot(row, last_hidden) without ever allocating the full F32 matrix.
-// Physical layout assumed: [vocab_size rows × row_bytes], row_bytes = (d/32)*34.
+// Reads output.weight in 4096-vocab chunks and computes dot(row, last_hidden)
+// without ever allocating the full matrix. Branches on tref->dtype (F32 or Q8_0).
 std::vector<float> InferenceEngine::compute_output_logits_chunked(
     const float* last_hidden) const
 {
@@ -794,17 +871,17 @@ std::vector<float> InferenceEngine::compute_output_logits_chunked(
     const TensorRef* tref = fold_map_->get_tensor("output.weight");
     if (!tref || tref->shards.empty()) return logits;
 
-    constexpr uint64_t BLOCK_BYTES = 34;
-    constexpr uint64_t BLOCK_ELEMS = 32;
-    const uint64_t blocks_per_row = cfg_.d_model / BLOCK_ELEMS;
-    const uint64_t row_bytes      = blocks_per_row * BLOCK_BYTES; // 3060 for d=2880
+    const bool     is_f32_out   = (tref->dtype == TensorDtype::F32);
+    const uint64_t row_bytes    = is_f32_out
+        ? static_cast<uint64_t>(cfg_.d_model) * 4u
+        : (static_cast<uint64_t>(cfg_.d_model) / 32u) * 34u;
 
-    constexpr uint32_t CHUNK_VOCAB = 4096; // ~12 MB per chunk at row_bytes=3060
+    constexpr uint32_t CHUNK_VOCAB = 4096;
     std::vector<uint8_t> chunk_buf;
 
     for (uint32_t v_start = 0; v_start < cfg_.vocab_size; v_start += CHUNK_VOCAB) {
-        const uint32_t v_end      = std::min(v_start + CHUNK_VOCAB, cfg_.vocab_size);
-        const uint64_t chunk_rows = v_end - v_start;
+        const uint32_t v_end       = std::min(v_start + CHUNK_VOCAB, cfg_.vocab_size);
+        const uint64_t chunk_rows  = v_end - v_start;
         const uint64_t chunk_bytes = chunk_rows * row_bytes;
         chunk_buf.assign(chunk_bytes, 0);
 
@@ -832,15 +909,23 @@ std::vector<float> InferenceEngine::compute_output_logits_chunked(
         for (uint32_t vi = v_start; vi < v_end; ++vi) {
             float dot = 0.0f;
             const uint8_t* row = chunk_buf.data() + (vi - v_start) * row_bytes;
-            for (uint64_t b = 0; b < blocks_per_row; ++b) {
-                const uint8_t* blk = row + b * BLOCK_BYTES;
-                uint16_t scale_bits;
-                std::memcpy(&scale_bits, blk, 2);
-                const float scale = fp16_to_f32(scale_bits);
-                const int8_t*  qs = reinterpret_cast<const int8_t*>(blk + 2);
-                const float*   h  = last_hidden + b * BLOCK_ELEMS;
-                for (uint64_t i = 0; i < BLOCK_ELEMS; ++i)
-                    dot += static_cast<float>(qs[i]) * scale * h[i];
+            if (is_f32_out) {
+                const float* rf = reinterpret_cast<const float*>(row);
+                for (uint32_t i = 0; i < cfg_.d_model; ++i)
+                    dot += rf[i] * last_hidden[i];
+            } else {
+                // Q8_0 blocks
+                const uint64_t blocks_per_row = cfg_.d_model / 32u;
+                for (uint64_t b = 0; b < blocks_per_row; ++b) {
+                    const uint8_t* blk = row + b * 34u;
+                    uint16_t scale_bits;
+                    std::memcpy(&scale_bits, blk, 2);
+                    const float scale = fp16_to_f32(scale_bits);
+                    const int8_t*  qs = reinterpret_cast<const int8_t*>(blk + 2);
+                    const float*   h  = last_hidden + b * 32u;
+                    for (uint64_t i = 0; i < 32u; ++i)
+                        dot += static_cast<float>(qs[i]) * scale * h[i];
+                }
             }
             logits[vi] = dot;
         }

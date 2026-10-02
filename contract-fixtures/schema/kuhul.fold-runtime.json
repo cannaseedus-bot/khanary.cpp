@@ -1,0 +1,84 @@
+{
+  "id": "kuhul.fold-runtime.v1",
+  "kind": "runtime_metadata",
+  "internal_manifest_schema_links_only": true,
+  "schema_stack": {
+    "root": "data/schema/kuhul.fold-runtime.json",
+    "modules": [
+      {
+        "name": "cycle_hash_spec",
+        "path": "data/schema/cycle-hash.spec.json",
+        "role": "Cycle identity specification"
+      },
+      {
+        "name": "fold_runtime",
+        "path": "data/schema/fold.runtime.json",
+        "role": "Main runtime config — includes semantic_hypernym_fold and semantic_code_parser_graph contracts"
+      },
+      {
+        "name": "resolver_primitives",
+        "path": "data/schema/resolver.primitives.json",
+        "role": "Declared resolver primitive vocabulary (symbolic/math matrix/etc.)"
+      },
+      {
+        "name": "math_isa",
+        "path": "data/schema/math-isa.json",
+        "role": "Domain ISA extension declaration for math.aiml -> GraphPlan lowering"
+      },
+      {
+        "name": "semantic_attention_shader",
+        "path": "data/schema/fold.runtime.json#semantic_attention_shader_contract",
+        "role": "Yax semantic-attention algebra with optional GPU execution backend (attention.hlsl)"
+      },
+      {
+        "name": "kuhul_fold_runtime",
+        "path": "data/schema/kuhul.fold-runtime.json",
+        "role": "Runtime metadata"
+      },
+      {
+        "name": "semantic_code_parser_graph",
+        "path": "data/schema/fold.runtime.json#semantic_code_parser_graph",
+        "role": "Grammar-driven fold-native code graph — grammar files at data/grammar/*.code-grammar.json"
+      },
+      {
+        "name": "phase_dll_drivers",
+        "path": "data/schema/fold.runtime.json#phase_driver_lock",
+        "role": "Phase driver artifact lock contract for Pop/Wo/Yax/Sek/Ch'en/Xul"
+      }
+    ],
+    "imports": {
+      "fold_runtime": [
+        "data/schema/cycle-hash.spec.json"
+      ],
+      "runtime_metadata": [
+        "data/schema/cycle-hash.spec.json",
+        "data/schema/fold.runtime.json"
+      ]
+    },
+    "contract_rule": "internal manifest schema links only"
+  },
+  "bindings": {
+    "xsd_contract": "data/schema/kuhul.xsd",
+    "chen_certificate_element": "chen_certificate",
+    "xul_commit_element": "xul_commit"
+  },
+  "phase_authority_split": {
+    "chen": "verify_and_assert_only",
+    "xcfe": "authorize",
+    "xul": "commit_or_reject"
+  },
+  "phase_driver_sha256": {
+    "algorithm": "sha256",
+    "pop.json": "sha256:3a29e02adf7b82f490982cdec9b9c904f8dec26c39f0c3f0e91bdd6a3f0179de",
+    "wo.json": "sha256:6df9d80a2fe00df18f2b0da6266172b3727384928ee4fe5a9ee0e23939d209ff",
+    "yax.json": "sha256:d3fe839ca46ef0d628786eb7d5730d1ee44b94a25767fe4c14e42eea51f1a826",
+    "sek.json": "sha256:b58d33e691ac3d8314b0c0f9be535fa8bbe7959a204726ea891bf0ab7eef8a44",
+    "chen.json": "sha256:16598f6de9644ab8fcd5ddc71756588b1a6273767ffb21513db9314f0a217837",
+    "xul.json": "sha256:3ebde8b98c165d0867fa3c36fb1b24b75b54fbf5e4262d53acc4ea097041f069"
+  },
+  "sha256": {
+    "algorithm": "sha256",
+    "cycle_hash_spec": "sha256:3313c79c6407b0f8a3d2df1da11e5d75efb35875b246c199611d6f650d1ae0e0",
+    "fold_runtime": "sha256:eaf7effb343261098ea3d7d1cc75d3b86e884e5dd25ed80af8d16b7a78124ce1"
+  }
+}

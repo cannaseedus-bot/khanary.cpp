@@ -1,0 +1,37 @@
+<sdm xmlns:k="https://kuhul.io/relational">
+  <node id="ORCH-µ" type="micronaut" category="executive">
+    <graph>
+      <node id="REASON-µ" type="micronaut" category="cognitive"/>
+      <node id="CREATE-µ" type="micronaut" category="creative"/>
+      <node id="PLAN-µ" type="micronaut" category="executive"/>
+      <edge from="REASON-µ" to="PLAN-µ" verb="@call" isLink="true"/>
+      <edge from="CREATE-µ" to="REASON-µ" verb="@eval" isLink="true"/>
+      <edge from="PLAN-µ" to="REASON-µ" verb="@call" isLink="true"/>
+    </graph>
+  </node>
+  <node id="REASON-µ" type="micronaut" category="cognitive"/>
+  <node id="MEM-µ" type="micronaut" category="storage"/>
+  <node id="CODE-µ" type="micronaut" category="cognitive"/>
+  <node id="GRAPHICS-µ" type="micronaut" category="creative"/>
+  <node id="FILE-µ" type="micronaut" category="storage"/>
+  <node id="NET-µ" type="micronaut" category="cognitive"/>
+  <node id="INFER-µ" type="micronaut" category="cognitive"/>
+  <edge from="ORCH-µ" to="REASON-µ" verb="@delegate" isLink="true"/>
+  <edge from="ORCH-µ" to="CREATE-µ" verb="@delegate" isLink="true"/>
+  <edge from="ORCH-µ" to="PLAN-µ" verb="@delegate" isLink="true"/>
+  <edge from="REASON-µ" to="MEM-µ" verb="@call" isLink="true"/>
+  <edge from="REASON-µ" to="CODE-µ" verb="@call" isLink="true"/>
+  <edge from="REASON-µ" to="INFER-µ" verb="@call" isLink="true"/>
+  <edge from="CREATE-µ" to="GRAPHICS-µ" verb="@compose" isLink="true"/>
+  <edge from="CREATE-µ" to="CODE-µ" verb="@compose" isLink="true"/>
+  <edge from="PLAN-µ" to="MEM-µ" verb="@call" isLink="true"/>
+  <edge from="PLAN-µ" to="REASON-µ" verb="@call" isLink="true"/>
+  <edge from="MEM-µ" to="FILE-µ" verb="@call" isLink="true"/>
+  <edge from="CODE-µ" to="REASON-µ" verb="@eval" isLink="true"/>
+  <edge from="INFER-µ" to="REASON-µ" verb="@call" isLink="true"/>
+  <edge from="INFER-µ" to="MEM-µ" verb="@call" isLink="true"/>
+  <edge from="NET-µ" to="CODE-µ" verb="@call" isLink="true"/>
+  <edge from="NET-µ" to="FILE-µ" verb="@call" isLink="true"/>
+  <edge from="MEM-µ" to="FILE-µ" verb="@relate" isLink="true" directed="false"/>
+  <edge from="GRAPHICS-µ" to="REASON-µ" verb="@eval" isLink="true"/>
+</sdm>

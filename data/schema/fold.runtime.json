@@ -440,45 +440,45 @@
   },
   "phase_driver_lock": {
     "enabled": true,
-    "mode": "audit",
+    "mode": "enforce",
     "dll_root": "data/drivers/phases",
-    "contract": "phase execution may be gated by per-phase DLL presence and SHA-256 integrity under enforce mode",
+    "contract": "phase execution is gated by per-phase driver artifact presence and SHA-256 integrity under enforce mode",
     "entry_symbol": "khanary_phase_driver_entry_v1",
     "phases": [
       {
         "phase": "Pop",
-        "dll": "Pop.dll",
+        "dll": "pop.json",
         "required_in_enforce_mode": true
       },
       {
         "phase": "Wo",
-        "dll": "Wo.dll",
+        "dll": "wo.json",
         "required_in_enforce_mode": true
       },
       {
         "phase": "Yax",
-        "dll": "Yax.dll",
+        "dll": "yax.json",
         "required_in_enforce_mode": true
       },
       {
         "phase": "Sek",
-        "dll": "Sek.dll",
+        "dll": "sek.json",
         "required_in_enforce_mode": true
       },
       {
         "phase": "Ch'en",
-        "dll": "Chen.dll",
+        "dll": "chen.json",
         "required_in_enforce_mode": true
       },
       {
         "phase": "Xul",
-        "dll": "Xul.dll",
+        "dll": "xul.json",
         "required_in_enforce_mode": true
       }
     ],
     "policy": {
       "audit": "log status and permit execution even if DLLs are missing or pending hash",
-      "enforce": "deny phase execution when required DLL/hash verification fails"
+      "enforce": "deny phase execution when required phase artifact/hash verification fails"
     }
   },
   "multi_track_fold_unfold": {
@@ -613,7 +613,7 @@
 
   "sha256": {
     "algorithm": "sha256",
-    "cycle_hash_spec": "sha256:9cc20348ca711681ff283c236fc1ce9c9f5b63f36f5044c63d82261169a611f7",
+    "cycle_hash_spec": "sha256:3313c79c6407b0f8a3d2df1da11e5d75efb35875b246c199611d6f650d1ae0e0",
     "binding": "validated at load time by Ch'en/Xul pipeline"
   }
 }

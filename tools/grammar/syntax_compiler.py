@@ -1,4 +1,4 @@
-"""SyntaxCompiler — CSS/HTML → ⟁KEY token encoder.
+"""SyntaxCompiler — CSS/HTML and graph surfaces → ⟁KEY token encoder.
 
 Implements the SyntaxCompiler.cs pipeline from css.manifest.json in Python:
   SyntaxParser → KeyResolver → BookExpander → RelationBinder
@@ -10,16 +10,20 @@ of ⟁KEY tokens from the CSS manifest that best decompose the input.
 CLI examples:
     python tools/grammar/syntax_compiler.py "background:#020b12"
     python tools/grammar/syntax_compiler.py --key PANEL
+    python tools/grammar/syntax_compiler.py --relational-graph data/grammar/kuhul-relational-graph.xml
     python tools/grammar/syntax_compiler.py --selftest
 """
 import argparse
+import html
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 MANIFEST_PATH = Path(__file__).resolve().parents[2] / "data" / "manifest" / "css.manifest.json"
 SCX_MAX_DEPTH = 64
+RELATIONAL_NS = "https://kuhul.io/relational"
 
 _META = frozenset({
     "⟁KEYGRAMMAR", "⟁GRAMMARSYNTAXGRAPH", "⟁AST",
@@ -191,6 +195,181 @@ def expand_key(word, manifest_path=None):
     return list(dict.fromkeys(_expand(manifest, word, frozenset(), 0)))
 
 
+# ── XSLT/SDM relational graph lowering ───────────────────────────────────────
+
+def _xml_local_name(tag):
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def _children_named(element, name):
+    return [child for child in list(element) if _xml_local_name(child.tag) == name]
+
+
+def _coerce_xml_text(xml_input):
+    if hasattr(xml_input, "read"):
+        return xml_input.read()
+    if isinstance(xml_input, Path):
+        return xml_input.read_text(encoding="utf-8")
+    text = str(xml_input)
+    maybe_path = Path(text)
+    if "<" not in text[:16] and maybe_path.exists():
+        return maybe_path.read_text(encoding="utf-8")
+    return text
+
+
+def _edge_directed(edge, graph_default):
+    directed_attr = edge.attrib.get("directed")
+    if directed_attr is not None:
+        return directed_attr.lower() != "false"
+    return str(graph_default).lower() != "undirected"
+
+
+def _edge_verb(edge, directed):
+    explicit = edge.attrib.get("verb")
+    if explicit:
+        return explicit
+    return "@relate" if not directed else "@call"
+
+
+def _find_graph_root(root):
+    if _xml_local_name(root.tag) == "graph":
+        return root
+    for child in root.iter():
+        if _xml_local_name(child.tag) == "graph":
+            return child
+    raise ValueError("relational graph XML does not contain a <graph> root")
+
+
+def compile_relational_graph(xml_input):
+    """Lower a GraphML-style XML graph to a K'UHUL relational micronaut model.
+
+    This is the dependency-free mirror of the checked-in XSLT contract:
+    graph → relational network, node → micronaut instance, edge → relational
+    verb, nested graph → sub-micronaut cluster. The result is a projection
+    surface for execution planning and rendering; it does not assert semantic
+    truth or promote a micronaut entry by itself.
+    """
+    root = ET.fromstring(_coerce_xml_text(xml_input))
+    graph_root = _find_graph_root(root)
+    nodes = []
+    edges = []
+    clusters = []
+    node_occurrences = {}
+
+    def walk_graph(graph_el, parent=None, depth=0):
+        graph_default = graph_el.attrib.get("edgedefault", "directed")
+
+        for node in _children_named(graph_el, "node"):
+            node_id = node.attrib.get("id")
+            if not node_id:
+                raise ValueError("relational <node> missing required id")
+            nested_graphs = _children_named(node, "graph")
+            occurrence_index = node_occurrences.get(node_id, 0)
+            node_occurrences[node_id] = occurrence_index + 1
+            occurrence = {
+                "id": node_id,
+                "occurrence_id": f"{parent or 'root'}::{node_id}::{occurrence_index}",
+                "type": "micronaut",
+                "category": node.attrib.get("category", "uncategorized"),
+                "parent": parent,
+                "depth": depth,
+                "cluster": bool(nested_graphs),
+            }
+            nodes.append(occurrence)
+            if nested_graphs:
+                clusters.append({
+                    "id": node_id,
+                    "parent": parent,
+                    "depth": depth,
+                    "kind": "sub-micronaut-cluster",
+                })
+                for nested in nested_graphs:
+                    walk_graph(nested, parent=node_id, depth=depth + 1)
+
+        for edge in _children_named(graph_el, "edge"):
+            source = edge.attrib.get("source")
+            target = edge.attrib.get("target")
+            if not source or not target:
+                raise ValueError("relational <edge> missing source or target")
+            directed = _edge_directed(edge, graph_default)
+            edges.append({
+                "from": source,
+                "to": target,
+                "verb": _edge_verb(edge, directed),
+                "directed": directed,
+                "parent": parent,
+                "relation_type": "directed" if directed else "undirected",
+                "isLink": True,
+            })
+
+    walk_graph(graph_root)
+    return {
+        "@type": "kuhul.relational_sdm.v1",
+        "namespace": RELATIONAL_NS,
+        "layout": "Tree",
+        "source_root": "graph",
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "cluster_count": len(clusters),
+        "nodes": nodes,
+        "edges": edges,
+        "clusters": clusters,
+        "authority_boundary": (
+            "relational graph rendering is an execution-plan projection; "
+            "Ch'en/Xul remain responsible for verification and persistence"
+        ),
+    }
+
+
+def _xml_attr(name, value):
+    return f'{name}="{html.escape(str(value), quote=True)}"'
+
+
+def render_relational_sdm_xml(model):
+    """Render a compiled relational graph as SDM XML."""
+    nodes_by_parent = {}
+    edges_by_parent = {}
+    for node in model["nodes"]:
+        nodes_by_parent.setdefault(node.get("parent"), []).append(node)
+    for edge in model["edges"]:
+        edges_by_parent.setdefault(edge.get("parent"), []).append(edge)
+
+    lines = [f'<sdm xmlns:k="{RELATIONAL_NS}">']
+
+    def render_graph(parent, indent):
+        pad = " " * indent
+        for node in nodes_by_parent.get(parent, []):
+            attrs = [
+                _xml_attr("id", node["id"]),
+                _xml_attr("type", "micronaut"),
+                _xml_attr("category", node.get("category", "uncategorized")),
+            ]
+            has_nested = node["id"] in nodes_by_parent or node["id"] in edges_by_parent
+            if has_nested:
+                lines.append(f"{pad}<node {' '.join(attrs)}>")
+                lines.append(f"{pad}  <graph>")
+                render_graph(node["id"], indent + 4)
+                lines.append(f"{pad}  </graph>")
+                lines.append(f"{pad}</node>")
+            else:
+                lines.append(f"{pad}<node {' '.join(attrs)}/>")
+
+        for edge in edges_by_parent.get(parent, []):
+            attrs = [
+                _xml_attr("from", edge["from"]),
+                _xml_attr("to", edge["to"]),
+                _xml_attr("verb", edge["verb"]),
+                _xml_attr("isLink", "true"),
+            ]
+            if not edge.get("directed", True):
+                attrs.append(_xml_attr("directed", "false"))
+            lines.append(f"{pad}<edge {' '.join(attrs)}/>")
+
+    render_graph(None, 2)
+    lines.append("</sdm>")
+    return "\n".join(lines) + "\n"
+
+
 # ── Self-test ─────────────────────────────────────────────────────────────────
 
 _SELFTEST_CASES = [
@@ -233,7 +412,19 @@ def main():
     parser.add_argument("--selftest", action="store_true",
                         help="run built-in test cases")
     parser.add_argument("--manifest", default=str(MANIFEST_PATH), metavar="FILE")
+    parser.add_argument("--relational-graph", metavar="FILE",
+                        help="compile GraphML-style XML into a K'UHUL relational model")
+    parser.add_argument("--sdm-xml", action="store_true",
+                        help="with --relational-graph, emit SDM XML instead of JSON")
     args = parser.parse_args()
+
+    if args.relational_graph:
+        model = compile_relational_graph(Path(args.relational_graph))
+        if args.sdm_xml:
+            print(render_relational_sdm_xml(model), end="")
+        else:
+            print(json.dumps(model, ensure_ascii=False, indent=2))
+        return 0
 
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
 

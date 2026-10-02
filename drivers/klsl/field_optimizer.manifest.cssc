@@ -1,0 +1,148 @@
+/* ============================================================ */
+/* field_optimizer.manifest.cssc                                */
+/* CSS-C registration for the field optimizer                   */
+/* ============================================================ */
+
+:root {
+  /* ============================================================ */
+  /* PARAMETER TENSORS                                            */
+  /* ============================================================ */
+
+  /* Model weights (N floats) */
+  --params: tensor(float, 1024);
+
+  /* Gradients (N floats) */
+  --grads: tensor(float, 1024);
+
+  /* Momentum buffers (N floats each) */
+  --m1: tensor(float, 1024);
+  --m2: tensor(float, 1024);
+
+  /* ============================================================ */
+  /* FIELD PARAMETERS (bound to CB)                              */
+  /* ============================================================ */
+
+  --lr: 0.001;
+  --beta1: 0.9;
+  --beta2: 0.999;
+  --epsilon: 1e-8;
+  --weight_decay: 0.01;
+  --grad_clip: 1.0;
+  --target_loss: 0.1;
+  --current_loss: 2.5;
+  --gravity_scale: 1.0;
+  --step: 1;
+  --wind_direction: 1.0;
+  --inertia_friction: 0.5;
+}
+
+/* ============================================================ */
+/* FIELD OPTIMIZER — Main dispatch                              */
+/* ============================================================ */
+
+.field-optimizer {
+  /* Compute shader registration */
+  compute-shader: url(field_optimizer.klsl#field_optimizer);
+  workgroup_size: (256, 1, 1);
+  dispatch: auto;
+
+  /* Kernel entry point */
+  entry_point: "CSMain";
+
+  /* Phase — runs during Ch'en (evolution) */
+  phase: Ch'en;
+
+  /* Buffers */
+  inputs:
+    --params from params_buf,
+    --grads from grads_buf,
+    --m1 from m1_buf,
+    --m2 from m2_buf;
+
+  uniforms:
+    --lr,
+    --beta1,
+    --beta2,
+    --epsilon,
+    --weight_decay,
+    --grad_clip,
+    --target_loss,
+    --current_loss,
+    --gravity_scale,
+    --step,
+    --wind_direction,
+    --inertia_friction;
+
+  /* Device tier fallback chain */
+  fallback: webgpu -> sm5 -> webgl2 -> cpu;
+
+  /* Register with gate */
+  compute-gate: cssc_gate.js;
+  gate-key: "field_optimizer";
+}
+
+/* ============================================================ */
+/* GRAD ACCUMULATOR — Parallel reduce                           */
+/* ============================================================ */
+
+.grad-accumulator {
+  compute-shader: url(field_optimizer.klsl#field_optimizer);
+  workgroup_size: (256, 1, 1);
+  dispatch: auto;
+  entry_point: "GradAccumCS";
+  phase: Sek;
+
+  inputs:
+    --grads from grads_buf;
+
+  uniforms:
+    --grad_clip,
+    --N;
+
+  fallback: webgpu -> sm5 -> webgl2 -> cpu;
+  compute-gate: cssc_gate.js;
+  gate-key: "grad_accumulator";
+}
+
+/* ============================================================ */
+/* GRAVITY VARIANTS (⟁Grav⟁ / ⟁AntiGrav⟁ / ⟁HeavyGrav⟁)        */
+/* ============================================================ */
+
+.field-optimizer.antigrav {
+  /* Debug/telemetry — no update */
+  --gravity_scale: 0.0;
+}
+
+.field-optimizer.normal {
+  /* Standard field dynamics */
+  --gravity_scale: 1.0;
+}
+
+.field-optimizer.heavygrav {
+  /* Loss head — stronger well */
+  --gravity_scale: 2.0;
+}
+
+/* ============================================================ */
+/* TRAINING INTEGRATION                                          */
+/* ============================================================ */
+
+.training-loop {
+  optimizer: field-optimizer;
+  phase: Pop -> Wo -> Sek -> Ch'en -> Xul;
+
+  /* Antigravity for telemetry nodes */
+  .telemetry {
+    @apply .field-optimizer.antigrav;
+  }
+
+  /* Normal gravity for hidden layers */
+  .hidden-layer {
+    @apply .field-optimizer.normal;
+  }
+
+  /* Heavy gravity for output/loss layer */
+  .output-layer {
+    @apply .field-optimizer.heavygrav;
+  }
+}

@@ -48,7 +48,10 @@ static bool should_replace_word_candidate(
 }
 
 constexpr std::array<char, 8> kFactoryBinMagic = {'K','F','A','C','B','I','N','1'};
-constexpr uint32_t kFactoryBinVersion = 1u;
+constexpr uint32_t kFactoryBinVersion = 2u;
+constexpr uint32_t kFactoryBinMinVersion = 1u;
+constexpr float kVectorMaxLearningRate = 0.35f;
+constexpr float kVectorMaxFrameDrift = 0.25f;
 
 template <typename T>
 static bool write_pod(std::ofstream& out, const T& value) {
@@ -79,6 +82,170 @@ static bool read_string_blob(std::ifstream& in, std::string* value) {
     return static_cast<bool>(in);
 }
 
+static bool finite_vec(float x, float y, float z) {
+    return std::isfinite(x) && std::isfinite(y) && std::isfinite(z);
+}
+
+static float vec_norm(float x, float y, float z) {
+    return std::sqrt(x * x + y * y + z * z);
+}
+
+static bool normalize_vec(float* x, float* y, float* z) {
+    if (!x || !y || !z || !finite_vec(*x, *y, *z)) return false;
+    const float n = vec_norm(*x, *y, *z);
+    if (n <= 1e-6f) return false;
+    *x /= n;
+    *y /= n;
+    *z /= n;
+    return true;
+}
+
+static bool write_vector_frame(std::ofstream& out,
+                               const std::string& id,
+                               const VectorTrackFrame& frame) {
+    return write_string_blob(out, id) &&
+           write_pod(out, frame.frame_id) &&
+           write_pod(out, frame.base_frame) &&
+           write_pod(out, frame.x) &&
+           write_pod(out, frame.y) &&
+           write_pod(out, frame.z) &&
+           write_pod(out, frame.evidence_weight) &&
+           write_pod(out, frame.drift) &&
+           write_string_blob(out, frame.run_id) &&
+           write_string_blob(out, frame.source);
+}
+
+static bool read_vector_frame(std::ifstream& in,
+                              std::string* id,
+                              VectorTrackFrame* frame) {
+    if (!id || !frame) return false;
+    return read_string_blob(in, id) &&
+           read_pod(in, &frame->frame_id) &&
+           read_pod(in, &frame->base_frame) &&
+           read_pod(in, &frame->x) &&
+           read_pod(in, &frame->y) &&
+           read_pod(in, &frame->z) &&
+           read_pod(in, &frame->evidence_weight) &&
+           read_pod(in, &frame->drift) &&
+           read_string_blob(in, &frame->run_id) &&
+           read_string_blob(in, &frame->source);
+}
+
+static void apply_vector_frame_to_registry(MicronautRegistry& reg,
+                                           const std::string& id,
+                                           const VectorTrackFrame& frame) {
+    auto* entry = reg.get_mut(id);
+    if (!entry || frame.frame_id == 0 || !finite_vec(frame.x, frame.y, frame.z)) return;
+    entry->vector_meta.x = frame.x;
+    entry->vector_meta.y = frame.y;
+    entry->vector_meta.z = frame.z;
+    entry->vector_meta.declared = true;
+    entry->vector_meta.source = frame.source.empty() ? "factory.vector_tracking" : frame.source;
+    reg.gravity().register_nodes(
+        id,
+        entry->governs,
+        entry->primary_phase,
+        entry->vector_meta.x,
+        entry->vector_meta.y,
+        entry->vector_meta.z,
+        true,
+        entry->static_weight,
+        entry->confidence,
+        entry->health,
+        0.0f,
+        true,
+        !entry->capabilities.empty() || entry->sandbox.coordinator,
+        true);
+}
+
+static VectorTrackFrame make_next_vector_frame(const MicronautEntry& entry,
+                                                const VectorTrackFrame* current,
+                                                const VectorTrackObservation& observation) {
+    VectorTrackFrame frame;
+    const uint64_t base_frame = current ? current->frame_id : 0;
+    frame.base_frame = base_frame;
+    frame.frame_id = observation.frame_id == 0 ? base_frame + 1 : observation.frame_id;
+
+    float base_x = current ? current->x : entry.vector_meta.x;
+    float base_y = current ? current->y : entry.vector_meta.y;
+    float base_z = current ? current->z : entry.vector_meta.z;
+    if (!normalize_vec(&base_x, &base_y, &base_z)) {
+        base_x = 1.0f;
+        base_y = 0.0f;
+        base_z = 0.0f;
+    }
+
+    float target_x = observation.x;
+    float target_y = observation.y;
+    float target_z = observation.z;
+    if (!normalize_vec(&target_x, &target_y, &target_z)) {
+        target_x = base_x;
+        target_y = base_y;
+        target_z = base_z;
+    }
+
+    const float alpha = std::clamp(
+        std::isfinite(observation.evidence_weight) ? observation.evidence_weight : 0.5f,
+        0.0f,
+        kVectorMaxLearningRate);
+
+    float dot = base_x * target_x + base_y * target_y + base_z * target_z;
+    dot = std::clamp(dot, -1.0f, 1.0f);
+    if (dot < -0.999999f) {
+        // Opposite vectors have an undefined slerp plane. Pick a deterministic
+        // perpendicular axis so the tracking frame still moves by a bounded arc.
+        target_x = -base_y;
+        target_y = base_x;
+        target_z = 0.0f;
+        if (!normalize_vec(&target_x, &target_y, &target_z)) {
+            target_x = 0.0f;
+            target_y = 0.0f;
+            target_z = 1.0f;
+        }
+        dot = 0.0f;
+    }
+
+    const float angle = std::acos(dot);
+    if (angle <= 1e-6f) {
+        frame.x = base_x;
+        frame.y = base_y;
+        frame.z = base_z;
+        frame.evidence_weight = alpha;
+        frame.drift = 0.0f;
+    } else {
+        const float max_angle =
+            2.0f * std::asin(std::clamp(kVectorMaxFrameDrift * 0.5f, 0.0f, 1.0f));
+        const float step_angle = std::min(alpha * angle, max_angle);
+        const float t = step_angle / angle;
+        const float sin_angle = std::sin(angle);
+        const float base_scale = std::sin((1.0f - t) * angle) / sin_angle;
+        const float target_scale = std::sin(t * angle) / sin_angle;
+
+        float next_x = base_scale * base_x + target_scale * target_x;
+        float next_y = base_scale * base_y + target_scale * target_y;
+        float next_z = base_scale * base_z + target_scale * target_z;
+        if (!normalize_vec(&next_x, &next_y, &next_z)) {
+            next_x = base_x;
+            next_y = base_y;
+            next_z = base_z;
+        }
+
+        frame.x = next_x;
+        frame.y = next_y;
+        frame.z = next_z;
+        frame.evidence_weight = alpha;
+        frame.drift = 2.0f * std::sin(step_angle * 0.5f);
+    }
+    frame.run_id = observation.run_id.empty()
+        ? "run:" + std::to_string(frame.frame_id)
+        : observation.run_id;
+    const std::string basis = observation.source.empty()
+        ? "factory.vector_tracking"
+        : observation.source;
+    frame.source = basis + ":" + frame.run_id + ":f" + std::to_string(frame.frame_id);
+    return frame;
+}
+
 } // namespace
 
 Factory::Factory(MicronautRegistry& reg, float confidence_floor, float tfidf_accept)
@@ -104,6 +271,7 @@ kuhul::Phase Factory::op_phase(FactoryOp op) const {
         case FactoryOp::Read:    return kuhul::Phase::Pop;
         case FactoryOp::Edit:    return kuhul::Phase::Sek;
         case FactoryOp::Patch:   return kuhul::Phase::Sek;
+        case FactoryOp::TrackVector: return kuhul::Phase::Yax;
         case FactoryOp::Status:  return kuhul::Phase::Chen;
         case FactoryOp::Delete:  return kuhul::Phase::Xul;
     }
@@ -195,6 +363,45 @@ FactoryResult Factory::commit(FactoryCandidate candidate, kuhul::CommitAuthority
             return {false, id, "delete rejected by registry guard"};
         return {true, id, "deleted"};
     }
+    if (candidate.op == FactoryCandidate::Op::TrackVector) {
+        auto* e = reg_.get_mut(id);
+        if (!e) return {false, id, "not found (stale candidate)"};
+        const auto frame = candidate.vector_frame;
+        if (frame.frame_id == 0 || !finite_vec(frame.x, frame.y, frame.z))
+            return {false, id, "vector track rejected: invalid frame"};
+
+        std::lock_guard<std::mutex> lk(vector_mtx_);
+        uint64_t current_frame = 0;
+        if (auto it = vector_frames_.find(id); it != vector_frames_.end())
+            current_frame = it->second.frame_id;
+        if (frame.base_frame != current_frame)
+            return {false, id, "vector track rejected: stale base frame"};
+        if (frame.frame_id <= current_frame)
+            return {false, id, "vector track rejected: non-monotonic frame"};
+
+        e->vector_meta.x = frame.x;
+        e->vector_meta.y = frame.y;
+        e->vector_meta.z = frame.z;
+        e->vector_meta.declared = true;
+        e->vector_meta.source = frame.source;
+        vector_frames_[id] = frame;
+        reg_.gravity().register_nodes(
+            id,
+            e->governs,
+            e->primary_phase,
+            e->vector_meta.x,
+            e->vector_meta.y,
+            e->vector_meta.z,
+            true,
+            e->static_weight,
+            e->confidence,
+            e->health,
+            0.0f,
+            true,
+            !e->capabilities.empty() || e->sandbox.coordinator,
+            true);
+        return {true, id, "vector_tracked"};
+    }
     // Evolve: replace entry and re-register gravity nodes.
     auto* e = reg_.get_mut(id);
     if (!e) return {false, id, "not found (stale candidate)"};
@@ -206,7 +413,14 @@ FactoryResult Factory::commit(FactoryCandidate candidate, kuhul::CommitAuthority
         e->vector_meta.x,
         e->vector_meta.y,
         e->vector_meta.z,
-        e->vector_meta.declared);
+        e->vector_meta.declared,
+        e->static_weight,
+        e->confidence,
+        e->health,
+        0.0f,
+        true,
+        !e->capabilities.empty() || e->sandbox.coordinator,
+        true);
     return {true, id, "evolved"};
 }
 
@@ -251,6 +465,58 @@ std::optional<FactoryCandidate> Factory::propose_patch(
         "micronaut-registry",
         "patch:" + id
     };
+}
+
+std::optional<FactoryCandidate> Factory::propose_vector_track(
+    const std::string& id,
+    const VectorTrackObservation& observation)
+{
+    if (id.empty()) return std::nullopt;
+    const auto* e = reg_.get(id);
+    if (!e) return std::nullopt;
+    if (!finite_vec(observation.x, observation.y, observation.z)) return std::nullopt;
+
+    VectorTrackFrame current;
+    const VectorTrackFrame* current_ptr = nullptr;
+    {
+        std::lock_guard<std::mutex> lk(vector_mtx_);
+        if (auto it = vector_frames_.find(id); it != vector_frames_.end()) {
+            current = it->second;
+            current_ptr = &current;
+        }
+    }
+
+    const uint64_t base_frame = current_ptr ? current_ptr->frame_id : 0;
+    const uint64_t requested_frame =
+        observation.frame_id == 0 ? base_frame + 1 : observation.frame_id;
+    if (requested_frame <= base_frame) return std::nullopt;
+
+    auto frame = make_next_vector_frame(*e, current_ptr, observation);
+    frame.frame_id = requested_frame;
+
+    MicronautEntry snapshot = *e;
+    snapshot.vector_meta.x = frame.x;
+    snapshot.vector_meta.y = frame.y;
+    snapshot.vector_meta.z = frame.z;
+    snapshot.vector_meta.declared = true;
+    snapshot.vector_meta.source = frame.source;
+
+    return FactoryCandidate{
+        FactoryCandidate::Op::TrackVector,
+        id,
+        std::move(snapshot),
+        "micronaut-vector-tracking",
+        "vector_track:" + id + ":" + std::to_string(frame.frame_id),
+        frame
+    };
+}
+
+std::optional<VectorTrackFrame> Factory::vector_tracking_frame(const std::string& id) const {
+    if (id.empty()) return std::nullopt;
+    std::lock_guard<std::mutex> lk(vector_mtx_);
+    auto it = vector_frames_.find(id);
+    if (it == vector_frames_.end()) return std::nullopt;
+    return it->second;
 }
 
 FactoryResult Factory::status(const std::string& id) const {
@@ -727,6 +993,32 @@ bool Factory::save_state(const std::string& path) const {
     }
     root["entries"] = json_array(std::move(entries));
 
+    std::vector<std::pair<std::string, VectorTrackFrame>> frames;
+    {
+        std::lock_guard<std::mutex> vlk(vector_mtx_);
+        frames.reserve(vector_frames_.size());
+        for (const auto& [id, frame] : vector_frames_) frames.push_back({id, frame});
+        std::sort(frames.begin(), frames.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+        });
+    }
+    JsonArray frame_rows;
+    for (const auto& [id, frame] : frames) {
+        JsonObject row;
+        row["id"] = json_string(id);
+        row["frame_id"] = json_number(static_cast<double>(frame.frame_id));
+        row["base_frame"] = json_number(static_cast<double>(frame.base_frame));
+        row["x"] = json_number(static_cast<double>(frame.x));
+        row["y"] = json_number(static_cast<double>(frame.y));
+        row["z"] = json_number(static_cast<double>(frame.z));
+        row["evidence_weight"] = json_number(static_cast<double>(frame.evidence_weight));
+        row["drift"] = json_number(static_cast<double>(frame.drift));
+        row["run_id"] = json_string(frame.run_id);
+        row["source"] = json_string(frame.source);
+        frame_rows.push_back(json_object(std::move(row)));
+    }
+    root["vector_frames"] = json_array(std::move(frame_rows));
+
     std::ofstream out(path);
     if (!out) return false;
     out << stringify(json_object(std::move(root)), true);
@@ -746,6 +1038,41 @@ bool Factory::load_state(const std::string& path) {
     const auto* entries = root->get("entries");
     if (!entries || !entries->is_array()) return false;
 
+    std::vector<std::pair<std::string, VectorTrackFrame>> loaded_frames;
+    if (const auto* frames_node = root->get("vector_frames");
+        frames_node && frames_node->is_array()) {
+        for (const auto& item : frames_node->as_array()) {
+            if (!item || !item->is_object()) continue;
+            auto id = item->get_string("id");
+            auto frame_id = item->get_number("frame_id");
+            auto base_frame = item->get_number("base_frame");
+            auto x = item->get_number("x");
+            auto y = item->get_number("y");
+            auto z = item->get_number("z");
+            if (!id || id->empty() || !frame_id || !base_frame || !x || !y || !z)
+                continue;
+            if (!std::isfinite(*frame_id) || !std::isfinite(*base_frame) ||
+                *frame_id <= 0.0 || *base_frame < 0.0)
+                continue;
+            VectorTrackFrame frame;
+            frame.frame_id = static_cast<uint64_t>(*frame_id);
+            frame.base_frame = static_cast<uint64_t>(*base_frame);
+            frame.x = static_cast<float>(*x);
+            frame.y = static_cast<float>(*y);
+            frame.z = static_cast<float>(*z);
+            if (!finite_vec(frame.x, frame.y, frame.z)) continue;
+            if (auto weight = item->get_number("evidence_weight"))
+                frame.evidence_weight = clamp01(static_cast<float>(*weight), 0.0f);
+            if (auto drift = item->get_number("drift"))
+                frame.drift = std::isfinite(*drift)
+                    ? std::max(0.0f, static_cast<float>(*drift))
+                    : 0.0f;
+            if (auto run_id = item->get_string("run_id")) frame.run_id = *run_id;
+            if (auto source = item->get_string("source")) frame.source = *source;
+            loaded_frames.push_back({*id, std::move(frame)});
+        }
+    }
+
     std::lock_guard<std::mutex> lk(key_mtx_);
     key_store_.clear();
     key_lower_.clear();
@@ -757,6 +1084,15 @@ bool Factory::load_state(const std::string& path) {
     key_word_phrase_.clear();
     key_hits_.clear();
     key_confidence_.clear();
+
+    {
+        std::lock_guard<std::mutex> vlk(vector_mtx_);
+        vector_frames_.clear();
+        for (const auto& [id, frame] : loaded_frames) {
+            vector_frames_[id] = frame;
+            apply_vector_frame_to_registry(reg_, id, frame);
+        }
+    }
 
     if (auto tf = root->get_number("tfidf_accept"))
         tfidf_accept_ = clamp01(static_cast<float>(*tf), tfidf_accept_);
@@ -842,6 +1178,21 @@ bool Factory::save_state_binary(const std::string& path) const {
         if (!write_pod(out, hits)) return false;
         if (!write_pod(out, confidence)) return false;
     }
+
+    std::vector<std::pair<std::string, VectorTrackFrame>> frames;
+    {
+        std::lock_guard<std::mutex> vlk(vector_mtx_);
+        frames.reserve(vector_frames_.size());
+        for (const auto& [id, frame] : vector_frames_) frames.push_back({id, frame});
+        std::sort(frames.begin(), frames.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+        });
+    }
+    const uint64_t frame_count = static_cast<uint64_t>(frames.size());
+    if (!write_pod(out, frame_count)) return false;
+    for (const auto& [id, frame] : frames) {
+        if (!write_vector_frame(out, id, frame)) return false;
+    }
     return static_cast<bool>(out);
 }
 
@@ -857,7 +1208,7 @@ bool Factory::load_state_binary(const std::string& path) {
 
     uint32_t version = 0;
     if (!read_pod(in, &version)) return false;
-    if (version != kFactoryBinVersion) return false;
+    if (version < kFactoryBinMinVersion || version > kFactoryBinVersion) return false;
 
     float tfidf_accept = tfidf_accept_;
     if (!read_pod(in, &tfidf_accept)) return false;
@@ -906,6 +1257,32 @@ bool Factory::load_state_binary(const std::string& path) {
         // As in the JSON loader: the second argument is a fallback, not a floor.
         // Usage is stored separately from evidence confidence.
         key_confidence_[kl] = clamp01(confidence, 0.0f);
+    }
+
+    std::vector<std::pair<std::string, VectorTrackFrame>> loaded_frames;
+    if (version >= 2u) {
+        uint64_t frame_count = 0;
+        if (!read_pod(in, &frame_count)) return false;
+        for (uint64_t i = 0; i < frame_count; ++i) {
+            std::string id;
+            VectorTrackFrame frame;
+            if (!read_vector_frame(in, &id, &frame)) return false;
+            if (id.empty() || frame.frame_id == 0 ||
+                !finite_vec(frame.x, frame.y, frame.z))
+                continue;
+            frame.evidence_weight = clamp01(frame.evidence_weight, 0.0f);
+            frame.drift = std::isfinite(frame.drift) ? std::max(0.0f, frame.drift) : 0.0f;
+            loaded_frames.push_back({std::move(id), std::move(frame)});
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> vlk(vector_mtx_);
+        vector_frames_.clear();
+        for (const auto& [id, frame] : loaded_frames) {
+            vector_frames_[id] = frame;
+            apply_vector_frame_to_registry(reg_, id, frame);
+        }
     }
 
     for (auto& [hash, bucket] : key_hash_idx_) {

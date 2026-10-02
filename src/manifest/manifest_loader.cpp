@@ -42,13 +42,14 @@ void load_file(ManifestRegistry& reg, const std::string& path) {
 }
 
 void load_all(ManifestRegistry& reg, const std::string& data_dir) {
-    static constexpr std::array<const char*, 11> manifests = {
+    static constexpr std::array<const char*, 12> manifests = {
         "css.manifest.json",
         "kuhul.manifest.json",
         "words.manifest.json",
         "micronaut.manifest.json",
         "user.manifest.json",
         "aiml.manifest.json",
+        "scfml.manifest.json",
         "mx2lm.manifest.json",
         "eliza.manifest.json",
         "tools.manifest.json",

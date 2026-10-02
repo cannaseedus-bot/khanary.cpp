@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metric_registry id="khanary-metric-graph" version="1.0.0" phase="Yax" authority="derived-metric-geometry" semantic_authority="false" topology_authority="false">
+  <summary>
+    METRIC-µ learns relevance and traversal geometry inside admitted semantic
+    track compartments. It does not learn one global metric over all Mx2LM
+    semantics. VECTOR-µ is a representation provider under METRIC-µ, not
+    semantic authority.
+  </summary>
+
+  <authority_boundary>
+    <semantic_authority owner="Mx2LM/FoldGraph/RelationISA/key-books" mutable_by="METRIC-µ" value="false"/>
+    <topology_authority owner="GML/FoldGraph" symbol="B" mutable_by="METRIC-µ" value="false"/>
+    <metric_authority owner="METRIC-µ" symbol="M_tau" role="derived relevance/traversal geometry inside Track_tau" derived="true" rebuildable="true"/>
+    <provider_authority owner="VECTOR-µ/SDR-µ/GRAPH-µ/SCX" role="efficient representation providers for metric estimation" semantic_authority="false"/>
+  </authority_boundary>
+
+  <pipeline>
+    <stage index="1" id="semantic-authority" role="key-books, RelationISA, FoldGraph B" source="data/manifest/*.manifest.json"/>
+    <stage index="2" id="verified-evidence" role="EpisodeJournal, GOOD/BAD FoldDelta, DirectionStore" source="src/kuhul/fold_delta.h"/>
+    <stage index="3" id="track-admission" role="route query into admitted track compartments before local metric search"/>
+    <stage index="4" id="metric-graph" role="derived per-track edge costs and relevance operators" registry="metric_graph.xml" topology="data/metric_graph.gml" math="data/grammar/metric_graph.mml" manifest="data/manifest/metric.manifest.json"/>
+    <stage index="5" id="cross-track-bridge" role="explicit bridge admission for cross-track comparison"/>
+    <stage index="6" id="providers" role="representation-provider implementations" providers="metric_graph,vector,sdr,graph,scx"/>
+    <stage index="7" id="selection" role="WCR/Yax consumes relevance R; Ch'en verifies results"/>
+  </pipeline>
+
+  <invariants>
+    <invariant id="metric_not_semantic_authority" value="true">METRIC-µ may assign traversal cost L_e or relevance R, but cannot change the relation type r or commit topology B.</invariant>
+    <invariant id="delta_metric_not_delta_topology" value="true">Delta L and Delta M_B do not imply Delta B.</invariant>
+    <invariant id="vector_is_provider" value="true">VECTOR-µ learns coordinates for a provider path; METRIC-µ owns the provider-independent measurement contract.</invariant>
+    <invariant id="phase_conditions_metric" value="true">Pop/Wo/Yax/Sek/Ch'en/Xul condition which metric/relevance operation is appropriate; phase is not itself the metric.</invariant>
+    <invariant id="chen_remains_verifier" value="true">METRIC-µ learns from Ch'en verdicts; it does not replace Ch'en.</invariant>
+    <invariant id="track_compartment_first" value="true">METRIC-µ learns M_tau over G_tau/N_tau/R_tau for one admitted track compartment at a time.</invariant>
+    <invariant id="no_global_metric_space" value="true">METRIC-µ must not compare every gram against every other gram in one global space.</invariant>
+    <invariant id="cross_track_bridge_required" value="true">R_alpha_beta is only defined when Bridge_alpha_beta is declared or a verified topology relation admits the comparison.</invariant>
+  </invariants>
+
+  <track_compartment_contract id="metric:track_compartment:v1" symbol="Track_tau" owner="Mx2LM semantic tracks" semantic_authority="true">
+    <track symbol="Track_tau" shape="&lt;G_tau,N_tau,R_tau&gt;" role="track-owned grams, neighborhoods, and relation structure"/>
+    <local_metric symbol="M_tau" role="METRIC-µ learned metric field for one track compartment"/>
+    <bridge symbol="Bridge_alpha_beta" role="explicit cross-track admission relation"/>
+    <law>METRIC_mu(Track_tau) learns only over G_tau unless Bridge_alpha_beta admits a cross-track comparison.</law>
+  </track_compartment_contract>
+
+  <heterogeneous_graph_contract id="metric:heterogeneous_nodes:v1" symbol="G_typed" semantic_authority="false">
+    <node_class id="V_gram" role="track-owned ngrams and key-word evidence" interchangeable="false"/>
+    <node_class id="V_track" role="semantic compartment boundary" interchangeable="false"/>
+    <node_class id="V_fold" role="Fold/phase-addressable semantic structure" interchangeable="false"/>
+    <node_class id="V_mu" role="Micronaut capability or execution specialist" interchangeable="false"/>
+    <node_class id="V_mesh" role="controlled transition between compartments" interchangeable="false"/>
+    <edge_rule id="mesh_discovery_not_execution">Mesh connectivity permits discovery, not execution.</edge_rule>
+    <path_rule id="cross_track_path">Track_A -> MeshNode -> Track_B before LocalMetricSearch_B.</path_rule>
+  </heterogeneous_graph_contract>
+
+  <metric_contract id="metric:graph:v1" symbol="M_tau" over="Track_tau" owner="METRIC-µ" phase_conditioned="true" relation_conditioned="true" semantic_authority="false" topology_authority="false" rebuildable="true">
+    <edge_metric symbol="L_e" role="learned semantic traversal cost for e=(A,r,B)"/>
+    <relevance symbol="R_tau(A,X|r,F,theta,provider)" role="within-track phase/relation/context conditioned relevance"/>
+    <cross_track_relevance symbol="R_alpha_beta(A,X)" precondition="Bridge_alpha_beta" role="authorized cross-track relevance only"/>
+    <principal_direction symbol="PrincipalDirection(D_Q|M_Q)" role="metric-aware direction over compatible FoldDeltas"/>
+    <selection symbol="S=W*C*R" consumer="WCR/Yax"/>
+    <verification owner="Ch'en" role="semantic verdict authority"/>
+  </metric_contract>
+
+  <training_objective id="metric:contrastive_risk:v1" owner="METRIC-µ" provider="VECTOR-µ|GRAPH-µ|SDR-µ|SCX" semantic_authority="false" topology_authority="false" verdict_source="Ch'en">
+    <summary>
+      The objective trains representation providers to approximate METRIC-µ relevance.
+      It cannot promote a relation, verify GOOD/BAD, or commit topology.
+    </summary>
+    <score symbol="score_tau(Q,K|r,F,theta,provider)" role="phase/relation conditioned local score derived from provider distance"/>
+    <positive_set symbol="Pos_tau(Q,r,theta)" source="GOOD FoldDelta, admitted RelationISA edge, or declared key-book neighborhood"/>
+    <negative_set symbol="Neg_tau(Q,r,theta)" source="same-track hard negatives plus admitted bridge negatives only"/>
+    <loss symbol="L_contrast" formula="-log(exp(score_pos)/(exp(score_pos)+sum exp(score_neg)))"/>
+    <bridge_cost symbol="d_alpha_beta(Q,K)" formula="d_alpha(Q,m)+L_m+d_beta(m,K)" precondition="Bridge_alpha_beta"/>
+    <differential_loss symbol="L_diff" formula="||Proj(DeltaG)-DeltaF||^2"/>
+    <risk_penalty symbol="L_risk" formula="max(0,Risk(theta,delta)-risk_bound)^2"/>
+    <total_loss symbol="L_total" formula="alpha*L_contrast+beta*L_bridge+gamma*L_diff+eta*L_risk"/>
+    <authority_law>Training changes metric geometry and provider indexes only; DeltaMetric does not imply DeltaTopology.</authority_law>
+  </training_objective>
+
+  <providers>
+    <provider id="metric-graph-provider" kind="graph_metric" role="per_track_edge_cost_and_path_distance" source="data/metric_graph.gml" require="true" semantic_authority="false" topology_authority="false">
+      <features>track_id,edge_cost,loss_cost,prior_mass,risk_bound,relation_conditioning,phase_conditioning,cross_track_bridge</features>
+    </provider>
+    <provider id="vector-provider" kind="vector_projection" role="coordinate_provider" source="vectors.xml" require="true" owner="VECTOR-µ" semantic_authority="false" topology_authority="false">
+      <features>cosine,local_chart,semantic_manifold,projection_generation</features>
+    </provider>
+    <provider id="sdr-provider" kind="sparse_distributed_representation" role="overlap_provider" require="false" semantic_authority="false" topology_authority="false">
+      <features>bit_overlap,consensus_bits,negative_overlap</features>
+    </provider>
+    <provider id="graph-provider" kind="fold_graph" role="typed_path_provider" source="data/grammar/fold_graph.xml" require="true" semantic_authority="false" topology_authority="true">
+      <features>typed_paths,geodesic_over_B,compatible_neighborhoods</features>
+    </provider>
+    <provider id="scx-provider" kind="symbolic_compression" role="key-book_provider" source="data/manifest/*.manifest.json" require="true" semantic_authority="false" topology_authority="false">
+      <features>key_word,key_book,horizontal_neighborhood,phase_markers</features>
+    </provider>
+  </providers>
+
+  <relations>
+    <edge from="TrackAdmission" to="METRIC-µ" verb="@requires" relation_phase="Wo" role="route into track compartment before metric search"/>
+    <edge from="FoldGraph-B" to="METRIC-µ" verb="@uses" relation_phase="Wo" role="authoritative topology input"/>
+    <edge from="EpisodeJournal" to="METRIC-µ" verb="@uses" relation_phase="Ch'en" role="verified learning evidence"/>
+    <edge from="DirectionStore" to="METRIC-µ" verb="@uses" relation_phase="Yax" role="compatible FoldDelta collection"/>
+    <edge from="Bridge-alpha-beta" to="METRIC-µ" verb="@requires" relation_phase="Yax" role="required for cross-track relevance"/>
+    <edge from="VECTOR-µ" to="METRIC-µ" verb="@delegates_to" relation_phase="Wo" role="coordinate provider only"/>
+    <edge from="METRIC-µ" to="WCR-Yax" verb="@produces" relation_phase="Yax" output="derived relevance R"/>
+    <edge from="Ch'en" to="METRIC-µ" verb="@verifies" relation_phase="Ch'en" role="verdict evidence source"/>
+  </relations>
+</metric_registry>
+
+

@@ -16,6 +16,8 @@ namespace khanary::io {
 
 namespace {
 
+namespace fs = std::filesystem;
+
 static bool ends_with(const std::string& value, const std::string& suffix) {
     if (value.size() < suffix.size()) return false;
     return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
@@ -253,6 +255,183 @@ std::vector<std::string> tokenize_distributional_text(const std::string& text) {
     }
     if (!cur.empty()) out.push_back(cur);
     return out;
+}
+
+struct MicronautUriCall {
+    bool valid = false;
+    std::string scheme;
+    std::string kind; // action | verb | pattern | template | grammar
+    std::string op;
+    std::vector<std::string> segments;
+};
+
+static std::string uri_lower_ascii_copy(std::string s) {
+    for (char& c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+static std::string trim_ascii_copy(const std::string& input) {
+    size_t b = 0;
+    while (b < input.size() &&
+           std::isspace(static_cast<unsigned char>(input[b]))) ++b;
+    size_t e = input.size();
+    while (e > b &&
+           std::isspace(static_cast<unsigned char>(input[e - 1]))) --e;
+    return input.substr(b, e - b);
+}
+
+static std::vector<std::string> split_non_empty_segments(const std::string& path) {
+    std::vector<std::string> out;
+    std::string cur;
+    for (char c : path) {
+        if (c == '/') {
+            if (!cur.empty()) {
+                out.push_back(cur);
+                cur.clear();
+            }
+            continue;
+        }
+        cur.push_back(c);
+    }
+    if (!cur.empty()) out.push_back(cur);
+    return out;
+}
+
+static MicronautUriCall parse_micronaut_uri_call(const std::string& raw_query) {
+    MicronautUriCall out;
+    const std::string trimmed = trim_ascii_copy(raw_query);
+    if (trimmed.empty()) return out;
+
+    const size_t sep_global = trimmed.find("://");
+    if (sep_global == std::string::npos || sep_global == 0) return out;
+
+    size_t begin = sep_global;
+    while (begin > 0 &&
+           !std::isspace(static_cast<unsigned char>(trimmed[begin - 1]))) --begin;
+    size_t end = sep_global + 3;
+    while (end < trimmed.size() &&
+           !std::isspace(static_cast<unsigned char>(trimmed[end]))) ++end;
+
+    const std::string uri = trimmed.substr(begin, end - begin);
+    const size_t sep = uri.find("://");
+    if (sep == std::string::npos || sep == 0) return out;
+
+    out.scheme = uri_lower_ascii_copy(uri.substr(0, sep));
+    std::string rest = uri.substr(sep + 3);
+    if (!rest.empty() && rest.front() == '/') rest.erase(rest.begin());
+    const size_t qmark = rest.find('?');
+    if (qmark != std::string::npos) rest = rest.substr(0, qmark);
+    out.segments = split_non_empty_segments(rest);
+    for (auto& seg : out.segments) seg = uri_lower_ascii_copy(seg);
+
+    out.kind = "action";
+    if (!out.segments.empty()) {
+        if (out.segments[0] == "verb" ||
+            out.segments[0] == "pattern" ||
+            out.segments[0] == "template" ||
+            out.segments[0] == "grammar") {
+            out.kind = out.segments[0];
+            if (out.segments.size() > 1) out.op = out.segments[1];
+        } else {
+            out.op = out.segments[0];
+        }
+    }
+
+    out.valid = !out.scheme.empty();
+    return out;
+}
+
+static std::string normalize_scheme_alias(std::string value) {
+    value = uri_lower_ascii_copy(value);
+    std::string out;
+    out.reserve(value.size());
+    bool last_dash = false;
+    for (unsigned char c : value) {
+        if (std::isalnum(c)) {
+            out.push_back(static_cast<char>(c));
+            last_dash = false;
+        } else if (c == '-' || c == '_') {
+            if (!last_dash && !out.empty()) {
+                out.push_back('-');
+                last_dash = true;
+            }
+        }
+    }
+    while (!out.empty() && out.back() == '-') out.pop_back();
+    return out;
+}
+
+static void push_unique_ci(std::vector<std::string>& out, const std::string& value) {
+    if (value.empty()) return;
+    const std::string canon = uri_lower_ascii_copy(value);
+    for (const auto& existing : out) {
+        if (uri_lower_ascii_copy(existing) == canon) return;
+    }
+    out.push_back(value);
+}
+
+static std::vector<std::string> scheme_aliases_for_entry(const micronaut::MicronautEntry& entry) {
+    std::vector<std::string> aliases;
+    for (const auto& s : entry.route_contract.schemes)
+        push_unique_ci(aliases, normalize_scheme_alias(s));
+
+    const std::string normalized_id = normalize_scheme_alias(entry.id);
+    if (!normalized_id.empty()) push_unique_ci(aliases, normalized_id);
+    if (auto dash = normalized_id.find('-'); dash != std::string::npos && dash > 0) {
+        push_unique_ci(aliases, normalized_id.substr(0, dash));
+    }
+
+    std::string trimmed = normalized_id;
+    if (trimmed.size() > 2 && trimmed.ends_with("-u")) {
+        trimmed = trimmed.substr(0, trimmed.size() - 2);
+        if (!trimmed.empty()) push_unique_ci(aliases, trimmed);
+    }
+    if (trimmed.size() > 6 && trimmed.ends_with("-agent")) {
+        trimmed = trimmed.substr(0, trimmed.size() - 6);
+        if (!trimmed.empty()) push_unique_ci(aliases, trimmed);
+    }
+    return aliases;
+}
+
+static bool route_contract_contains_ci(const std::vector<std::string>& rows, const std::string& value) {
+    if (value.empty()) return false;
+    const std::string canon = uri_lower_ascii_copy(value);
+    for (const auto& row : rows) {
+        if (uri_lower_ascii_copy(row) == canon) return true;
+    }
+    return false;
+}
+
+static bool entry_supports_uri_call(const micronaut::MicronautEntry& entry,
+                                    const MicronautUriCall& call) {
+    if (!call.valid) return false;
+    bool scheme_match = false;
+    for (const auto& alias : scheme_aliases_for_entry(entry)) {
+        if (alias == call.scheme) {
+            scheme_match = true;
+            break;
+        }
+    }
+    if (!scheme_match) return false;
+    if (call.op.empty()) return true;
+
+    if (call.kind == "pattern")
+        return !entry.route_contract.aiml_patterns.empty();
+    if (call.kind == "template")
+        return !entry.route_contract.aiml_templates.empty();
+    if (!entry.route_contract.verbs.empty())
+        return route_contract_contains_ci(entry.route_contract.verbs, call.op);
+
+    for (const auto& cap : entry.capabilities) {
+        const auto lcap = uri_lower_ascii_copy(cap);
+        if (lcap == call.op) return true;
+        if (lcap.rfind(call.op + "_", 0) == 0) return true;
+        if (lcap.rfind(call.op + ":", 0) == 0) return true;
+    }
+    for (const auto& g : entry.governs)
+        if (uri_lower_ascii_copy(g) == call.op) return true;
+    return false;
 }
 
 static bool is_composition_bridge(const std::string& token) {
@@ -676,7 +855,9 @@ RequestRouter::RequestRouter(
     phase_wsd_weights_.fill(1.0f);
     phase_function_channel_weights_.fill(1.0f);
     phase_tool_channel_weights_.fill(1.0f);
+    phase_miss_dispatch_weights_.fill(1.0f);
     load_phase_driver_weights(data_dir);
+    load_track_gram_pools(data_dir);
 }
 
 void RequestRouter::register_handler(const std::string& id, ResponseFn fn) {
@@ -721,6 +902,12 @@ float RequestRouter::phase_tool_channel_weight(kuhul::Phase phase) const {
     const size_t idx = static_cast<size_t>(phase);
     if (idx >= phase_tool_channel_weights_.size()) return 1.0f;
     return std::clamp(phase_tool_channel_weights_[idx], 0.0f, 2.0f);
+}
+
+float RequestRouter::phase_miss_dispatch_weight(kuhul::Phase phase) const {
+    const size_t idx = static_cast<size_t>(phase);
+    if (idx >= phase_miss_dispatch_weights_.size()) return 1.0f;
+    return std::clamp(phase_miss_dispatch_weights_[idx], 0.0f, 2.0f);
 }
 
 void RequestRouter::load_phase_driver_weights(const std::string& data_dir) {
@@ -795,6 +982,7 @@ void RequestRouter::load_phase_driver_weights(const std::string& data_dir) {
         apply_channel_weight("word_sense_disambiguation", phase_wsd_weights_);
         apply_channel_weight("function_gram", phase_function_channel_weights_);
         apply_channel_weight("tool_gram", phase_tool_channel_weights_);
+        apply_channel_weight("high_confidence_miss", phase_miss_dispatch_weights_);
     };
 
     const auto load_contract_entry = [&](kuhul::Phase expected_phase, const util::JsonValue* entry) {
@@ -853,6 +1041,64 @@ void RequestRouter::load_phase_driver_weights(const std::string& data_dir) {
         load_contract_map(selected_profile_contracts);
 }
 
+void RequestRouter::load_track_gram_pools(const std::string& data_dir) {
+    namespace fs = std::filesystem;
+    const fs::path registry_path =
+        (fs::path(data_dir) / "mx2lm" / "gram_pool_registry.json").lexically_normal();
+    std::ifstream rf(registry_path, std::ios::binary);
+    if (!rf) return;
+    const std::string rtext((std::istreambuf_iterator<char>(rf)),
+                            std::istreambuf_iterator<char>());
+    util::JsonPtr reg;
+    try { reg = util::parse(rtext); } catch (...) { return; }
+    if (!reg || !reg->is_object()) return;
+
+    const auto* tracks = reg->get("tracks");
+    if (!tracks || !tracks->is_object()) return;
+
+    for (const auto& [track_name, track_val] : tracks->as_object()) {
+        if (!track_val || !track_val->is_object()) continue;
+        const auto* artifacts = track_val->get("artifacts");
+        if (!artifacts || !artifacts->is_object()) continue;
+        const auto gc_str = artifacts->get_string("gram_container");
+        if (!gc_str || gc_str->empty()) continue;
+
+        fs::path gc_path(*gc_str);
+        if (!gc_path.is_absolute())
+            gc_path = (fs::path(data_dir).parent_path() / gc_path).lexically_normal();
+
+        std::ifstream gf(gc_path, std::ios::binary);
+        if (!gf) continue;
+        const std::string gtext((std::istreambuf_iterator<char>(gf)),
+                                std::istreambuf_iterator<char>());
+        util::JsonPtr gc;
+        try { gc = util::parse(gtext); } catch (...) { continue; }
+        if (!gc || !gc->is_object()) continue;
+
+        const auto* channels = gc->get("channels");
+        if (!channels || !channels->is_object()) continue;
+
+        TrackGramPool pool;
+        const auto extract_channel = [&](const char* name,
+                                         std::unordered_set<std::string>& dest) {
+            const auto* ch = channels->get(name);
+            if (!ch || !ch->is_array()) return;
+            for (const auto& item : ch->as_array()) {
+                if (!item || !item->is_object()) continue;
+                if (const auto g = item->get_string("gram"); g && !g->empty())
+                    dest.insert(*g);
+            }
+        };
+        extract_channel("unigram",      pool.unigrams);
+        extract_channel("coarse_gram",  pool.coarse_grams);
+        extract_channel("function_gram", pool.function_grams);
+        extract_channel("tool_gram",    pool.tool_grams);
+
+        if (!pool.unigrams.empty() || !pool.tool_grams.empty())
+            track_gram_pools_[track_name] = std::move(pool);
+    }
+}
+
 RouteResult RequestRouter::route(const RouteRequest& req) {
     RouteResult result;
     result.dispatched_phase = req.phase;
@@ -890,6 +1136,7 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
     result.compositional_phrase_score = 0.0f;
     result.coarse_ngram_score = 0.0f;
     result.tool_gram_score = 0.0f;
+    result.miss_dispatch_score = 0.0f;
     result.vector_relevance_score = 0.0f;
     result.wcr_attention_score = 0.0f;
     result.query_vector_x = 0.0f;
@@ -909,6 +1156,15 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
     result.policy_satisfied = !policy_constrained;
 
     auto tokens = req.tokens.empty() ? tokenize_query(req.query) : req.tokens;
+    const auto uri_call = parse_micronaut_uri_call(req.query);
+    if (uri_call.valid) {
+        tokens.push_back(uri_call.scheme);
+        if (!uri_call.op.empty()) tokens.push_back(uri_call.op);
+        for (const auto& seg : uri_call.segments)
+            if (!seg.empty()) tokens.push_back(seg);
+        if (result.selected_task_op.empty() && !uri_call.op.empty())
+            result.selected_task_op = uri_call.op;
+    }
     std::vector<std::string> query_raw_tokens = tokenize_distributional_text(req.query);
     if (query_raw_tokens.empty()) {
         for (const auto& qtok : tokens) {
@@ -1020,6 +1276,21 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
         for (const auto& tok : uniq) ++doc_freq[tok];
     }
 
+    // METRIC-µ local pool enrichment: supplement structural gram channels from
+    // the per-track pool before any mesh bridge scoring.
+    // doc_freq is already computed; only non-TF channels are enriched here so
+    // IDF weights are unaffected.
+    for (auto& [id, doc] : dist_docs) {
+        const auto* e = mu_reg_.get(id);
+        if (!e) continue;
+        const auto pit = track_gram_pools_.find(e->id);
+        if (pit == track_gram_pools_.end()) continue;
+        const auto& pool = pit->second;
+        doc.coarse_ngrams.insert(pool.coarse_grams.begin(), pool.coarse_grams.end());
+        doc.tool_grams.insert(pool.tool_grams.begin(), pool.tool_grams.end());
+        doc.function_words.insert(pool.function_grams.begin(), pool.function_grams.end());
+    }
+
     std::unordered_map<std::string, float> query_tf;
     for (const auto& qtok : query_raw_tokens) {
         if (qtok.size() < 2) continue;
@@ -1078,6 +1349,42 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
                 ++mesh_added;
             } else {
                 it->second.pattern = std::max(it->second.pattern, rel_pattern);
+            }
+        }
+    }
+
+    // Scheme URI fast-path (math://..., plan://..., tools://..., decision://..., etc):
+    // explicit scheme-targeted calls become first-class candidate seeds, then scope
+    // the field to callable endpoints so an explicit address does not decay into Ω
+    // ambiguity among unrelated tracks.
+    std::unordered_set<std::string> uri_matched_ids;
+    if (uri_call.valid) {
+        for (const auto& id : mu_reg_.ids()) {
+            const auto* entry = mu_reg_.get(id);
+            if (!entry || !entry->active) continue;
+            if (!entry_supports_uri_call(*entry, uri_call)) continue;
+
+            float uri_pattern = 0.95f;
+            if (!entry->route_contract.tokens.empty()) {
+                size_t token_hits = 0;
+                for (const auto& t : entry->route_contract.tokens) {
+                    for (const auto& q : query_raw_tokens) {
+                        if (lower_ascii_copy(q) == lower_ascii_copy(t)) {
+                            ++token_hits;
+                            break;
+                        }
+                    }
+                }
+                if (token_hits > 0) uri_pattern = 1.0f;
+            }
+            candidates[id].pattern = std::max(candidates[id].pattern, uri_pattern);
+            uri_matched_ids.insert(id);
+        }
+
+        if (!uri_matched_ids.empty()) {
+            for (auto it = candidates.begin(); it != candidates.end();) {
+                if (!uri_matched_ids.count(it->first)) it = candidates.erase(it);
+                else ++it;
             }
         }
     }
@@ -1360,6 +1667,32 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
             0.05f, 1.0f);
     };
 
+    // Sek high_confidence_miss channel: capability-based affinity for MISS-routing dispatch.
+    // Checks track capabilities for dispatch/research/acquisition keywords.
+    // Phase-neutral score; phase_miss_dispatch_weight(Sek)=1.15 provides the phase lift.
+    auto miss_dispatch_affinity = [&](const std::string& track_id) -> float {
+        const auto* entry = mu_reg_.get(track_id);
+        if (!entry || entry->capabilities.empty()) return 0.05f;
+        static const std::unordered_set<std::string> kMissKws = {
+            "dispatch", "search", "research", "fetch", "acquire",
+            "web", "rag", "external", "miss", "fact", "retrieve", "recall"
+        };
+        size_t hits = 0;
+        for (const auto& cap : entry->capabilities) {
+            std::string lc = cap;
+            std::transform(lc.begin(), lc.end(), lc.begin(),
+                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+            for (const auto& kw : kMissKws) {
+                if (lc.find(kw) != std::string::npos) { ++hits; break; }
+            }
+        }
+        if (hits == 0) return 0.05f;
+        return std::clamp(
+            static_cast<float>(hits) /
+            static_cast<float>(entry->capabilities.size()),
+            0.05f, 1.0f);
+    };
+
     auto track_phase_fold_weight = [&](const micronaut::MicronautEntry& entry) -> float {
         // Fold declarations are capability manifests. Route selection can start from any phase;
         // estimate compatibility by projecting declared fold phases onto the requested phase.
@@ -1413,6 +1746,9 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
         const float tool_rel = std::clamp(
             tool_gram_similarity(track_id) * phase_tool_channel_weight(req.phase),
             0.0f, 1.0f);
+        const float miss_rel = std::clamp(
+            miss_dispatch_affinity(track_id) * phase_miss_dispatch_weight(req.phase),
+            0.0f, 1.0f);
         const float rel     = std::clamp(
             0.22f * std::clamp(sc.r_mu, 0.0f, 1.0f) +
             0.11f * bow_rel +
@@ -1423,7 +1759,8 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
             0.08f * wsd_rel +
             0.08f * comp_rel +
             0.04f * coarse_rel +
-            0.06f * tool_rel,
+            0.06f * tool_rel +
+            0.05f * miss_rel,
             0.0f, 1.0f);
         const float total   = static_w * pattern * fold_w * driver_w * conf * health * rel * vector_gate;
 
@@ -1452,6 +1789,7 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
             result.compositional_phrase_score = comp_rel;
             result.coarse_ngram_score = coarse_rel;
             result.tool_gram_score = tool_rel;
+            result.miss_dispatch_score = miss_rel;
             result.vector_relevance_score = vector_rel;
             result.wcr_attention_score = wcr_gate;
             result.key_vector_x = static_cast<float>(key_vector.x);
@@ -1514,6 +1852,9 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
                 const float tool_rel = std::clamp(
                     tool_gram_similarity(result.micronaut_id) * phase_tool_channel_weight(req.phase),
                     0.0f, 1.0f);
+                const float miss_rel = std::clamp(
+                    miss_dispatch_affinity(result.micronaut_id) * phase_miss_dispatch_weight(req.phase),
+                    0.0f, 1.0f);
                 const float rel = std::clamp(
                     0.22f * std::clamp(sc.r_mu, 0.0f, 1.0f) +
                     0.11f * bow_rel +
@@ -1524,7 +1865,8 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
                     0.08f * wsd_rel +
                     0.08f * comp_rel +
                     0.04f * coarse_rel +
-                    0.06f * tool_rel,
+                    0.06f * tool_rel +
+                    0.05f * miss_rel,
                     0.0f, 1.0f);
                 const float arc = static_cast<float>(
                     std::max(0.0, kuhul::arc_weight(entry->primary_phase, req.phase)));
@@ -1545,6 +1887,7 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
                 result.compositional_phrase_score = comp_rel;
                 result.coarse_ngram_score = coarse_rel;
                 result.tool_gram_score = tool_rel;
+                result.miss_dispatch_score = miss_rel;
                 result.vector_relevance_score = vector_rel;
                 result.wcr_attention_score = wcr_gate;
                 result.key_vector_x = static_cast<float>(key_vector.x);
@@ -1595,6 +1938,8 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
     result.selected_capable = selected_capable;
     result.policy_satisfied = policy_satisfied;
     result.xcfe_authorized = xcfe_authorized;
+    result.observation_authority = result.xcfe_authorized && selected_capable && policy_satisfied;
+    result.epistemic_state = result.observation_authority ? "SUPPORTED" : "UNKNOWN";
 
     // ── Ω gate: a still-flat eligible field refuses premature collapse ──────
     // Blocking observation only: entropy authorizes nothing here, and exhaustion
@@ -1682,6 +2027,25 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
             else result.dispatch_block_reason = "NO_SELECTED_RESOLVER";
         }
 
+        if (result.dispatch_block_reason == "MISS_capability") {
+            result.epistemic_state = "MISS";
+            result.observation_authority = false;
+            result.epistemic_causes = {"local_miss", "insufficient_observability"};
+        } else if (result.dispatch_block_reason == "MISS_ambiguity" ||
+                   result.dispatch_block_reason == "MISS_ambiguity_exhausted") {
+            result.epistemic_state = "UNKNOWN";
+            result.observation_authority = false;
+            result.epistemic_causes = {"local_miss", "insufficient_observability", "cross_track_evidence_not_checked"};
+        } else if (result.dispatch_block_reason == "XCFE_DENIED") {
+            result.epistemic_state = "UNKNOWN";
+            result.observation_authority = false;
+            result.epistemic_causes = {"host_policy_denied"};
+        } else {
+            result.epistemic_state = "UNKNOWN";
+            result.observation_authority = false;
+            result.epistemic_causes = {"dispatch_blocked"};
+        }
+
         util::JsonObject blocked;
         blocked["ok"] = util::json_bool(false);
         const bool ambiguity = result.dispatch_block_reason == "MISS_ambiguity";
@@ -1691,6 +2055,12 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
             : ambiguity                                       ? "miss_ambiguity"
             : exhausted                                       ? "unresolved_ambiguity"
                                                               : "dispatch_blocked");
+        blocked["epistemic_state"] = util::json_string(result.epistemic_state);
+        blocked["observation_authority"] = util::json_bool(result.observation_authority);
+        util::JsonArray causes;
+        for (const auto& cause : result.epistemic_causes)
+            causes.push_back(util::json_string(cause));
+        blocked["epistemic_causes"] = util::json_array(std::move(causes));
         blocked["miss_kind"] = util::json_string(
             result.dispatch_block_reason == "MISS_capability" ? "capability"
             : ambiguity                                       ? "ambiguity"

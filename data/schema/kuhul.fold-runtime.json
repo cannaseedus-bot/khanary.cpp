@@ -43,7 +43,7 @@
       {
         "name": "phase_dll_drivers",
         "path": "data/schema/fold.runtime.json#phase_driver_lock",
-        "role": "Phase DLL driver lock contract for Pop/Wo/Yax/Sek/Ch'en/Xul"
+        "role": "Phase driver artifact lock contract for Pop/Wo/Yax/Sek/Ch'en/Xul"
       }
     ],
     "imports": {
@@ -69,16 +69,16 @@
   },
   "phase_driver_sha256": {
     "algorithm": "sha256",
-    "Pop.dll": "sha256:__PENDING__",
-    "Wo.dll": "sha256:__PENDING__",
-    "Yax.dll": "sha256:__PENDING__",
-    "Sek.dll": "sha256:__PENDING__",
-    "Chen.dll": "sha256:__PENDING__",
-    "Xul.dll": "sha256:__PENDING__"
+    "pop.json": "sha256:3a29e02adf7b82f490982cdec9b9c904f8dec26c39f0c3f0e91bdd6a3f0179de",
+    "wo.json": "sha256:6df9d80a2fe00df18f2b0da6266172b3727384928ee4fe5a9ee0e23939d209ff",
+    "yax.json": "sha256:d3fe839ca46ef0d628786eb7d5730d1ee44b94a25767fe4c14e42eea51f1a826",
+    "sek.json": "sha256:b58d33e691ac3d8314b0c0f9be535fa8bbe7959a204726ea891bf0ab7eef8a44",
+    "chen.json": "sha256:16598f6de9644ab8fcd5ddc71756588b1a6273767ffb21513db9314f0a217837",
+    "xul.json": "sha256:3ebde8b98c165d0867fa3c36fb1b24b75b54fbf5e4262d53acc4ea097041f069"
   },
   "sha256": {
     "algorithm": "sha256",
-    "cycle_hash_spec": "sha256:9cc20348ca711681ff283c236fc1ce9c9f5b63f36f5044c63d82261169a611f7",
-    "fold_runtime": "sha256:67fcb595f1636aea9b6994a4c4ed31be0bb96567f9a41ddde1509c16dca63ecf"
+    "cycle_hash_spec": "sha256:3313c79c6407b0f8a3d2df1da11e5d75efb35875b246c199611d6f650d1ae0e0",
+    "fold_runtime": "sha256:eaf7effb343261098ea3d7d1cc75d3b86e884e5dd25ed80af8d16b7a78124ce1"
   }
 }

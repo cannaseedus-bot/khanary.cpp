@@ -15,7 +15,7 @@ Spec file: one JSON object per line, fields:
     id          string  unique identifier for this record (required)
     format      string  output format: greeting_bank | key_grammar | track |
                         capability_gap | aiml | control_flow | code_grammar |
-                        raw_jsonl
+                        scfml_pattern_learning | raw_jsonl
     prompt      string  question/instruction sent to LFM (if absent, auto-built
                         from 'format' + other fields)
     out         string  output filename relative to --out dir (optional)
@@ -240,6 +240,106 @@ def build_key_grammar_record(
     }
 
 
+_SCFML_PATTERN_KINDS = {
+    "aiml_pattern",
+    "aiml_template",
+    "semantic_branch",
+    "key_grammar",
+    "route_pattern",
+}
+_SCFML_EPISTEMIC_STATES = {"SUPPORTED", "CONTRADICTED", "UNKNOWN", "MISS"}
+
+
+def _scfml_text(value: Any, fallback: str = "") -> str:
+    text = str(value if value is not None else fallback).strip()
+    return text if text else fallback
+
+
+def _scfml_safe_ns(value: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9_-]+", "-", value.lower()).strip("-")
+    return cleaned or "scfml"
+
+
+def _scfml_epistemic_state(entry: dict, spec: dict) -> str:
+    state = _scfml_text(
+        entry.get("epistemic_state", entry.get("state", "UNKNOWN")),
+        "UNKNOWN",
+    ).upper()
+    if state not in _SCFML_EPISTEMIC_STATES:
+        return "UNKNOWN"
+    verified = bool(spec.get("user_verified") or entry.get("user_verified"))
+    if state in {"SUPPORTED", "CONTRADICTED"} and not verified:
+        return "UNKNOWN"
+    return state
+
+
+def build_scfml_branch_record(entry: dict, spec: dict, index: int, namespace: str) -> dict | None:
+    condition = _scfml_text(
+        entry.get("condition", entry.get("if", entry.get("pattern", "")))
+    )
+    then = _scfml_text(
+        entry.get("then", entry.get("template", entry.get("response", entry.get("action", ""))))
+    )
+    if not condition or not then:
+        return None
+
+    branch_key = _scfml_text(
+        entry.get("key"),
+        f"scfml:branch:{namespace}:{index}",
+    )
+    if not branch_key.startswith(("scfml:branch:", "semantic_branch:")):
+        branch_key = f"scfml:branch:{branch_key}"
+
+    row = {
+        "schema": "scfml.branch.v1",
+        "key": branch_key,
+        "condition": condition,
+        "then": then,
+        "else": _scfml_text(entry.get("else")) or None,
+    }
+    track = _scfml_text(entry.get("track", spec.get("track_id", "")))
+    if track:
+        row["track"] = track
+    row["epistemic_state"] = _scfml_epistemic_state(entry, spec)
+    unknown = _scfml_text(entry.get("unknown"))
+    if unknown:
+        row["unknown"] = unknown
+    row["source_surface"] = _scfml_text(entry.get("source_surface"), "json")
+    row["pattern_learning"] = True
+    return row
+
+
+def build_scfml_pattern_learning_record(
+    entry: dict,
+    spec: dict,
+    index: int,
+    namespace: str,
+    branch_key: str = "",
+) -> dict:
+    candidate_kind = _scfml_text(
+        entry.get("candidate_kind", entry.get("kind", spec.get("candidate_kind", ""))),
+        "semantic_branch" if branch_key else "key_grammar",
+    )
+    if candidate_kind not in _SCFML_PATTERN_KINDS:
+        candidate_kind = "semantic_branch" if branch_key else "key_grammar"
+
+    source_event = _scfml_text(
+        entry.get("source_event", entry.get("source", spec.get("source_event", ""))),
+        f"prompt:{spec.get('id', 'lfm-factory')}:{index}",
+    )
+    target = _scfml_text(
+        entry.get("target", branch_key),
+        f"scfml:candidate:{namespace}:{index}",
+    )
+    return {
+        "schema": "scfml.pattern_learning.v1",
+        "source_event": source_event,
+        "candidate_kind": candidate_kind,
+        "requires": "SUPPORTED_or_user_verified",
+        "target": target,
+    }
+
+
 def build_template_slot_record(
     slot_name: str,
     slot_def: dict,
@@ -318,6 +418,14 @@ _FORMAT_SYSTEMS = {
         "\"book\": str, \"requires\": [str], \"lexicon_source\": \"lfm_factory\"}. "
         "xcfe_op values: @if @else @then @for @and @or @not @cause @where @node @from @as @direct. "
         "phases from: Pop Wo Yax Sek Ch'en Xul."
+    ),
+    "scfml_pattern_learning": (
+        "You generate SCFML semantic branch and pattern-learning candidates. "
+        "Output a JSON array of objects only. Each object may contain: "
+        "{\"condition\": str, \"then\": str, \"else\": str|null, \"unknown\": str, "
+        "\"track\": str, \"candidate_kind\": \"aiml_pattern|aiml_template|semantic_branch|key_grammar|route_pattern\", "
+        "\"target\": str, \"source_event\": str, \"epistemic_state\": \"UNKNOWN|MISS|SUPPORTED|CONTRADICTED\"}. "
+        "UNKNOWN is the default. Never claim SUPPORTED or CONTRADICTED unless the caller marks the candidate user_verified."
     ),
     "code_grammar": (
         "You generate grammar token and edge definitions for a code parser. "
@@ -448,6 +556,17 @@ def build_auto_prompt(spec: dict) -> str:
             "Each entry describes one semantic operator (like if/else/for/when/because). "
             "Include: word, class, operator, role description, sugar syntax, xcfe_op code, "
             "arity (1 or 2), block_role (open/mid/close/none), and phase assignments."
+        )
+    if fmt == "scfml_pattern_learning":
+        topic = spec.get("topic", spec.get("domain", spec.get("id", "semantic branching")))
+        track = spec.get("track_id", spec.get("track", "PLAN-µ"))
+        return (
+            f"Generate {count} SCFML pattern-learning candidates for '{topic}' in track '{track}'. "
+            "Each candidate should describe an observable pattern and a safe branch: "
+            "condition -> then action, optional else only for a true contradicted complement, "
+            "and unknown as preserve/retrieve/defer when evidence is missing. "
+            "Prefer candidate_kind semantic_branch when a branch is present; otherwise use key_grammar, "
+            "aiml_pattern, aiml_template, or route_pattern. Do not mark candidates SUPPORTED."
         )
     if fmt == "code_grammar":
         lang = spec.get("language", spec.get("id", "generic"))
@@ -657,6 +776,40 @@ def write_control_flow(spec: dict, entries: list[dict], out_dir: Path, dry_run: 
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     return {"file": str(out_path), "records": len(rows)}
+
+
+def write_scfml_pattern_learning(spec: dict, entries: list[dict], out_dir: Path, dry_run: bool) -> dict:
+    namespace = _scfml_safe_ns(str(spec.get("namespace", spec.get("id", "scfml"))))
+    out_name = spec.get("out", f"{namespace}.scfml-pattern-learning.key-grammar.jsonl")
+    out_path = out_dir / out_name
+
+    rows: list[dict] = []
+    branch_count = 0
+    for i, raw_entry in enumerate(entries, start=1):
+        entry = raw_entry if isinstance(raw_entry, dict) else {
+            "candidate_kind": "aiml_pattern",
+            "target": str(raw_entry),
+        }
+        branch = build_scfml_branch_record(entry, spec, i, namespace)
+        branch_key = ""
+        if branch is not None:
+            branch_key = branch["key"]
+            rows.append(branch)
+            branch_count += 1
+        rows.append(build_scfml_pattern_learning_record(entry, spec, i, namespace, branch_key))
+
+    if not dry_run:
+        _ensure_parent(out_path)
+        with open(out_path, "a", encoding="utf-8") as f:
+            for row in rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    return {
+        "file": str(out_path),
+        "records": len(rows),
+        "branch_records": branch_count,
+        "pattern_records": len(rows) - branch_count,
+    }
 
 
 def write_code_grammar(spec: dict, grammar: dict, out_dir: Path, dry_run: bool) -> dict:
@@ -1225,6 +1378,21 @@ def process_spec(spec: dict, out_dir: Path, dry_run: bool = False, verbose: bool
                 return {"id": spec_id, "ok": False, "error": "control_flow response was not a JSON array", "raw": raw}
             result = write_control_flow(spec, entries, out_dir, dry_run)
 
+        elif fmt == "scfml_pattern_learning":
+            parsed = parse_json_response(raw)
+            if isinstance(parsed, dict):
+                entries = [parsed]
+            elif isinstance(parsed, list):
+                entries = [e if isinstance(e, dict) else {"target": str(e)} for e in parsed]
+            else:
+                entries = [
+                    {"candidate_kind": "aiml_pattern", "target": line}
+                    for line in parse_string_list(raw)
+                ]
+            if not entries:
+                return {"id": spec_id, "ok": False, "error": "no SCFML candidates parsed", "raw": raw}
+            result = write_scfml_pattern_learning(spec, entries, out_dir, dry_run)
+
         elif fmt == "code_grammar":
             parsed = parse_json_response(raw)
             if not isinstance(parsed, dict):
@@ -1321,6 +1489,8 @@ def cmd_formats(_args: argparse.Namespace) -> None:
          "namespace, phase, class_name, count"),
         ("control_flow",   "*.key-grammar.jsonl (control schema)",
          "namespace, domain, count"),
+        ("scfml_pattern_learning", "*.scfml-pattern-learning.key-grammar.jsonl",
+         "namespace, track_id, topic, candidate_kind, count"),
         ("code_grammar",   "data/grammar/*.code-grammar.json",
          "language, domain, count"),
         ("capability_gap", "control-capability-gaps.jsonl",

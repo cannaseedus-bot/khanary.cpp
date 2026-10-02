@@ -1,0 +1,29 @@
+{
+  "schema": "khanary.driver-bundle.v1",
+  "load_policy": "declarative-only",
+  "source_root": "C:/Users/canna/_khanary_inspect/drivers",
+  "runtime_loading": false,
+  "artifacts": [
+    {"path": "llama.dll", "kind": "native-driver", "sha256": "87B57A6F705AB70C9252161FD553890F55210F138043933299B403A190C7C233"},
+    {"path": "llama-common.dll", "kind": "llama-cpp-support", "sha256": "A42B900585798920BFD92CFDC5B3CA522643FB0BC6EAE859A03EB9262586B855"},
+    {"path": "native_glyph_engine.dll", "kind": "native-driver", "sha256": "0D701580DA9876A38EB722E21046BA3440C73E2E6B663BBDC22A0D395D4CDE3B"},
+    {"path": "qwen_infer_driver.dll", "kind": "native-driver", "sha256": "1BC7430C5B7B756B74A6AE5122BB4B903CCB69259F5956E4DD509D353078C789"},
+    {"path": "xcfe_gl_ops.dll", "kind": "native-driver", "sha256": "7F8A562A387A16DABADA6701C48EEDBCD9B9688A6BDE3D5B5CA4DAAEE520D1B4"},
+    {"path": "dag.dll", "kind": "native-driver", "sha256": "D997FA296A8BD88B932D657FBE4068557390BD157EFE22654735404C548472C8"},
+    {"path": "ggml.dll", "kind": "ggml-runtime", "sha256": "81BCD24D23D3DB4242CF005636B3A057BEE35BDE25C4D10A8EFD83B80B5CD9AF"},
+    {"path": "ggml-base.dll", "kind": "ggml-runtime", "sha256": "AF899D117B76FE33735ED6485007D9EB2FE0075B09C8CE7522546FA366153707"},
+    {"path": "ggml-cpu.dll", "kind": "ggml-runtime", "sha256": "7CB238D8149F76382B1EE1F91315FF257C3F0C7EC99EE3439A6E5F2A46431A9E"},
+    {"path": "gl_infer_driver.dll", "kind": "native-driver", "sha256": "701C911BFA1055FE6A95BE527424B30AA71BE95B919674E8FBC9D9DC2B50D948"},
+    {"path": "gl_infer_driver.cpp", "kind": "source"},
+    {"path": "qwen_infer_driver.cpp", "kind": "source"},
+    {"path": "micronaut_factory_bridge.dll", "kind": "optional-reference-driver", "sha256": "B9F08FFD623D55DE3A59F9F19E62C4F9DD043B02AF36074F8EE66E3B8E9C84D1"},
+    {"path": "micronaut_factory_core.dll", "kind": "optional-reference-driver", "sha256": "BE5BB1F0FDD43D6FB650869CED7872E18DECD63C6A9DF54EDE25565F1C985C52"},
+    {"path": "json_runtime_lib.dll", "kind": "optional-reference-driver", "sha256": "DD1C58DC3EB18B11D756FDD829717A89B34B8F312236CB627BF924242D6B072C"},
+    {"path": "micronaut_evolution.dll", "kind": "optional-reference-driver", "sha256": "B5388EBFAF43C40AE1D6A2F29CA8E58F75338F1FAF0048398D0B6C2728A27DC9"},
+    {"path": "cs5_shaders/", "kind": "d3d11-cs5-shaders"},
+    {"path": "klsl/", "kind": "klsl-toolchain"},
+    {"path": "webgl2/", "kind": "webgl2-shaders"},
+    {"path": "examples/cssc_gate_run/", "kind": "lowering-reference-sources"},
+    {"path": "examples/micronauts/", "kind": "phase-profile-reference"}
+  ]
+}

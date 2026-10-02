@@ -65,6 +65,11 @@
       <vector_meta source="phase_default" qkv_role="K" x="-1" y="-1.73205" z="0"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="1" memory="0" evolve="0"/>
     </node>
+    <node id="@node:DECISION-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="0">
+      <effects>decision:evaluate decision:select branch:preserve</effects>
+      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
+    </node>
     <node id="@node:ELIZA" kind="track" phase="Pop" face="Phi" block="perceive" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="2" y="0" z="1">
       <effects>gramRead gramWrite</effects>
       <vector_meta source="phase_default" qkv_role="K" x="2" y="0" z="1"/>
@@ -105,19 +110,24 @@
       <vector_meta source="phase_default" qkv_role="K" x="-1" y="-1.73205" z="0.5"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="1" memory="0" evolve="0"/>
     </node>
-    <node id="@node:KNOWLED-1" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-2" y="2.44929e-16" z="0">
-      <effects>gramRead gramWrite semantic_graph:write manifest:write</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="0"/>
-      <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
-    </node>
-    <node id="@node:Librarian" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-1" y="1.73205" z="2">
-      <effects>gramRead route:delegate route:verify route:aggregate</effects>
+    <node id="@node:JOKE-µ" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="humor-frame-routing" vector_source="phase_default" x="-1" y="1.73205" z="2">
+      <effects>gramRead joke:route collapse:verify card:project gramWrite</effects>
       <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="2"/>
       <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:MATH-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="0.5">
-      <effects>gramRead gramWrite math:symbolic matrix_buffer:alloc matrix_buffer:load matrix_buffer:op matrix_buffer:read</effects>
+    <node id="@node:KNOWLED-1" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-2" y="2.44929e-16" z="0.5">
+      <effects>gramRead gramWrite semantic_graph:write manifest:write</effects>
       <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="0.5"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:Librarian" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-1" y="1.73205" z="2.5">
+      <effects>gramRead route:delegate route:verify route:aggregate</effects>
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="2.5"/>
+      <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:MATH-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="1">
+      <effects>gramRead gramWrite math:symbolic matrix_buffer:alloc matrix_buffer:load matrix_buffer:op matrix_buffer:read</effects>
+      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="1"/>
       <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:MEM-µ" kind="track" phase="Pop" face="Phi" block="perceive" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="storage" vector_source="phase_default" x="2" y="0" z="2.5">
@@ -130,9 +140,9 @@
       <vector_meta source="phase_default" qkv_role="K" x="1" y="-1.73205" z="0"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="1" evolve="0"/>
     </node>
-    <node id="@node:Mx2LM" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="1">
+    <node id="@node:Mx2LM" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="1.5">
       <effects>gramRead gramWrite ngram:build ngram:query</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="1"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="1.5"/>
       <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:ORCH-µ" kind="track" phase="Ch&apos;en" face="Projection" block="confidence" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="true" category="executive" vector_source="phase_default" x="-1" y="-1.73205" z="1">
@@ -155,9 +165,14 @@
       <vector_meta source="phase_default" qkv_role="K" x="1" y="1.73205" z="4.5"/>
       <tensors perceive="0" learn="1" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:REASON-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="1.5">
+    <node id="@node:POLITICS-µ" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="political-reasoning-frame" vector_source="phase_default" x="-1" y="1.73205" z="3">
+      <effects>gramRead politics:route argument:verify card:project gramWrite</effects>
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="3"/>
+      <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:REASON-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="cognitive" vector_source="phase_default" x="-2" y="2.44929e-16" z="2">
       <effects>gramRead gramWrite semantic_graph:read</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="1.5"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="2"/>
       <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:RICK-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="entertainment" vector_source="phase_default" x="1" y="1.73205" z="5">
@@ -165,24 +180,29 @@
       <vector_meta source="phase_default" qkv_role="K" x="1" y="1.73205" z="5"/>
       <tensors perceive="0" learn="1" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:TEMPLATE-µ" kind="track" phase="Yax" face="Gram" block="think" confidence="0.82" static_weight="1" health="1" wcr_prior="0.82" coordinator="true" category="scaffold" vector_source="phase_default" x="-1" y="1.73205" z="2.5">
+    <node id="@node:TEMPLATE-µ" kind="track" phase="Yax" face="Gram" block="think" confidence="0.82" static_weight="1" health="1" wcr_prior="0.82" coordinator="true" category="scaffold" vector_source="phase_default" x="-1" y="1.73205" z="3.5">
       <effects>gramRead gramWrite semantic_graph:write micronaut:create micronaut:delete route:delegate manifest:write</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="2.5"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="3.5"/>
       <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:THEORY-OF-MIND-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="theory" vector_source="phase_default" x="1" y="1.73205" z="5.5">
-      <effects>gramRead gramWrite route:relate route:eval route:verify route:aggregate</effects>
+    <node id="@node:TENSOR-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="true" category="geometry" vector_source="phase_default" x="1" y="1.73205" z="5.5">
+      <effects>gramRead gramWrite semantic_graph:write micronaut:create micronaut:delete route:delegate manifest:write</effects>
       <vector_meta source="phase_default" qkv_role="K" x="1" y="1.73205" z="5.5"/>
       <tensors perceive="0" learn="1" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:THOUGHT-OUTLINE-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="theory" vector_source="phase_default" x="1" y="1.73205" z="6">
-      <effects>gramRead gramWrite route:aggregate route:compose route:relate</effects>
+    <node id="@node:THEORY-OF-MIND-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="theory" vector_source="phase_default" x="1" y="1.73205" z="6">
+      <effects>gramRead gramWrite route:relate route:eval route:verify route:aggregate</effects>
       <vector_meta source="phase_default" qkv_role="K" x="1" y="1.73205" z="6"/>
       <tensors perceive="0" learn="1" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:TOOL-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="execution" vector_source="phase_default" x="-2" y="2.44929e-16" z="2">
+    <node id="@node:THOUGHT-OUTLINE-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="theory" vector_source="phase_default" x="1" y="1.73205" z="6.5">
+      <effects>gramRead gramWrite route:aggregate route:compose route:relate</effects>
+      <vector_meta source="phase_default" qkv_role="K" x="1" y="1.73205" z="6.5"/>
+      <tensors perceive="0" learn="1" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:TOOL-µ" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="execution" vector_source="phase_default" x="-2" y="2.44929e-16" z="2.5">
       <effects>gramRead gramWrite dispatch_call route:invoke tool:log</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="2"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="2.5"/>
       <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:USER-µ" kind="track" phase="Pop" face="Phi" block="perceive" confidence="0.6" static_weight="0.6" health="1" wcr_prior="0.36" coordinator="true" category="identity" vector_source="phase_default" x="2" y="0" z="3">
@@ -190,14 +210,19 @@
       <vector_meta source="phase_default" qkv_role="K" x="2" y="0" z="3"/>
       <tensors perceive="1" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:WEB-RESEARCH-µ" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="retrieval" vector_source="phase_default" x="-1" y="1.73205" z="3">
+    <node id="@node:VECTOR-µ" kind="track" phase="Wo" face="Fold" block="learn" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="geometry" vector_source="phase_default" x="1" y="1.73205" z="7">
+      <effects>gramRead gramWriteVector vector:project vector:similarity vector:mesh-feature-read vector:gml-topology-read</effects>
+      <vector_meta source="phase_default" qkv_role="K" x="1" y="1.73205" z="7"/>
+      <tensors perceive="0" learn="1" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:WEB-RESEARCH-µ" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="retrieval" vector_source="phase_default" x="-1" y="1.73205" z="4">
       <effects>gramRead route:delegate route:retrieve route:verify route:emit route:aggregate</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="3"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="4"/>
       <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
-    <node id="@node:coder" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-2" y="2.44929e-16" z="2.5">
+    <node id="@node:coder" kind="track" phase="Sek" face="Geodesic" block="evaluate" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-2" y="2.44929e-16" z="3">
       <effects>gramRead gramWrite tool:call file:read</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="2.5"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="3"/>
       <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:gravity" kind="track" phase="Pop" face="Phi" block="perceive" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="2" y="0" z="3.5">
@@ -215,9 +240,9 @@
       <vector_meta source="phase_default" qkv_role="K" x="1" y="-1.73205" z="0.5"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="1" evolve="0"/>
     </node>
-    <node id="@node:reasoner" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-1" y="1.73205" z="3.5">
+    <node id="@node:reasoner" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-1" y="1.73205" z="4.5">
       <effects>gramRead gramWrite semantic_graph:read semantic_graph:write</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="3.5"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="4.5"/>
       <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:Organization" kind="ontology" phase="Ch&apos;en" face="Projection" block="confidence" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="ontology" vector_source="ontology_static" x="0.05" y="1.85" z="0">
@@ -612,6 +637,22 @@
       <vector_meta source="gml" qkv_role="K" x="1.4" y="1.22" z="1"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
+    <node id="@node:gml:entropy_gradient_field:10" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="The verified user authenticated successfully." vector_source="gml" x="-1" y="0.5" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-1" y="0.5" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:entropy_gradient_field:20" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Initiate conditional multi-task system response pathways." vector_source="gml" x="1.5" y="-0.5" z="0.5">
+      <vector_meta source="gml" qkv_role="K" x="1.5" y="-0.5" z="0.5"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:euclidean_gradient_field:1" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="0.2" health="1" wcr_prior="0.2" coordinator="false" category="Base_Premise" vector_source="gml" x="-1" y="-1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-1" y="-1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:euclidean_gradient_field:2" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="0.95" health="1" wcr_prior="0.95" coordinator="false" category="Derived_Inference" vector_source="gml" x="1" y="1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="1" y="1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
     <node id="@node:gml:hypercube_q3:0" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="000" vector_source="gml" x="-1" y="-1" z="0">
       <vector_meta source="gml" qkv_role="K" x="-1" y="-1" z="0"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
@@ -708,6 +749,90 @@
       <vector_meta source="gml" qkv_role="K" x="1.4" y="1.4" z="1"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
+    <node id="@node:gml:metric_graph:0" kind="gml" phase="Pop" face="" block="" confidence="0.98" static_weight="1" health="1" wcr_prior="0.98" coordinator="false" category="FoldGraph_B" vector_source="gml" x="-1" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-1" y="0" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:1" kind="gml" phase="Pop" face="" block="" confidence="0.94" static_weight="0.9" health="1" wcr_prior="0.846" coordinator="false" category="METRIC-µ" vector_source="gml" x="0" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="0" y="0" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:2" kind="gml" phase="Pop" face="" block="" confidence="0.82" static_weight="0.55" health="0.95" wcr_prior="0.42845" coordinator="false" category="VECTOR-µ_provider" vector_source="gml" x="1" y="0.8" z="0">
+      <vector_meta source="gml" qkv_role="K" x="1" y="0.8" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:3" kind="gml" phase="Pop" face="" block="" confidence="0.7" static_weight="0.45" health="0.9" wcr_prior="0.2835" coordinator="false" category="SDR_provider" vector_source="gml" x="1" y="0.2" z="0">
+      <vector_meta source="gml" qkv_role="K" x="1" y="0.2" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:4" kind="gml" phase="Pop" face="" block="" confidence="0.88" static_weight="0.65" health="0.95" wcr_prior="0.5434" coordinator="false" category="GRAPH_provider" vector_source="gml" x="1" y="-0.4" z="0">
+      <vector_meta source="gml" qkv_role="K" x="1" y="-0.4" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:5" kind="gml" phase="Pop" face="" block="" confidence="0.86" static_weight="0.6" health="0.95" wcr_prior="0.4902" coordinator="false" category="SCX_keybook_provider" vector_source="gml" x="1" y="-1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="1" y="-1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:6" kind="gml" phase="Pop" face="" block="" confidence="0.96" static_weight="0.85" health="1" wcr_prior="0.816" coordinator="false" category="WCR_Yax" vector_source="gml" x="0" y="-1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="0" y="-1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:7" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Ch&apos;en_verifier" vector_source="gml" x="-1" y="-1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-1" y="-1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:8" kind="gml" phase="Pop" face="" block="" confidence="0.9" static_weight="0.8" health="1" wcr_prior="0.72" coordinator="false" category="Track_MATH" vector_source="gml" x="-2" y="0.6" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-2" y="0.6" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:9" kind="gml" phase="Pop" face="" block="" confidence="0.9" static_weight="0.8" health="1" wcr_prior="0.72" coordinator="false" category="Track_ELIZA" vector_source="gml" x="-2" y="0.2" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-2" y="0.2" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:10" kind="gml" phase="Pop" face="" block="" confidence="0.9" static_weight="0.8" health="1" wcr_prior="0.72" coordinator="false" category="Track_CODE" vector_source="gml" x="-2" y="-0.2" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-2" y="-0.2" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:11" kind="gml" phase="Pop" face="" block="" confidence="0.9" static_weight="0.8" health="1" wcr_prior="0.72" coordinator="false" category="Track_JOKE" vector_source="gml" x="-2" y="-0.6" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-2" y="-0.6" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:12" kind="gml" phase="Pop" face="" block="" confidence="0.8" static_weight="0.45" health="0.95" wcr_prior="0.342" coordinator="false" category="Bridge_JOKE_ELIZA" vector_source="gml" x="-1" y="-0.8" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-1" y="-0.8" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:13" kind="gml" phase="Pop" face="" block="" confidence="0.75" static_weight="0.35" health="0.95" wcr_prior="0.249375" coordinator="false" category="GramNode:why@JOKE" vector_source="gml" x="-3" y="-0.6" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-3" y="-0.6" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:14" kind="gml" phase="Pop" face="" block="" confidence="0.75" static_weight="0.35" health="0.95" wcr_prior="0.249375" coordinator="false" category="GramNode:why@ADVISOR" vector_source="gml" x="-3" y="0.6" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-3" y="0.6" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:15" kind="gml" phase="Pop" face="" block="" confidence="0.95" static_weight="0.75" health="1" wcr_prior="0.7125" coordinator="false" category="FoldNode:Yax" vector_source="gml" x="-0.5" y="-1.6" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-0.5" y="-1.6" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:16" kind="gml" phase="Pop" face="" block="" confidence="0.88" static_weight="0.7" health="1" wcr_prior="0.616" coordinator="false" category="MicronautNode:JOKE-µ" vector_source="gml" x="-2.6" y="-1.1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-2.6" y="-1.1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:metric_graph:17" kind="gml" phase="Pop" face="" block="" confidence="0.78" static_weight="0.45" health="0.95" wcr_prior="0.33345" coordinator="false" category="MeshNode:delivery_reflection" vector_source="gml" x="-1.5" y="-1.1" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-1.5" y="-1.1" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:quantum_field_boundaries:1" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Query_Origin" vector_source="gml" x="-2" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="-2" y="0" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:quantum_field_boundaries:2" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Sentence_Sink" vector_source="gml" x="0" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="0" y="0" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:quantum_field_boundaries:3" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Paragraph_Source" vector_source="gml" x="2" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="2" y="0" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
     <node id="@node:gml:sample:1" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="node 1" vector_source="gml" x="2.5" y="0" z="0">
       <vector_meta source="gml" qkv_role="K" x="2.5" y="0" z="0"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
@@ -718,6 +843,14 @@
     </node>
     <node id="@node:gml:sample:3" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="node 3" vector_source="gml" x="-1.25" y="-2.16506" z="0">
       <vector_meta source="gml" qkv_role="K" x="-1.25" y="-2.16506" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:tensor_field:1" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Tensor_Source" vector_source="gml" x="0" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="0" y="0" z="0"/>
+      <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:gml:tensor_field:2" kind="gml" phase="Pop" face="" block="" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="Tensor_Target" vector_source="gml" x="1" y="0" z="0">
+      <vector_meta source="gml" qkv_role="K" x="1" y="0" z="0"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
   </nodes>
@@ -742,6 +875,11 @@
     <edge from="@node:BLOG-µ" to="@node:Mx2LM" type="delegate" verb="@redirect" relation_phase="Wo" weight="0.500001" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:APP-WIZARD-µ" type="delegate" verb="@part_of" relation_phase="Pop" weight="0.499997" delta_theta="300" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:Librarian" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:GREETING-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:CHAT-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:CHAT-µ" to="@node:ADVISOR-µ" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:MATH-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:CHAT-µ" to="@node:Mx2LM" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:REASON-µ" type="delegate" verb="@governs" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
@@ -770,16 +908,31 @@
     <edge from="@node:Coordinator" to="@node:Mx2LM" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Coordinator" to="@node:BLOG-µ" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Coordinator" to="@node:APP-WIZARD-µ" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:PLAN-µ" type="horizontal_fold" verb="@supports" relation_phase="Ch&apos;en" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:DECISION-µ" to="@node:REASON-µ" type="horizontal_fold" verb="@supports" relation_phase="Ch&apos;en" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:DECISION-µ" to="@node:MATH-µ" type="delegate" verb="@requires" relation_phase="Wo" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:Coordinator" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="-1" delta_theta="180" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:EMAIL-µ" to="@node:CHAT-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:EMAIL-µ" to="@node:Mx2LM" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:FACTORY-µ" to="@node:Coordinator" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="-1" delta_theta="180" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:Mx2LM" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:FACTORY-µ" to="@node:MEMORY-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:FACTORY-µ" to="@node:CONTROL-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:FREE-WILL-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:FREE-WILL-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:FREE-WILL-µ" to="@node:REASON-µ" type="delegate" verb="@governs" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:INFER-µ" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="-1" delta_theta="180" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:ORCH-µ" type="delegate" verb="@produces" relation_phase="Wo" weight="-1" delta_theta="180" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:FACTORY-µ" type="delegate" verb="@defines" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:Coordinator" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:GREETING-µ" to="@node:ELIZA" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:GREETING-µ" to="@node:Mx2LM" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:INFER-µ" to="@node:REASON-µ" type="delegate" verb="@governs" relation_phase="Wo" weight="0.499997" delta_theta="300" xcfe_required="true" directed="true"/>
     <edge from="@node:INFER-µ" to="@node:ORCH-µ" type="delegate" verb="@produces" relation_phase="Wo" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:PLAN-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:JOKE-µ" to="@node:ADVISOR-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:Librarian" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:Librarian" to="@node:INFER-µ" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
     <edge from="@node:Librarian" to="@node:ORCH-µ" type="delegate" verb="@produces" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
@@ -815,9 +968,16 @@
     <edge from="@node:PLAN-µ" to="@node:Coordinator" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="-1" delta_theta="180" xcfe_required="false" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:ADVISOR-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:PLAN-µ" to="@node:MEMORY-µ" type="horizontal_fold" verb="@supports" relation_phase="Ch&apos;en" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:POLITICS-µ" to="@node:ADVISOR-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:POLITICS-µ" to="@node:PLAN-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:POLITICS-µ" to="@node:JOKE-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:REASON-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:RICK-µ" to="@node:CHAT-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:RICK-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:RICK-µ" to="@node:Mx2LM" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:MEMORY-µ" type="delegate" verb="@reads" relation_phase="Wo" weight="-1" delta_theta="180" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:CONTROL-µ" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="-0.500003" delta_theta="240" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:CHAT-µ" type="delegate" verb="@uses" relation_phase="Wo" weight="-0.500003" delta_theta="240" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:REASON-µ" type="delegate" verb="@governs" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
@@ -836,9 +996,13 @@
     <edge from="@node:TOOL-µ" to="@node:CONTROL-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:USER-µ" to="@node:MEMORY-µ" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.499997" delta_theta="300" xcfe_required="false" directed="true"/>
     <edge from="@node:USER-µ" to="@node:ELIZA" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:VECTOR-µ" to="@node:Mx2LM" type="delegate" verb="@uses" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:MEMORY-µ" type="delegate" verb="@produces" relation_phase="Wo" weight="-0.500003" delta_theta="240" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:Coordinator" type="delegate" verb="@via" relation_phase="Pop" weight="-1" delta_theta="180" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:Librarian" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:INFER-µ" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:ORCH-µ" type="delegate" verb="@produces" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
+    <edge from="@node:ADVISOR-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -849,29 +1013,55 @@
     <edge from="@node:APP-WIZARD-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:BLOG-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:REASON-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:TOOL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CONCEPT-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -881,14 +1071,19 @@
     <edge from="@node:CONTROL-µ" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CONTROL-µ" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CONTROL-µ" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CONTROL-µ" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CONTROL-µ" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:CREATE-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -897,58 +1092,107 @@
     <edge from="@node:CREATE-µ" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Coordinator" to="@node:MEMORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Coordinator" to="@node:memory-agent" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:Coordinator" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:INFER-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:ORCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA-1" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA-1" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA-1" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ELIZA-1" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ELIZA-1" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:GREETING-µ" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:GREETING-µ" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:GREETING-µ" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:GREETING-µ" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:INFER-µ" to="@node:MEMORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:INFER-µ" to="@node:memory-agent" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:REASON-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:TOOL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:KNOWLED-1" to="@node:Coordinator" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:KNOWLED-1" to="@node:INFER-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:KNOWLED-1" to="@node:ORCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:Librarian" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Librarian" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Librarian" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Librarian" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -961,14 +1205,19 @@
     <edge from="@node:MEM-µ" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:MEM-µ" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:MEM-µ" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:MEM-µ" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEM-µ" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:MEM-µ" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:MEMORY-µ" to="@node:CHAT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEMORY-µ" to="@node:CONTROL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEMORY-µ" to="@node:ELIZA" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:MEMORY-µ" to="@node:ELIZA-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -986,23 +1235,39 @@
     <edge from="@node:PHIL-AI-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:REASON-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:TOOL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:REASON-µ" to="@node:Coordinator" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:REASON-µ" to="@node:INFER-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:REASON-µ" to="@node:ORCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1010,21 +1275,47 @@
     <edge from="@node:RICK-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:REASON-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:TOOL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TOOL-µ" to="@node:Coordinator" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1033,14 +1324,29 @@
     <edge from="@node:USER-µ" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:USER-µ" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:USER-µ" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:USER-µ" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:USER-µ" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:USER-µ" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:CONCEPT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:CREATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:JOKE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:Librarian" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:WEB-RESEARCH-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1053,25 +1359,34 @@
     <edge from="@node:gravity" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:gravity" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:gravity" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:gravity" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:gravity" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:intent-unresolved" to="@node:EMAIL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:intent-unresolved" to="@node:FACTORY-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:FREE-WILL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:Factory" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:PHIL-AI-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:PHIL-SELF-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:PLAN-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:RICK-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:intent-unresolved" to="@node:TENSOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:intent-unresolved" to="@node:THOUGHT-OUTLINE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:intent-unresolved" to="@node:VECTOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:memory-agent" to="@node:CHAT-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:memory-agent" to="@node:CONTROL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:memory-agent" to="@node:ELIZA" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:memory-agent" to="@node:ELIZA-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1080,6 +1395,7 @@
     <edge from="@node:memory-agent" to="@node:USER-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:memory-agent" to="@node:gravity" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:memory-agent" to="@node:intent-unresolved" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:reasoner" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:reasoner" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:reasoner" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:reasoner" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1092,8 +1408,14 @@
     <edge from="@node:CONCEPT-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ADVISOR-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ADVISOR-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ADVISOR-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1102,36 +1424,82 @@
     <edge from="@node:CONCEPT-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:BLOG-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:BLOG-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:BLOG-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CONCEPT-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CONCEPT-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CONCEPT-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CREATE-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CREATE-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CREATE-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Librarian" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:WEB-RESEARCH-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:reasoner" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Librarian" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Librarian" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:WEB-RESEARCH-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:reasoner" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:WEB-RESEARCH-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:reasoner" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1144,12 +1512,20 @@
     <edge from="@node:PLAN-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1162,10 +1538,18 @@
     <edge from="@node:PLAN-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1178,10 +1562,56 @@
     <edge from="@node:PLAN-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Factory" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:EMAIL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Factory" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:FACTORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Factory" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1192,10 +1622,14 @@
     <edge from="@node:PLAN-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:FREE-WILL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Factory" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Factory" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1204,40 +1638,86 @@
     <edge from="@node:PLAN-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Factory" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Factory" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Factory" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Factory" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Factory" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:Factory" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:PHIL-AI-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:PHIL-SELF-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:PLAN-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:RICK-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:TENSOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:VECTOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:THOUGHT-OUTLINE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:CONTROL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CONTROL-µ" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:ELIZA" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ELIZA" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:ELIZA-1" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ELIZA-1" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:GREETING-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:GREETING-µ" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:MEM-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:MEM-µ" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:USER-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:USER-µ" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:gravity" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gravity" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CHAT-µ" to="@node:intent-unresolved" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:intent-unresolved" to="@node:CHAT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:ELIZA" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ELIZA" to="@node:CONTROL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONTROL-µ" to="@node:ELIZA-1" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1300,6 +1780,18 @@
     <edge from="@node:ORCH-µ" to="@node:Coordinator" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:INFER-µ" to="@node:ORCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ORCH-µ" to="@node:INFER-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:KNOWLED-1" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:KNOWLED-1" to="@node:DECISION-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:MATH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:MATH-µ" to="@node:DECISION-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:Mx2LM" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Mx2LM" to="@node:DECISION-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:REASON-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:REASON-µ" to="@node:DECISION-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:TOOL-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TOOL-µ" to="@node:DECISION-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@node:coder" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:coder" to="@node:DECISION-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:KNOWLED-1" to="@node:MATH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:MATH-µ" to="@node:KNOWLED-1" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:KNOWLED-1" to="@node:Mx2LM" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1333,28 +1825,36 @@
     <edge from="@node:MEMORY-µ" to="@node:memory-agent" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:memory-agent" to="@node:MEMORY-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:CHAT-µ" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ADVISOR-µ" to="@node:Perspective" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
-    <edge from="@node:Mx2LM" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
-    <edge from="@node:CREATE-µ" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:FACTORY-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:Perspective" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:BLOG-µ" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:MEM-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:CONTROL-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:Mx2LM" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:CREATE-µ" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:Coordinator" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:DECISION-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ELIZA" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:GREETING-µ" to="@node:Perspective" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ELIZA-1" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:EMAIL-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:VECTOR-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:FREE-WILL-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
-    <edge from="@node:Factory" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:Factory" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:INFER-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:JOKE-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:intent-unresolved" to="@node:Component" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:KNOWLED-1" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:Librarian" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:MATH-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
-    <edge from="@node:MEMORY-µ" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:POLITICS-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:MEMORY-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ORCH-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:PHIL-AI-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
@@ -1364,6 +1864,7 @@
     <edge from="@node:PLAN-µ" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:REASON-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:RICK-µ" to="@node:Connector" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:TENSOR-µ" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:TOOL-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:reasoner" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
@@ -1514,6 +2015,8 @@
     <edge from="@node:gml:ccc_n4:23" to="@node:gml:ccc_n4:55" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:gml:ccc_n4:27" to="@node:gml:ccc_n4:59" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:gml:ccc_n4:31" to="@node:gml:ccc_n4:63" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:gml:entropy_gradient_field:10" to="@node:gml:entropy_gradient_field:20" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.75" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:euclidean_gradient_field:1" to="@node:gml:euclidean_gradient_field:2" type="delegate" verb="@requires" relation_phase="Wo" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
     <edge from="@node:gml:hypercube_q3:0" to="@node:gml:hypercube_q3:1" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:gml:hypercube_q3:0" to="@node:gml:hypercube_q3:2" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:gml:hypercube_q3:0" to="@node:gml:hypercube_q3:4" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
@@ -1570,9 +2073,34 @@
     <edge from="@node:CREATE-µ" to="@node:ORCH-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:INFER-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ELIZA" to="@node:Coordinator" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:gml:metric_graph:0" to="@node:gml:metric_graph:1" type="delegate" verb="@uses" relation_phase="Wo" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:7" to="@node:gml:metric_graph:1" type="delegate" verb="@verifies" weight="0.95" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:2" to="@node:gml:metric_graph:1" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.75" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:3" to="@node:gml:metric_graph:1" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.6" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:4" to="@node:gml:metric_graph:1" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.85" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:5" to="@node:gml:metric_graph:1" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.8" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:1" to="@node:gml:metric_graph:6" type="delegate" verb="@produces" relation_phase="Wo" weight="0.9" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:6" to="@node:gml:metric_graph:7" type="delegate" verb="@requires" relation_phase="Wo" weight="0.9" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:1" to="@node:gml:metric_graph:0" type="delegate" verb="@related_to" relation_phase="Pop" weight="0.4" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:8" to="@node:gml:metric_graph:1" type="delegate" verb="@requires" relation_phase="Wo" weight="0.8" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:9" to="@node:gml:metric_graph:1" type="delegate" verb="@requires" relation_phase="Wo" weight="0.8" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:10" to="@node:gml:metric_graph:1" type="delegate" verb="@requires" relation_phase="Wo" weight="0.8" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:11" to="@node:gml:metric_graph:1" type="delegate" verb="@requires" relation_phase="Wo" weight="0.8" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:11" to="@node:gml:metric_graph:12" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.55" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:12" to="@node:gml:metric_graph:9" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.55" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:12" to="@node:gml:metric_graph:1" type="delegate" verb="@requires" relation_phase="Wo" weight="0.5" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:13" to="@node:gml:metric_graph:11" type="delegate" verb="@part_of" relation_phase="Pop" weight="0.8" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:14" to="@node:gml:metric_graph:1" type="delegate" verb="@requires" relation_phase="Wo" weight="0.65" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:13" to="@node:gml:metric_graph:17" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="0.45" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:metric_graph:17" to="@node:gml:metric_graph:9" type="delegate" verb="@exposes" weight="0.45" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:16" to="@node:gml:metric_graph:11" type="delegate" verb="@defines" relation_phase="Pop" weight="0.7" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:metric_graph:15" to="@node:gml:metric_graph:6" type="delegate" verb="@requires" relation_phase="Wo" weight="0.85" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:quantum_field_boundaries:1" to="@node:gml:quantum_field_boundaries:2" type="delegate" verb="@requires" relation_phase="Wo" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:gml:quantum_field_boundaries:2" to="@node:gml:quantum_field_boundaries:3" type="delegate" verb="@defines" relation_phase="Pop" weight="0.9" delta_theta="0" xcfe_required="true" directed="true"/>
     <edge from="@node:gml:sample:1" to="@node:gml:sample:2" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:gml:sample:2" to="@node:gml:sample:3" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:gml:sample:3" to="@node:gml:sample:1" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:gml:tensor_field:1" to="@node:gml:tensor_field:2" type="delegate" verb="@requires" relation_phase="Wo" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
@@ -1583,6 +2111,7 @@
     <edge from="@node:CONTROL-µ" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:CREATE-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:Coordinator" to="@phase:Ch&apos;en" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:DECISION-µ" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:ELIZA" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:ELIZA-1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:EMAIL-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
@@ -1591,6 +2120,7 @@
     <edge from="@node:Factory" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:GREETING-µ" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:INFER-µ" to="@phase:Ch&apos;en" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:KNOWLED-1" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:Librarian" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:MATH-µ" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
@@ -1601,13 +2131,16 @@
     <edge from="@node:PHIL-AI-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:PLAN-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:REASON-µ" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:RICK-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:TEMPLATE-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:TOOL-µ" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:USER-µ" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:coder" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gravity" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
@@ -1710,6 +2243,10 @@
     <edge from="@node:gml:ccc_n4:61" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:ccc_n4:62" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:ccc_n4:63" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:entropy_gradient_field:10" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:entropy_gradient_field:20" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:euclidean_gradient_field:1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:euclidean_gradient_field:2" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:hypercube_q3:0" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:hypercube_q3:1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:hypercube_q3:2" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
@@ -1734,8 +2271,31 @@
     <edge from="@node:gml:hypercube_q4:13" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:hypercube_q4:14" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:hypercube_q4:15" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:0" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:2" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:3" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:4" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:5" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:6" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:7" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:8" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:9" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:10" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:11" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:12" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:13" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:14" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:15" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:16" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:metric_graph:17" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:quantum_field_boundaries:1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:quantum_field_boundaries:2" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:quantum_field_boundaries:3" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:sample:1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:sample:2" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gml:sample:3" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:tensor_field:1" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:gml:tensor_field:2" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
   </edges>
 </field>

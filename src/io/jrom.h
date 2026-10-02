@@ -10,12 +10,14 @@ namespace khanary::io {
 
 struct JROMEvent {
     std::string type;
+    std::string epistemic_type;
     std::string payload_json;
     uint64_t    seq;
 };
 
-// JROM: append-only JSONL audit journal
-// Logs tool events, phase transitions, fold executions
+// JROM: runtime tape player / provenance journal.
+// Append-only typed JSONL for routed observations, proposals, calls, and outcomes.
+// It preserves replay evidence; it is not semantic authority and cannot commit state.
 class JROM {
 public:
     JROM();
@@ -26,6 +28,11 @@ public:
 
     // Append a log entry
     uint64_t log(const std::string& event_type, const std::string& payload_json);
+    uint64_t log(const std::string& event_type,
+                 const std::string& payload_json,
+                 const std::string& epistemic_type);
+
+    static bool is_valid_epistemic_type(const std::string& value);
 
     // Replay from offset; calls cb(event) for each entry
     void replay(uint64_t from_seq,

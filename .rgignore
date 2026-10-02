@@ -1,0 +1,4 @@
+build/
+_build/
+.build-copilot/
+out/

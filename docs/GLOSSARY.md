@@ -213,6 +213,160 @@ An operator record keeps **two separate namespaces**:
 Eligible_µ(op) = { µ | requires(op) ⊆ capabilities(µ) }
 ```
 
+---
+
+## SVG-Tensor Format
+
+An SVG file that carries semantic field state as `k:*` namespace attributes on its elements, making it both a valid SVG document and a loadable source for `parse_svg_tensor()`.
+
+**Namespace declaration** (required on `<svg>` root):
+```xml
+xmlns:k="https://khanary.io/tensor"
+```
+
+**Node element** (any SVG element with `k:track_id` or `k:kind`):
+```xml
+<circle k:track_id="ELIZA" k:phase="Wo" k:kind="track"
+        k:entropy="0.34" k:geodesic_entropy="0.55"
+        k:unruh_temp="0.02" k:divergence="-0.4"
+        k:circumradius_R="2.5" k:inradius_r="1.0"
+        k:x="1.0" k:y="2.0" k:z="0.5"
+        k:weight="0.9" k:confidence="0.75"
+        k:q_vec="0.5,0.0,0.0" k:k_vec="0.0,0.5,0.0" k:v_vec="0.34,0.9,0.75"/>
+```
+
+**Edge element** (any SVG element with both `k:edge_from` and `k:edge_to`):
+```xml
+<path k:edge_from="ELIZA" k:edge_to="Librarian"
+      k:verb="@delegates_to" k:fold_type="vertical"
+      k:weight="0.5" k:delta_theta="60.0"/>
+```
+
+**Disambiguation rule**: the parser requires a whitespace character (space, tab, newline, CR) immediately before `k:` to exclude `xmlns:k="..."` declarations and `<k:elem>` tag names from attribute extraction.
+
+**Round-trip**: `FieldDag::to_svg()` emits `xmlns:k` on the `<svg>` element and full `k:*` attrs on every non-ontology node circle and edge path, so its output is valid SVG-Tensor input for `parse_svg_tensor()`. Source: `src/io/svg_tensor.h/.cpp`.
+
+---
+
+## Tensor bundle grounding
+
+The `TensorSubstrate` map is a **fiber bundle over the SVG-3D base manifold**.
+
+| role | K'UHUL object |
+| --- | --- |
+| Base point (x ∈ M) | `FieldNode.x, y, z` |
+| Fiber at x | `TensorSubstrate.shape = {N, stride_floats}` |
+| Fiber type | rank-(p,q) tensor space V^⊗p ⊗ (V\*)^⊗q |
+| Connection ∇ | Phase θ — C6 cycle, `arc_weight = cos(Δθ)` |
+| Geodesic | `dispatch_geodesic_propagator()` finds curves minimising entropy growth under ∇ |
+| Gram G | tensor product rank — multi-token keys of rank p ARE V^⊗p (exact) |
+| Fold F | structurally cotangent-shaped at the algebra level; NOT a continuous dual space |
+| Projection Π | closer to interior product ι_v: Ω^k → Ω^(k-1) than to exterior derivative d |
+
+**Critical split:** Phase θ is the **connection** (the rule for parallel transport).
+`dispatch_geodesic_propagator()` finds **geodesics** (paths selected by that rule).
+Connection ≠ geodesic; they operate at different levels.
+
+See `docs/TENSOR_BUNDLE.md` for full mathematical grounding.
+
+---
+
+## Tensor Substrate Binding Layer
+
+### TensorSubstrate — passive GPU buffer descriptor
+
+`src/world/tensor_substrate.h`
+
+```
+TensorSubstrate { tensor_id, shape, strides, dtype, residency,
+                  provider_identity, physical_buffer_allocation }
+```
+
+A **descriptor**, not an allocator. It records the shape, dtype, and device
+residency of a tensor buffer without owning the memory.
+`physical_buffer_allocation` is an opaque backend handle (raw `ID3D11Buffer*`
+for D3D11; `void*` for backend agnosticism); it stays **null** until the
+substrate is explicitly promoted from `HOST_RAM` to a device.
+
+| field | job |
+| --- | --- |
+| `tensor_id` | monotonically increasing id across all substrates in a FieldDag |
+| `shape` | e.g. `{N, stride_floats}` — populated by first dispatch |
+| `dtype` | FLOAT32 / FLOAT16 / INT8 / BINARY_SDR |
+| `residency` | HOST_RAM → GPU_VRAM_D3D11 after first geodesic propagator run |
+| `provider_identity` | matches `provider_id` on the GML node that created this substrate |
+| `physical_buffer_allocation` | null until buffers are made persistent (future work) |
+
+**Authority boundary:** a `TensorSubstrate` with a geometry-source `provider_identity`
+(e.g. `"brain4-expert-34"`) is **projection-only**. It MUST NOT be promoted to a
+`MicronautEntry` in the registry. Only `TrackLoader` (JSON track files) and
+`Factory::propose_create()` may create `MicronautEntry` objects.
+
+### VectorMuMicronaut — active projection operator
+
+`src/micronaut/vector_mu.h`
+
+```
+VectorMuMicronaut { micronaut_id, capability_verb, static_weight W,
+                    confidence C, numerical_projection_vector }
+  ExecuteProjection(target_substrate, context) → result_substrate
+```
+
+An **executable specialist** that projects state streamlines across a
+`TensorSubstrate` field. Holds WCR epistemic weights (W, C) and a numerical
+projection vector. `ExecuteProjection` returns a new bounded result substrate
+without mutating the target — zero pattern inflation.
+
+The concrete GPU implementation wires `ExecuteProjection` to
+`FieldDag::dispatch_geodesic_propagator()`. `VectorMuMicronaut` itself is
+geometry-layer only; it does not dispatch, commit, or gate.
+
+### MicronautContext — execution environment snapshot
+
+```
+MicronautContext { active_scope, environmental_temperature, trajectory_generation_id }
+```
+
+Passed to `ExecuteProjection` at call time. `environmental_temperature` maps to
+`kb_boltzmann` in the geodesic propagator cbuffer.
+`trajectory_generation_id` identifies the CSO / shader variant to select.
+
+### provider_id — GML binding token
+
+A string attribute on a GML node (and edge) that names the
+specialist or substrate family responsible for that position.
+
+```
+node [ id 0 provider_id "brain4-expert-34" ... ]
+```
+
+At `load_gml()` time, each unique `provider_id` value creates one
+`TensorSubstrate` entry in `FieldDag::substrates_` (residency=HOST_RAM, shape
+unpopulated). After `dispatch_geodesic_propagator()` completes, all substrates
+are promoted to `GPU_VRAM_D3D11` with shape filled.
+
+Canonical format: `"{run_name}-expert-{id:02d}"` for geometry brain nodes;
+`"VECTOR-u"` for semantic track telemetry nodes (see `test_gml_parser.cpp`).
+
+### Binding chain
+
+```
+export_brain_gml.py
+  → brain4/brain.gml  (30,628 nodes, each with provider_id "brain4-expert-NN")
+
+FieldDag::load_gml("brain4/brain.gml")
+  → FieldNode::provider_id populated
+  → substrates_["brain4-expert-NN"] created (HOST_RAM, 61 entries for 61 experts)
+
+FieldDag::dispatch_geodesic_propagator(dev, cso, beta_inv)
+  → geodesic_entropy computed on GPU for all 30,628 nodes
+  → substrates_[*].residency = GPU_VRAM_D3D11
+  → substrates_[*].shape = {N, sizeof(GpuFieldNode)/4}
+
+VectorMuMicronaut::ExecuteProjection(substrate, ctx)
+  → result_substrate (bounded projection, no mutation of source)
+```
+
 Semantic similarity may *recommend*; capability declarations *authorize* eligibility;
 W-C-R ranks only within the authorized candidate set. A `requires` of `[]` means the
 operator lowers to a native deterministic XCFE op and needs no Micronaut at all —

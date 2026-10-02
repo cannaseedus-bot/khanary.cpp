@@ -2,6 +2,7 @@
 #include "../micronaut/mx2lm-ngram.h"
 #include "../kuhul/ngram_phase_classes.h"
 #include "../kuhul/gram_store.h"
+#include "../kuhul/fold_delta.h"
 
 #include <cmath>
 #include <iostream>
@@ -73,6 +74,184 @@ int main() {
         suite.check("typed_function_channel", has_function_channel);
         suite.check("typed_coarse_channel",   has_coarse_channel);
 
+        // ── FoldDelta → VECTOR-µ boundary contract ───────────────────────
+        const auto causes_geo =
+            RelationConditionedGeometrySpec::from_relation("@causes");
+        suite.check("fold_delta_relation_causes_translational",
+            causes_geo.kind == RelationGeometryKind::Translational &&
+            causes_geo.asymmetric &&
+            causes_geo.valid_projection_boundary());
+
+        const auto contradicts_geo =
+            RelationConditionedGeometrySpec::from_relation("@contradicts");
+        suite.check("fold_delta_relation_contradicts_rotational",
+            contradicts_geo.kind == RelationGeometryKind::Rotational &&
+            !contradicts_geo.asymmetric &&
+            contradicts_geo.valid_projection_boundary());
+
+        const auto part_geo =
+            RelationConditionedGeometrySpec::from_relation("@part_of");
+        suite.check("fold_delta_relation_part_of_bilinear",
+            part_geo.kind == RelationGeometryKind::Bilinear &&
+            part_geo.asymmetric);
+
+        VectorMultiSignalObjective objective;
+        suite.check("vector_multisignal_objective_valid", objective.valid());
+
+        SemanticManifoldProjectionContract manifold;
+        suite.check("semantic_manifold_projection_boundary_safe",
+            manifold.safe() &&
+            manifold.topology_symbol == "B" &&
+            manifold.learned_geometry_symbol == "M_mu" &&
+            !manifold.delta_manifold_is_delta_topology);
+
+        LocalSemanticMetricSpec local_metric;
+        local_metric.phase = "Yax";
+        local_metric.relation = "@causes";
+        suite.check("semantic_local_metric_phase_relation_conditioned",
+            local_metric.valid_projection_boundary() &&
+            relation_geometry_kind_for(local_metric.relation) ==
+                RelationGeometryKind::Translational);
+
+        SemanticGeodesicProjectionSpec geodesic;
+        suite.check("semantic_geodesic_projection_not_authority",
+            geodesic.valid_projection_boundary() &&
+            !geodesic.semantic_authority &&
+            !geodesic.can_verify_relation);
+
+        VectorDecisionRiskSpec risk_ok;
+        risk_ok.prior_mass = 0.65f;
+        risk_ok.source_risk_bound = 1.0f;
+        risk_ok.target_risk_bound = 1.0f;
+        risk_ok.loss_cost = 0.95f;
+        suite.check("vector_decision_risk_admissible",
+            risk_ok.valid() && !risk_ok.inadmissible_minimax_rule());
+
+        VectorDecisionRiskSpec risk_bad;
+        risk_bad.prior_mass = 0.5f;
+        risk_bad.source_risk_bound = 0.10f;
+        risk_bad.target_risk_bound = 0.20f;
+        risk_bad.loss_cost = 0.90f;
+        suite.check("vector_decision_risk_minimax_rejects",
+            risk_bad.valid() && risk_bad.inadmissible_minimax_rule());
+
+        DifferentialComparisonProjectionSpec diff;
+        diff.mutation = differential_mutation_op_for("modify");
+        diff.base_version = 1;
+        suite.check("differential_comparison_projection_boundary",
+            diff.valid_projection_boundary() &&
+            !diff.can_commit_topology);
+
+        DifferentialComparisonProjectionSpec diff_invalid;
+        diff_invalid.mutation = differential_mutation_op_for("warp");
+        suite.check("differential_comparison_rejects_invalid_mutation",
+            !diff_invalid.valid_projection_boundary());
+
+        VectorProjectionGeneration gen0;
+        VectorProjectionGeneration gen0_same;
+        VectorProjectionGeneration gen1 = gen0;
+        gen1.generation = 1;
+        gen1.projection_id = "vector:projection:bootstrap:v1:g1";
+        VectorProjectionGeneration gen_topology_changed = gen1;
+        gen_topology_changed.topology_version = "runtime.semantic_containers.v2";
+
+        suite.check("vector_generation_same_comparable",
+            gen0.comparable_without_alignment(gen0_same) &&
+            gen0.alignment_policy_for(gen0_same) ==
+                VectorProjectionAlignmentPolicy::SameGenerationOnly);
+        suite.check("vector_generation_same_topology_aligns",
+            gen0.alignment_policy_for(gen1) ==
+                VectorProjectionAlignmentPolicy::OrthogonalProcrustes);
+        suite.check("vector_generation_topology_regenerates",
+            gen0.alignment_policy_for(gen_topology_changed) ==
+                VectorProjectionAlignmentPolicy::AuthoritativeRegeneration);
+
+        FoldDelta good_delta;
+        good_delta.verdict = "GOOD";
+        suite.check("fold_delta_vector_boundary_safe",
+            good_delta.vector_boundary.safe() &&
+            good_delta.vector_projection_allowed());
+        FoldDelta unknown_delta;
+        unknown_delta.verdict = "UNKNOWN";
+        suite.check("fold_delta_vector_boundary_rejects_unknown",
+            !unknown_delta.vector_projection_allowed());
+
+        const auto container = Mx2LmNGram::compile_gram_container(taxonomy);
+        const size_t expected_container_size =
+            taxonomy.unigrams.size() +
+            taxonomy.bigrams.size() +
+            taxonomy.trigrams.size() +
+            taxonomy.quadgrams.size() +
+            taxonomy.coarse_grams.size() +
+            taxonomy.function_grams.size() +
+            taxonomy.tool_grams.size();
+        suite.check("mx2lm_container_namespace",
+            container.namespace_id == "Mx2LM" &&
+            container.key == "mx2lm:gram_container:v1");
+        suite.check("mx2lm_container_all_channels",
+            container.grams.size() == expected_container_size);
+        bool container_has_bigram = false;
+        bool container_phases_set = true;
+        for (const auto& row : container.grams) {
+            if (row.gram == "tool call" &&
+                row.gram_class == "bigram" &&
+                row.phase == "Wo")
+                container_has_bigram = true;
+            if (row.phase.empty()) container_phases_set = false;
+        }
+        suite.check("mx2lm_container_has_bigram_phase", container_has_bigram);
+        suite.check("mx2lm_container_phases_set", container_phases_set);
+
+        const auto pattern_container = Mx2LmNGram::compile_pattern_container(
+            "Hello, hows it going?",
+            container,
+            "GREETING-µ",
+            "Pop",
+            "card_rendered",
+            "greeting",
+            true);
+        suite.check("mx2lm_pattern_container_key",
+            pattern_container.key == "mx2lm:pattern_container:v1" &&
+            pattern_container.namespace_id == "Mx2LM");
+        suite.check("mx2lm_pattern_event_track",
+            pattern_container.events.size() == 1 &&
+            pattern_container.events.front().source_track == "GREETING-µ" &&
+            pattern_container.events.front().source_phase == "Pop");
+        bool pattern_has_track_role = false;
+        if (!pattern_container.events.empty()) {
+            for (const auto& role : pattern_container.events.front().roles) {
+                if (role == "track:GREETING-µ") {
+                    pattern_has_track_role = true;
+                    break;
+                }
+            }
+        }
+        suite.check("mx2lm_pattern_event_roles", pattern_has_track_role);
+
+        const auto vector_container = Mx2LmNGram::compile_vector_projection_container(
+            container,
+            pattern_container);
+        suite.check("vector_projection_container_key",
+            vector_container.key == "vector:projection_container:v1" &&
+            vector_container.namespace_id == "VECTOR-µ" &&
+            vector_container.dimensions == 3);
+        suite.check("vector_projection_generation_contract",
+            vector_container.projection_id == "vector:projection:bootstrap:v1:g0" &&
+            vector_container.generation == 0 &&
+            vector_container.learner_version == "bootstrap.deterministic_hash.v1" &&
+            vector_container.similarity_scope ==
+                "semantic_similarity_subset_of_relatedness");
+        suite.check("vector_projection_is_projection_only",
+            vector_container.authority == "vector:projection-only" &&
+            !vector_container.projections.empty() &&
+            !vector_container.projections.front().semantic_authority);
+        suite.check("vector_projection_is_finite_unit_vector",
+            !vector_container.projections.empty() &&
+            std::isfinite(vector_container.projections.front().x) &&
+            std::isfinite(vector_container.projections.front().y) &&
+            std::isfinite(vector_container.projections.front().z) &&
+            std::fabs(vector_container.projections.front().norm - 1.0f) < 1e-4f);
+
         // ── Per-phase ngram classes ───────────────────────────────────────
 
         const std::string sentence = "if you understand then execute and verify the output";
@@ -89,6 +268,15 @@ int main() {
         auto wo_r = wo_cls.process(pop_r, 8);
         suite.check("wo_typed_nonempty", !wo_r.typed.empty());
         suite.check("wo_taxonomy_unigrams", !wo_r.taxonomy.unigrams.empty());
+        suite.check("wo_mx2lm_container_nonempty", !wo_r.gram_container.grams.empty());
+        suite.check("wo_mx2lm_container_is_all_grams",
+            wo_r.gram_container.grams.size() >= wo_r.typed.size());
+        suite.check("wo_mx2lm_pattern_container_nonempty",
+            !wo_r.pattern_container.events.empty());
+        suite.check("wo_vector_projection_container_nonempty",
+            !wo_r.vector_projection_container.projections.empty() &&
+            wo_r.vector_projection_container.source_semantic_container ==
+                "mx2lm:pattern_container:v1");
 
         // Yax — admission gate; neighbourhood filters to resolved sense
         YaxNGram yax_cls;
@@ -138,6 +326,47 @@ int main() {
             xul_r.committed == (chen_r.certificate.status == ChenNGramStatus::PASS));
         if (xul_r.committed)
             suite.check("xul_keys_written", !xul_r.written_keys.empty());
+        suite.check("xul_writes_mx2lm_container",
+            !xul_r.committed || gs.has("mx2lm:gram_container:v1"));
+        bool wrote_namespaced_gram = false;
+        for (const auto& key : xul_r.written_keys) {
+            if (key.rfind("mx2lm:gram:", 0) == 0) {
+                wrote_namespaced_gram = true;
+                break;
+            }
+        }
+        suite.check("xul_writes_namespaced_mx2lm_grams",
+            !xul_r.committed || wrote_namespaced_gram);
+        suite.check("xul_writes_mx2lm_pattern_container",
+            !xul_r.committed || gs.has("mx2lm:pattern_container:v1"));
+        suite.check("xul_writes_vector_projection_container",
+            !xul_r.committed || gs.has("vector:projection_container:v1"));
+        bool wrote_pattern_key = false;
+        bool wrote_vector_key = false;
+        for (const auto& key : xul_r.written_keys) {
+            if (key.rfind("mx2lm:pattern:", 0) == 0) {
+                wrote_pattern_key = true;
+            }
+            if (key.rfind("vector:projection:", 0) == 0) {
+                wrote_vector_key = true;
+            }
+        }
+        suite.check("xul_writes_namespaced_mx2lm_patterns",
+            !xul_r.committed || wrote_pattern_key);
+        suite.check("xul_writes_namespaced_vector_projection",
+            !xul_r.committed || wrote_vector_key);
+        if (xul_r.committed && wrote_vector_key) {
+            for (const auto& key : xul_r.written_keys) {
+                if (key.rfind("vector:projection:", 0) != 0) continue;
+                const auto vec = gs.gramVector(key);
+                suite.check("xul_vector_projection_readback",
+                    vec.has_value() &&
+                    std::isfinite((*vec)[0]) &&
+                    std::isfinite((*vec)[1]) &&
+                    std::isfinite((*vec)[2]));
+                break;
+            }
+        }
 
         // Xul on UNKNOWN → no commit
         auto xul_reject = xul_cls.process(chen_empty);
@@ -148,9 +377,16 @@ int main() {
 
         GramStore gs2;
         NGramPipeline pipeline(gs2);
-        auto pipe_r = pipeline.run(sentence, nb);
+        auto pipe_r = pipeline.run(sentence, nb, "GREETING-µ", "Pop", "card_rendered", "greeting", true);
         suite.check("pipeline_pop_nonempty",  !pipe_r.pop.tokens.empty());
         suite.check("pipeline_wo_nonempty",   !pipe_r.wo.typed.empty());
+        suite.check("pipeline_pattern_track",
+            !pipe_r.wo.pattern_container.events.empty() &&
+            pipe_r.wo.pattern_container.events.front().source_track == "GREETING-µ");
+        suite.check("pipeline_vector_track",
+            !pipe_r.wo.vector_projection_container.projections.empty() &&
+            pipe_r.wo.vector_projection_container.projections.front().projection_track ==
+                "VECTOR-µ");
         suite.check("pipeline_yax_admitted",  !pipe_r.yax.admitted.empty());
         suite.check("pipeline_sek_ranked",    !pipe_r.sek.ranked.empty());
         suite.check("pipeline_chen_complete",

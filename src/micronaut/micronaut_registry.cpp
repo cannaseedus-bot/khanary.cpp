@@ -1,6 +1,7 @@
 #include "micronaut_registry.h"
 #include "relation_isa.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 namespace khanary::micronaut {
@@ -23,12 +24,35 @@ static std::vector<std::string> dedupe_non_empty(const std::vector<std::string>&
     return out;
 }
 
+static std::vector<std::string> dedupe_non_empty_lower(const std::vector<std::string>& in) {
+    std::vector<std::string> out;
+    out.reserve(in.size());
+    std::unordered_set<std::string> seen;
+    for (auto item : in) {
+        if (item.empty()) continue;
+        std::transform(item.begin(), item.end(), item.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (seen.insert(item).second) out.push_back(item);
+    }
+    return out;
+}
+
 static void sanitize_entry(MicronautEntry& entry) {
     entry.static_weight = clamp01(entry.static_weight, 1.0f);
     entry.health = clamp01(entry.health, 1.0f);
     entry.confidence = clamp01(entry.confidence, 1.0f);
     entry.capabilities = dedupe_non_empty(entry.capabilities);
     entry.sub_micronauts = dedupe_non_empty(entry.sub_micronauts);
+    entry.route_contract.schemes = dedupe_non_empty_lower(entry.route_contract.schemes);
+    entry.route_contract.verbs = dedupe_non_empty_lower(entry.route_contract.verbs);
+    entry.route_contract.aiml_patterns = dedupe_non_empty(entry.route_contract.aiml_patterns);
+    entry.route_contract.aiml_templates = dedupe_non_empty(entry.route_contract.aiml_templates);
+    entry.route_contract.key_patterns = dedupe_non_empty(entry.route_contract.key_patterns);
+    entry.route_contract.key_templates = dedupe_non_empty(entry.route_contract.key_templates);
+    entry.route_contract.key_grammar = dedupe_non_empty(entry.route_contract.key_grammar);
+    entry.route_contract.tokens = dedupe_non_empty_lower(entry.route_contract.tokens);
+    if (entry.profile_projection && !entry.profile_projection->is_object())
+        entry.profile_projection.reset();
 
     std::unordered_set<std::string> clean_governs;
     clean_governs.reserve(entry.governs.size());
@@ -107,7 +131,14 @@ void MicronautRegistry::add(const MicronautEntry& entry) {
         sanitized.vector_meta.x,
         sanitized.vector_meta.y,
         sanitized.vector_meta.z,
-        sanitized.vector_meta.declared);
+        sanitized.vector_meta.declared,
+        sanitized.static_weight,
+        sanitized.confidence,
+        sanitized.health,
+        0.0f,
+        true,
+        !sanitized.capabilities.empty() || sanitized.sandbox.coordinator,
+        true);
 }
 
 void MicronautRegistry::add(MicronautEntry&& entry) {
@@ -119,8 +150,14 @@ void MicronautRegistry::add(MicronautEntry&& entry) {
     auto governs = entry.governs;
     auto phase = entry.primary_phase;
     auto vmeta = entry.vector_meta;
+    const float static_weight = entry.static_weight;
+    const float confidence = entry.confidence;
+    const float health = entry.health;
+    const bool capable = !entry.capabilities.empty() || entry.sandbox.coordinator;
     entries_[id] = std::move(entry);
-    gravity_.register_nodes(id, governs, phase, vmeta.x, vmeta.y, vmeta.z, vmeta.declared);
+    gravity_.register_nodes(
+        id, governs, phase, vmeta.x, vmeta.y, vmeta.z, vmeta.declared,
+        static_weight, confidence, health, 0.0f, true, capable, true);
 }
 
 bool MicronautRegistry::remove(const std::string& id, float confidence_floor) {

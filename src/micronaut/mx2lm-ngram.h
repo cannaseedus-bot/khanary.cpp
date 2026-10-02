@@ -32,9 +32,80 @@ struct Mx2LmTypedGram {
     std::string gram;
     std::string gram_class;  // unigram|bigram|trigram|quadgram|coarse_gram|function_gram|tool_gram
     std::string role;        // semantic/control/operator/tool binding role
+    std::string phase;       // Pop|Wo|Yax|Sek phase interpretation for this gram class
     uint32_t    count = 0;
     uint32_t    width = 0;
     std::vector<std::string> tokens;
+};
+
+struct Mx2LmGramContainer {
+    std::string namespace_id = "Mx2LM";
+    std::string key = "mx2lm:gram_container:v1";
+    std::string authority = "mx2lm:ngram-build";
+    std::string phase = "Wo";
+    std::vector<Mx2LmTypedGram> grams;
+
+    uint32_t total_observations = 0;
+    uint32_t unigram_count = 0;
+    uint32_t bigram_count = 0;
+    uint32_t trigram_count = 0;
+    uint32_t quadgram_count = 0;
+    uint32_t coarse_gram_count = 0;
+    uint32_t function_gram_count = 0;
+    uint32_t tool_gram_count = 0;
+};
+
+struct Mx2LmPatternEvent {
+    std::string source_track = "Mx2LM";
+    std::string source_phase = "Wo";
+    std::string target_namespace = "Mx2LM";
+    std::string surface;
+    std::vector<std::string> roles;
+    std::string gram_container_key = "mx2lm:gram_container:v1";
+    std::string outcome_kind = "pattern_observed";
+    std::string outcome_status = "observed";
+    std::string card;
+    bool accepted = true;
+};
+
+struct Mx2LmPatternContainer {
+    std::string namespace_id = "Mx2LM";
+    std::string key = "mx2lm:pattern_container:v1";
+    std::string authority = "mx2lm:pattern-learn";
+    std::string phase = "Xul";
+    std::vector<Mx2LmPatternEvent> events;
+    uint32_t event_count = 0;
+};
+
+struct Mx2LmVectorProjection {
+    std::string key;
+    std::string source_key;
+    std::string source_track;
+    std::string source_phase;
+    std::string projection_track = "VECTOR-µ";
+    std::string basis = "deterministic_semantic_hash_projection";
+    float       x = 0.0f;
+    float       y = 0.0f;
+    float       z = 0.0f;
+    float       norm = 0.0f;
+    bool        semantic_authority = false;
+};
+
+struct Mx2LmVectorProjectionContainer {
+    std::string namespace_id = "VECTOR-µ";
+    std::string key = "vector:projection_container:v1";
+    std::string authority = "vector:projection-only";
+    std::string phase = "Wo";
+    std::string source_semantic_container = "mx2lm:pattern_container:v1";
+    std::string projection_id = "vector:projection:bootstrap:v1:g0";
+    std::string learner_version = "bootstrap.deterministic_hash.v1";
+    std::string topology_version = "runtime.semantic_containers";
+    std::string relation_model = "relationisa_conditioned_geometry";
+    std::string alignment = "bootstrap_no_cross_generation_alignment";
+    std::string similarity_scope = "semantic_similarity_subset_of_relatedness";
+    uint32_t    generation = 0;
+    uint32_t    dimensions = 3;
+    std::vector<Mx2LmVectorProjection> projections;
 };
 
 struct Mx2LmControlBinding {
@@ -84,6 +155,23 @@ public:
     static std::vector<Mx2LmTypedGram> typed_grams(
         const Mx2LmGramTaxonomy& taxonomy,
         size_t top_k_per_class = 8);
+    static Mx2LmGramContainer compile_gram_container(
+        const Mx2LmGramTaxonomy& taxonomy,
+        size_t top_k_per_class = 0);
+    static Mx2LmGramContainer compile_gram_container(
+        std::string_view text,
+        size_t top_k_per_class = 0);
+    static Mx2LmPatternContainer compile_pattern_container(
+        std::string_view surface,
+        const Mx2LmGramContainer& gram_container,
+        const std::string& source_track = "Mx2LM",
+        const std::string& source_phase = "Wo",
+        const std::string& outcome_kind = "pattern_observed",
+        const std::string& card = "",
+        bool accepted = true);
+    static Mx2LmVectorProjectionContainer compile_vector_projection_container(
+        const Mx2LmGramContainer& gram_container,
+        const Mx2LmPatternContainer& pattern_container);
 
     // Resolve control words to deterministic operator authority.
     // This keeps control semantics anchored in XCFE/K'UHUL operators,

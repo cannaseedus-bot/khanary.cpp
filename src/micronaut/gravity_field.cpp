@@ -27,6 +27,16 @@ static float normalize_threshold(float threshold) {
     return std::max(0.0f, threshold);
 }
 
+static float clamp01(float value, float fallback = 1.0f) {
+    if (!std::isfinite(value)) return fallback;
+    return std::clamp(value, 0.0f, 1.0f);
+}
+
+static float nonnegative(float value, float fallback = 0.0f) {
+    if (!std::isfinite(value)) return fallback;
+    return std::max(0.0f, value);
+}
+
 static Vec3 normalize_vec(float x, float y, float z) {
     const float n = std::sqrt(x * x + y * y + z * z);
     if (!(n > 1e-6f)) return {};
@@ -83,7 +93,14 @@ void GravityField::register_nodes(
     float vector_x,
     float vector_y,
     float vector_z,
-    bool vector_declared)
+    bool vector_declared,
+    float static_weight,
+    float confidence,
+    float health,
+    float entropy_diffusion,
+    bool policy_ok,
+    bool capable,
+    bool xcfe_ok)
 {
     if (micronaut_id.empty()) return;
 
@@ -105,7 +122,14 @@ void GravityField::register_nodes(
         vector_x,
         vector_y,
         vector_z,
-        vector_declared
+        vector_declared,
+        clamp01(static_weight, 1.0f),
+        clamp01(confidence, 1.0f),
+        clamp01(health, 1.0f),
+        nonnegative(entropy_diffusion, 0.0f),
+        policy_ok,
+        capable,
+        xcfe_ok
     };
 }
 
@@ -143,18 +167,44 @@ std::unordered_map<std::string, float> GravityField::score(
     const std::vector<std::string>& tokens,
     kuhul::Phase phase) const
 {
+    const auto captured = capture(tokens, phase, 0.0f);
+    std::unordered_map<std::string, float> scores;
+    scores.reserve(captured.size());
+    for (const auto& row : captured) {
+        scores[row.micronaut_id] = row.capture_score;
+    }
+    return scores;
+}
+
+std::vector<MicronautAttraction> GravityField::capture(
+    const std::vector<std::string>& tokens,
+    kuhul::Phase phase,
+    float threshold) const
+{
     std::unordered_map<std::string, MicronautNodes> snapshot;
     {
         std::lock_guard<std::mutex> lk(mtx_);
         snapshot = registry_;
     }
     const Vec3 qvec = query_vector_from_tokens(tokens);
+    const float capture_threshold = normalize_threshold(threshold);
 
-    std::unordered_map<std::string, float> scores;
-    scores.reserve(snapshot.size());
+    std::vector<MicronautAttraction> out;
+    out.reserve(snapshot.size());
     for (const auto& [id, entry] : snapshot) {
+        MicronautAttraction row;
+        row.micronaut_id = id;
+        row.static_weight = clamp01(entry.static_weight, 1.0f);
+        row.confidence = clamp01(entry.confidence, 1.0f);
+        row.health = clamp01(entry.health, 1.0f);
+        row.entropy_diffusion = nonnegative(entry.entropy_diffusion, 0.0f);
+        row.policy_ok = entry.policy_ok;
+        row.capable = entry.capable;
+        row.xcfe_ok = entry.xcfe_ok;
+        row.legal = row.policy_ok && row.capable && row.xcfe_ok;
+
         if (id.empty() || entry.nodes.empty()) {
-            scores[id] = 0.0f;
+            out.push_back(std::move(row));
             continue;
         }
 
@@ -173,15 +223,34 @@ std::unordered_map<std::string, float> GravityField::score(
                 }
             }
         }
-        // Phase arc weight modulates the score
+        // Phase arc weight supplies provider/phase relevance in WCR.
         const double w = std::max(0.0, kuhul::arc_weight(entry.phase, phase));
         const Vec3 key_vec = entry.vector_declared
             ? normalize_vec(entry.vector_x, entry.vector_y, entry.vector_z)
             : phase_unit_vector(entry.phase);
-        const float vector_gate = 0.75f + 0.25f * cosine01(qvec, key_vec);
-        scores[id] = g * static_cast<float>(w) * vector_gate;
+        row.semantic_mass = nonnegative(g, 0.0f);
+        row.geometric_alignment = cosine01(qvec, key_vec);
+        row.phase_relevance = clamp01(static_cast<float>(w), 0.0f);
+        row.wcr_prior = std::clamp(
+            row.static_weight * row.confidence * row.health * row.phase_relevance,
+            0.0f, 1.0f);
+        row.phi = row.semantic_mass * row.geometric_alignment * row.wcr_prior;
+        row.capture_score = row.legal
+            ? std::max(0.0f, row.phi - row.entropy_diffusion)
+            : 0.0f;
+        row.captured = row.legal && row.capture_score >= capture_threshold;
+        out.push_back(std::move(row));
     }
-    return scores;
+    std::sort(out.begin(), out.end(), [](const MicronautAttraction& a,
+                                         const MicronautAttraction& b) {
+        constexpr float kEps = 1e-6f;
+        if (std::fabs(a.capture_score - b.capture_score) > kEps)
+            return a.capture_score > b.capture_score;
+        if (std::fabs(a.phi - b.phi) > kEps)
+            return a.phi > b.phi;
+        return a.micronaut_id < b.micronaut_id;
+    });
+    return out;
 }
 
 std::string GravityField::best_match(

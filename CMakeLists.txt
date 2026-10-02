@@ -32,6 +32,8 @@ add_executable(KHANARY
     src/klsl/d3dcompile_bridge.cpp
     src/gpu/d3d11_device.cpp
     src/gpu/dml_ops.cpp
+    src/gpu/cso_integrity.cpp
+    src/gpu/unified_tensor.cpp
     src/gpu/tensor_buffer.cpp
     src/gpu/compute_dispatch.cpp
     src/gpu/gram_gpu_scorer.cpp
@@ -42,9 +44,11 @@ add_executable(KHANARY
     src/inference/tokenizer.cpp
     src/inference/moe_router.cpp
     src/inference/inference_engine.cpp
+    src/inference/semantic_attention.cpp
     src/inference/kv_cache.cpp
     src/inference/sampler.cpp
     src/inference/fold_map.cpp
+    src/decision/decision_mu.cpp
     src/micronaut/micronaut_registry.cpp
     src/micronaut/aiml_engine.cpp
     src/micronaut/eliza_operators.cpp
@@ -55,10 +59,13 @@ add_executable(KHANARY
     src/micronaut/gravity_field.cpp
     src/micronaut/greeting_style.cpp
     src/micronaut/control_flow.cpp
+    src/micronaut/mou_router.cpp
+    src/micronaut/micronaut_transpiler.cpp
     src/world/world_state.cpp
     src/world/field_dag.cpp
     src/world/gml_parser.cpp
     src/world/gyroscope.cpp
+    src/world/vector_projection.cpp
     src/micronaut/factory.cpp
     src/memory/perception.cpp
     src/memory/confidence.cpp
@@ -71,6 +78,9 @@ add_executable(KHANARY
     src/io/projection.cpp
     src/io/runtime_attention.cpp
     src/io/request_router.cpp
+    src/io/svg_tensor.cpp
+    src/io/stb_map_convert.cpp
+    src/gpu/stb_map.cpp
     src/util/sha256.cpp
     src/util/json.cpp
     src/util/schema.cpp
@@ -122,6 +132,14 @@ add_executable(KHANARY_PTEST
 )
 target_include_directories(KHANARY_PTEST PRIVATE src)
 
+add_executable(KHANARY_JROM_TEST
+    src/tests/test_jrom.cpp
+    src/io/jrom.cpp
+    src/util/json.cpp
+    src/util/sha256.cpp
+)
+target_include_directories(KHANARY_JROM_TEST PRIVATE src)
+
 add_executable(KHANARY_AIML_TEST
     src/tests/test_aiml_graph.cpp
     src/micronaut/aiml_engine.cpp
@@ -141,8 +159,12 @@ add_executable(KHANARY_ROUTER_TEST
     src/tests/test_router_policy.cpp
     src/io/request_router.cpp
     src/io/runtime_attention.cpp
+    src/decision/decision_mu.cpp
+    src/inference/moe_router.cpp
     src/micronaut/factory.cpp
     src/micronaut/micronaut_registry.cpp
+    src/micronaut/mou_router.cpp
+    src/micronaut/micronaut_transpiler.cpp
     src/micronaut/relation_isa.cpp
     src/micronaut/gravity_field.cpp
     src/memory/perception.cpp
@@ -174,6 +196,9 @@ add_test(
     COMMAND $<TARGET_FILE:KHANARY_PTEST>
             "${CMAKE_SOURCE_DIR}/data/projection_abi_v1.json"
             "${CMAKE_SOURCE_DIR}/data/gyro_abi_v1.json")
+add_test(
+    NAME KHANARY_JROM_TEST
+    COMMAND $<TARGET_FILE:KHANARY_JROM_TEST>)
 add_test(
     NAME KHANARY_AIML_TEST
     COMMAND $<TARGET_FILE:KHANARY_AIML_TEST>)
@@ -212,6 +237,54 @@ add_executable(KHANARY_SDDS_TEST src/tests/test_sdds.cpp src/gpu/sdds_format.cpp
 target_include_directories(KHANARY_SDDS_TEST PRIVATE src)
 add_test(NAME KHANARY_SDDS_TEST COMMAND KHANARY_SDDS_TEST)
 
+add_executable(KHANARY_GPU_DEVICE_TEST src/tests/test_gpu_device.cpp
+    src/gpu/d3d11_device.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_GPU_DEVICE_TEST PRIVATE src)
+target_link_libraries(KHANARY_GPU_DEVICE_TEST PRIVATE d3d11 dxgi dxguid)
+add_test(NAME KHANARY_GPU_DEVICE_TEST COMMAND KHANARY_GPU_DEVICE_TEST)
+
+add_executable(KHANARY_TENSOR_TEST src/tests/test_unified_tensor.cpp
+    src/gpu/unified_tensor.cpp src/gpu/tensor_buffer.cpp src/gpu/d3d11_device.cpp
+    src/gpu/dml_ops.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_TENSOR_TEST PRIVATE src)
+target_link_libraries(KHANARY_TENSOR_TEST PRIVATE d3d11 dxgi dxguid d3dcompiler)
+add_test(NAME KHANARY_TENSOR_TEST COMMAND KHANARY_TENSOR_TEST)
+
+add_executable(KHANARY_CSO_INTEGRITY_TEST src/tests/test_cso_integrity.cpp
+    src/gpu/cso_integrity.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_CSO_INTEGRITY_TEST PRIVATE src)
+add_test(NAME KHANARY_CSO_INTEGRITY_TEST COMMAND KHANARY_CSO_INTEGRITY_TEST)
+
+add_executable(KHANARY_GML_PARSER_TEST src/tests/test_gml_parser.cpp
+    src/world/gml_parser.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_GML_PARSER_TEST PRIVATE src)
+add_test(NAME KHANARY_GML_PARSER_TEST COMMAND KHANARY_GML_PARSER_TEST)
+
+add_executable(KHANARY_HYPERBOLIC_ATTENTION_TEST src/tests/test_hyperbolic_attention.cpp
+    src/world/vector_projection.cpp src/world/gml_parser.cpp
+    src/gpu/gram_gpu_scorer.cpp src/gpu/tensor_buffer.cpp src/gpu/d3d11_device.cpp
+    src/gpu/stb_map.cpp src/gpu/sdds_format.cpp src/kuhul/gram_store.cpp
+    src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_HYPERBOLIC_ATTENTION_TEST PRIVATE src)
+target_link_libraries(KHANARY_HYPERBOLIC_ATTENTION_TEST PRIVATE d3d11 dxgi dxguid d3dcompiler)
+add_test(NAME KHANARY_HYPERBOLIC_ATTENTION_TEST COMMAND KHANARY_HYPERBOLIC_ATTENTION_TEST)
+
+add_executable(KHANARY_SEMANTIC_ATTENTION_TEST src/tests/test_semantic_attention.cpp
+    src/inference/semantic_attention.cpp
+    src/gpu/gram_gpu_scorer.cpp src/gpu/tensor_buffer.cpp src/gpu/d3d11_device.cpp
+    src/gpu/stb_map.cpp src/gpu/sdds_format.cpp src/kuhul/gram_store.cpp
+    src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_SEMANTIC_ATTENTION_TEST PRIVATE src)
+target_link_libraries(KHANARY_SEMANTIC_ATTENTION_TEST PRIVATE d3d11 dxgi dxguid d3dcompiler)
+add_test(NAME KHANARY_SEMANTIC_ATTENTION_TEST COMMAND KHANARY_SEMANTIC_ATTENTION_TEST)
+
+# MetricTensor (0,2) tensor: euclidean/diagonal factories, arc_weight equivalence,
+# Sylvester positive-definite check.  Header-only; depends only on phase_engine.
+add_executable(KHANARY_METRIC_TENSOR_TEST src/tests/test_metric_tensor.cpp
+    src/kuhul/phase_engine.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_METRIC_TENSOR_TEST PRIVATE src)
+add_test(NAME KHANARY_METRIC_TENSOR_TEST COMMAND KHANARY_METRIC_TENSOR_TEST)
+
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
     add_test(NAME KHANARY_SCHEMA_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_contracts.py")
@@ -245,16 +318,85 @@ if(Python3_Interpreter_FOUND)
     # Coords/source are hard-checked; tensor and QKV are partial (warn-only).
     add_test(NAME KHANARY_FIELD_VECTOR_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_field_vectors.py")
+    # VECTOR-µ provider registry: GML topology before derived mesh/vector geometry.
+    add_test(NAME KHANARY_VECTORS_XML_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_vectors_xml.py")
+    # Dataset ingestion lane: external corpora become candidate gram/key/vector
+    # evidence; dictionary key-grammar remains the authority reference.
+    add_test(NAME KHANARY_DATASET_INGESTION_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_dataset_ingestion.py")
+    # METRIC-µ: per-track local metric fields plus explicit mesh bridges;
+    # VECTOR-µ remains a provider, not semantic authority.
+    add_test(NAME KHANARY_METRIC_GRAPH_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_metric_graph.py")
+    # STB/Tensor Micronaut projection contracts. STB brains are geometry/evidence
+    # containers; tensor slots give every known Micronaut a fiber address without
+    # promoting unsupported private brains.
+    add_test(NAME KHANARY_STB_TENSOR_BRAINS_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_stb_tensor_brains.py")
+    add_test(NAME KHANARY_MICRONAUT_TENSOR_SLOTS_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_micronaut_tensor_slots.py")
+    add_test(NAME KHANARY_MICRONAUT_GRAMMAR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_micronaut_grammar.py")
+    add_test(NAME KHANARY_ATTENTION_SHADER_CONTRACT_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_attention_shader.py")
     # CSS key-grammar: every ⟁KEY in css.manifest.json must have a compiled
     # JSONL entry, with expands_to references and inline_css validated.
     add_test(NAME KHANARY_CSS_GRAMMAR_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" css-check)
+    # SDDS/FoldMap transport conformance: direct-seek offsets, split tensors,
+    # shard-local duplicate rejection, and physical fold naming for n_layers.
+    add_test(NAME KHANARY_SDDS_MANIFEST_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_sdds_manifest_conformance.py")
+    # Runtime schema stack gate: enforce mode + declared hash anchors over
+    # cycle-hash/fold-runtime and phase driver artifacts.
+    add_test(NAME KHANARY_RUNTIME_SCHEMA_STACK_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_runtime_schema_stack.py")
+    # Source/contracts vs generated artifacts boundary gate.
+    add_test(NAME KHANARY_BOUNDARY_SPLIT_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_boundary_split.py")
 endif()
+
+# ChristoffelSymbols (1,2) tensor: conformal metric from entropy gradient,
+# torsion-free check, specific Gamma values, flat-limit.  Header-only.
+add_executable(KHANARY_CHRISTOFFEL_TEST src/tests/test_christoffel.cpp
+    src/kuhul/phase_engine.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_CHRISTOFFEL_TEST PRIVATE src)
+add_test(NAME KHANARY_CHRISTOFFEL_TEST COMMAND KHANARY_CHRISTOFFEL_TEST)
+
+# SVG-Tensor loader: k:* attribute scanner, Q/K/V vector parsing, node/edge classification.
+# Header-only in io/; no GPU or Factory deps.
+add_executable(KHANARY_SVG_TENSOR_TEST src/tests/test_svg_tensor.cpp
+    src/io/svg_tensor.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_SVG_TENSOR_TEST PRIVATE src)
+add_test(NAME KHANARY_SVG_TENSOR_TEST COMMAND KHANARY_SVG_TENSOR_TEST)
+
+# STBMap binary format: Q/K/V section writer/reader, CRC32 validation, section types.
+# Depends on sdds_format for sdds_crc32.
+add_executable(KHANARY_STB_MAP_TEST src/tests/test_stb_map.cpp
+    src/gpu/stb_map.cpp src/gpu/sdds_format.cpp
+    src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_STB_MAP_TEST PRIVATE src)
+add_test(NAME KHANARY_STB_MAP_TEST COMMAND KHANARY_STB_MAP_TEST)
+
+# SVG-Tensor → STBMap + FieldNode/FieldEdge vector → STBMap converters.
+add_executable(KHANARY_STB_MAP_CONVERT_TEST src/tests/test_stb_map_convert.cpp
+    src/io/stb_map_convert.cpp src/io/svg_tensor.cpp
+    src/gpu/stb_map.cpp src/gpu/sdds_format.cpp
+    src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_STB_MAP_CONVERT_TEST PRIVATE src)
+add_test(NAME KHANARY_STB_MAP_CONVERT_TEST COMMAND KHANARY_STB_MAP_CONVERT_TEST)
 
 add_executable(KHANARY_KLSL_TEST src/tests/test_klsl.cpp src/klsl/klsl_lexer.cpp
     src/klsl/klsl_parser.cpp src/klsl/klsl_ir.cpp src/util/json.cpp src/util/sha256.cpp)
 target_include_directories(KHANARY_KLSL_TEST PRIVATE src)
 add_test(NAME KHANARY_KLSL_TEST COMMAND KHANARY_KLSL_TEST)
+
+add_executable(KHANARY_WGSL_CODEGEN_TEST src/tests/test_wgsl_codegen.cpp
+    src/klsl/klsl_lexer.cpp src/klsl/klsl_parser.cpp src/klsl/klsl_ir.cpp
+    src/klsl/wgsl_codegen.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_WGSL_CODEGEN_TEST PRIVATE src)
+add_test(NAME KHANARY_WGSL_CODEGEN_TEST COMMAND KHANARY_WGSL_CODEGEN_TEST)
 
 # Key-grammar control flow: sugar -> phase-bound plan -> executable XCFE node.
 add_executable(KHANARY_CONTROLFLOW_TEST src/tests/test_control_flow.cpp
@@ -275,4 +417,6 @@ add_test(NAME KHANARY_ADVISOR_BOOTSTRAP_TEST
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" advisor-check)
 add_test(NAME KHANARY_PLAN_BOOTSTRAP_TEST
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" plan-check)
+add_test(NAME KHANARY_JOKE_BOOTSTRAP_TEST
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" joke-check)
 set_tests_properties(KHANARY_KLSL_TEST PROPERTIES TIMEOUT 10)

@@ -56,16 +56,16 @@ folds\pipeline_results.json           export summary / shard statistics
 folds\model.scxqdds                   compact SDDS bootstrap payload
 ```
 
-### Current launch defaults used in this project
+### Launcher environment variables
 
 ```
-KHANARY_DDS_KSON=E:\models\GPT-DDS\GPT-OSS\gpt_oss_20b_folds.kson
-KHANARY_DDS_MANIFEST=E:\models\GPT-DDS\GPT-OSS\folds\model_dds_manifest.json
-KHANARY_DDS_SHARDS=E:\models\GPT-DDS\GPT-OSS\folds\dds_shards
-KHANARY_GGUF_MODEL=E:\models\GPT2\gemma_toolcall\gemma_chat_toolcall_q8.gguf
+KHANARY_DDS_KSON=<absolute-or-repo-relative-path-to-*_folds.kson>
+KHANARY_DDS_MANIFEST=<absolute-or-repo-relative-path-to-folds/model_dds_manifest.json>
+KHANARY_DDS_SHARDS=<absolute-or-repo-relative-path-to-folds/dds_shards>
+KHANARY_GGUF_MODEL=<optional-path-to-base-model.gguf>
 ```
 
-If/when Gemma DDS exports are generated, swap `KHANARY_DDS_*` to Gemma’s DDS set.
+`KHANARY.bat` now only forwards these flags when the corresponding paths are set and exist.
 
 ---
 
@@ -320,6 +320,58 @@ forward_dds(tokens):
 - Attention weights are cached across tokens; expert weights are loaded per-call
 - Embedding and output folds are pre-warmed at `load_dds_model()` startup
 - `make_resident(key, buf)` / `touch(key)` / `evict()` as needed
+
+---
+
+## STBMap — Semantic Tensor Buffer Map
+
+Binary format for Q/K/V semantic state. **Parallel to SDDS** (which stores raw weight shards). Source: `src/gpu/stb_map.h/.cpp`. Reuses `sdds_crc32` from `sdds_format.cpp`.
+
+```
+Header: magic "STBM" (4 bytes)
+        version uint32 = 1 (little-endian)
+        section_count uint32
+
+Per section:
+  type       uint32   (0=Field, 1=Fold, 2=Gram, 3=Geodesic)
+  record_count uint32
+  data_bytes uint32
+  crc32      uint32   (sdds_crc32 over section data bytes)
+  data       uint8[data_bytes]
+```
+
+Validation: bad magic / unsupported version / unknown section type / CRC mismatch / trailing bytes all throw `std::runtime_error`.
+
+### Section record types
+
+| Section | Record struct | Size | Fields |
+|---------|--------------|------|--------|
+| Field | `STBFieldRecord` | 36 B | `q[3]`, `k[3]`, `v[3]` floats — Q/K/V attention state |
+| Fold | `STBFoldRecord` | 20 B | `from_phase`, `to_phase`, `fold_type` (uint32) + `arc_weight`, `delta_theta` |
+| Gram | `STBGramRecord` | 60 B | `key[48]` (char) + `q_weight`, `k_weight`, `v_weight` |
+| Geodesic | `STBGeodesicRecord` | 36 B | `x`,`y`,`z`, `local_entropy`, `geodesic_entropy`, `unruh_temp`, `divergence`, `circumradius_R`, `inradius_r` |
+
+All sizes enforced by `static_assert` in `stb_map.cpp`.
+
+### Converter chain (`src/io/stb_map_convert.h/.cpp`)
+
+```cpp
+// SVG-Tensor source → STBMap
+//   Field section    : nodes with non-empty q_vec/k_vec/v_vec
+//   Geodesic section : all nodes (x/y/z + entropy + mesh radii)
+//   Fold section     : all edges (from/to indices, fold_type, arc_weight, delta_theta)
+gpu::STBMap svg_tensor_to_stb_map(const SVGTensorGraph& g);
+
+// FieldDag geometry → STBMap
+//   Geodesic section : all nodes (local/geodesic entropy, unruh_temp, divergence, circumradius_R, inradius_r)
+//   Fold section     : all edges
+gpu::STBMap field_vectors_to_stb_map(
+    const std::vector<world::FieldNode>& nodes,
+    const std::vector<world::FieldEdge>& edges);
+inline gpu::STBMap field_dag_to_stb_map(const world::FieldDag& dag);
+```
+
+Fold type IDs: 0=vertical, 1=horizontal, 2=delegate, 3=ontology, 4=other.
 
 ---
 

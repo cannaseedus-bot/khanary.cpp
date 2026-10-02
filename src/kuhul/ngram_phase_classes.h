@@ -12,6 +12,7 @@ namespace khanary::kuhul {
 // ─── Phase result types ────────────────────────────────────────────────────
 
 struct PopNGramResult {
+    std::string                 surface;
     std::vector<std::string>    tokens;
     micronaut::Mx2LmNGramModel  model;
 };
@@ -20,6 +21,9 @@ struct WoNGramResult {
     PopNGramResult                         pop;
     micronaut::Mx2LmGramTaxonomy           taxonomy;
     std::vector<micronaut::Mx2LmTypedGram> typed;
+    micronaut::Mx2LmGramContainer          gram_container;
+    micronaut::Mx2LmPatternContainer       pattern_container;
+    micronaut::Mx2LmVectorProjectionContainer vector_projection_container;
 };
 
 struct YaxNGramResult {
@@ -202,7 +206,12 @@ public:
     // fold_neighborhood: B_τ[h,*] context strings for Yax admission gate.
     NGramPipelineResult run(
         const std::string& text,
-        const std::vector<std::string>& fold_neighborhood = {}) const;
+        const std::vector<std::string>& fold_neighborhood = {},
+        const std::string& source_track = "Mx2LM",
+        const std::string& source_phase = "Wo",
+        const std::string& outcome_kind = "pattern_observed",
+        const std::string& card = "",
+        bool accepted = true) const;
 
     // Inject an advisor into Ch'en for miss-delegation.
     void set_chen_advisor(ChenAdvisorFn fn) { chen_.set_advisor(std::move(fn)); }

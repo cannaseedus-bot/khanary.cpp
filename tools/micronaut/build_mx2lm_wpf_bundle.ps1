@@ -490,7 +490,7 @@ entrypoints:
 Write-GeneratedFile -RelativePath "agents\commands.ps1" -Content @'
 [CmdletBinding()]
 param(
-    [ValidateSet("aiml", "status", "tools", "keyquery", "dispatch", "center", "rpc", "mcp")]
+    [ValidateSet("aiml", "status", "tools", "keyquery", "dispatch", "center", "rpc", "mcp", "advisor_consult")]
     [string]$Action = "aiml",
     [string]$Query = "",
     [string]$QueryBase64 = "",
@@ -499,6 +499,9 @@ param(
     [string]$ParamsJson = "{}",
     [string]$RpcUrl = "http://127.0.0.1:8787",
     [string]$McpUrl = "http://127.0.0.1:8764",
+    [string]$AdvisorUrl = "http://127.0.0.1:17887",
+    [string]$ChatMuUrl  = "http://127.0.0.1:17889",
+    [string]$ToolMuUrl  = "http://127.0.0.1:17890",
     [string]$KhanaryExe = "",
     [string]$DataDir = "",
     [string]$GgufModel = "",
@@ -732,7 +735,7 @@ function Invoke-JsonRpcCall {
         params = $ParamsObject
     } | ConvertTo-Json -Depth 20 -Compress
 
-    $resp = Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 30
+    $resp = Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 90
     $respError = $null
     if ($null -ne $resp -and $null -ne $resp.PSObject -and $resp.PSObject.Properties.Match("error").Count -gt 0) {
         $respError = $resp.error
@@ -1064,6 +1067,184 @@ function Build-WebResearchResponse {
     }
 }
 
+function Invoke-AdvisorQuery {
+    param([string]$Query)
+    $url = "$AdvisorUrl/v1/chat/completions"
+    $payload = @{
+        model    = "oss"
+        messages = @(@{ role = "user"; content = $Query })
+        temperature = 0.2
+        max_tokens  = 512
+    } | ConvertTo-Json -Depth 6 -Compress
+    try {
+        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 120
+        $text = $resp.choices[0].message.content
+        return [ordered]@{ ok = $true; status = "advisor"; source = "advisor"; text = $text; governing_track = "Advisor" }
+    } catch {
+        return [ordered]@{ ok = $false; status = "advisor_offline"; source = "advisor"; text = "Advisor not available."; error = $_.Exception.Message }
+    }
+}
+
+function Invoke-AdvisorEvolveQuery {
+    param(
+        [string]$MicronautId,
+        [string]$MicronautDescription,
+        [string]$UserQuery,
+        [string[]]$SeedCapabilities,
+        [string[]]$SeedGoverns
+    )
+    $url = "$AdvisorUrl/v1/chat/completions"
+    $seedCapsJson = if ($SeedCapabilities.Count -gt 0) { $SeedCapabilities | ConvertTo-Json -Compress } else { '[]' }
+    $seedGovsJson = if ($SeedGoverns.Count -gt 0)      { $SeedGoverns      | ConvertTo-Json -Compress } else { '[]' }
+    $sysPrompt = @"
+You are the KHANARY capability validator for micronaut "$MicronautId".
+A user query produced a miss. You must:
+1. Accept seed capabilities that are semantically correct for this micronaut.
+2. Reject synthetic/internal caps (e.g. miss::*, needs_fold:*, research_pressure:*).
+3. Rewrite vague caps into precise semantic names (verb:noun form, lowercase, no spaces, max 6 total).
+4. Add implied capabilities the seed missed.
+5. Write a short 1-2 sentence reply explaining what was learned.
+Respond ONLY with valid JSON - no markdown fences:
+{"reply":"...","accepted_capabilities":[...],"accepted_governs":[...]}
+"@
+    $userPrompt = "Micronaut: $MicronautId`nDescription: $MicronautDescription`nUser query: $UserQuery`nSeed capabilities: $seedCapsJson`nSeed governs: $seedGovsJson"
+    $payload = @{
+        model    = "oss"
+        messages = @(
+            @{ role = "system"; content = $sysPrompt }
+            @{ role = "user";   content = $userPrompt }
+        )
+        temperature = 0.15
+        max_tokens  = 300
+    } | ConvertTo-Json -Depth 8 -Compress
+    try {
+        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 120
+        $text = $resp.choices[0].message.content
+        $stripped = $text -replace '(?s)^```[a-z]*\s*', '' -replace '(?s)\s*```$', ''
+        try {
+            $delta = $stripped | ConvertFrom-Json
+            return [ordered]@{
+                ok                    = $true
+                reply                 = if ($delta.reply) { [string]$delta.reply } else { "Learned from this query." }
+                accepted_capabilities = if ($delta.accepted_capabilities) { @($delta.accepted_capabilities) } else { @() }
+                accepted_governs      = if ($delta.accepted_governs)      { @($delta.accepted_governs) }      else { @() }
+            }
+        } catch {
+            return [ordered]@{ ok = $false; reply = $text; accepted_capabilities = @(); accepted_governs = @() }
+        }
+    } catch {
+        return [ordered]@{ ok = $false; reply = "Advisor not available."; accepted_capabilities = @(); accepted_governs = @() }
+    }
+}
+
+function Invoke-LfmUnfoldSummary {
+    # Receives the fold_graph_parse sub-object {atoms, candidates, unresolved, ...}.
+    # LFM may only narrate what F_Q supplies: known <= Resolved(F_Q), uncertain <= LowEvidence(F_Q),
+    # unresolved <= Unresolved(F_Q). LFM may not enlarge F_Q.
+    param(
+        [string]$Query,
+        [object]$FoldParse,   # fold_graph_parse sub-object, NOT the full RPC result
+        [string]$BaseUrl
+    )
+    $knownAtoms      = @()
+    $uncertainAtoms  = @()
+    $unresolvedToks  = @()
+    try {
+        foreach ($c in $FoldParse.candidates) {
+            if ([int]$c.evidence_count -ge 2) { $knownAtoms    += [string]$c.atom }
+            else                               { $uncertainAtoms += [string]$c.atom }
+        }
+    } catch {}
+    try { $unresolvedToks = @($FoldParse.unresolved | ForEach-Object { [string]$_.token } | Where-Object { $_ }) } catch {}
+
+    $knownStr      = if ($knownAtoms.Count -gt 0)     { $knownAtoms -join ', ' }     else { "(none resolved)" }
+    $uncertainStr  = if ($uncertainAtoms.Count -gt 0) { $uncertainAtoms -join ', ' } else { "(none)" }
+    $unresolvedStr = if ($unresolvedToks.Count -gt 0)  { $unresolvedToks -join ', ' } else { "(none)" }
+
+    $sysPrompt = @"
+You are a knowledge-state reporter for KHANARY. Project the Fold Graph data into language.
+STRICT RULES - your output must satisfy these set constraints:
+  known items        MUST come only from the resolved-atoms list.
+  uncertain items    MUST come only from the low-evidence-atoms list.
+  unresolved items   MUST come only from the unresolved-tokens list.
+  update_candidates  are ADVISORY ONLY - do not issue mutation instructions.
+  Do NOT add any atom, concept, or fact not present in the data below.
+Respond ONLY with valid JSON (no markdown fences):
+{"summary":"...","known":[],"uncertain":[],"unresolved":[],"update_candidates":[],"question":"..."}
+"@
+    $userPrompt = "Query: $Query`nResolved atoms (evidence_count>=2, known): $knownStr`nLow-evidence atoms (evidence_count=1, uncertain): $uncertainStr`nUnresolved tokens (absent from semantic field): $unresolvedStr`n`nFormulate exactly one question whose answer would reduce the principal uncertainty."
+
+    $url = "$BaseUrl/v1/chat/completions"
+    $payload = @{
+        model    = "LFM2.5-1.2B-Instruct-Q8_0"
+        messages = @(
+            @{ role = "system"; content = $sysPrompt }
+            @{ role = "user";   content = $userPrompt }
+        )
+        temperature = 0.1
+        max_tokens  = 128
+    } | ConvertTo-Json -Depth 8 -Compress
+    try {
+        $resp    = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 60
+        $text    = $resp.choices[0].message.content
+        if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+        $stripped = $text -replace '(?s)^```[a-z]*\s*', '' -replace '(?s)\s*```$', ''
+        try {
+            $p = $stripped | ConvertFrom-Json
+            return [ordered]@{
+                ok                = $true
+                summary           = if ($p.summary)           { [string]$p.summary }        else { $stripped.Trim() }
+                known             = if ($p.known)             { @($p.known) }               else { $knownAtoms }
+                uncertain         = if ($p.uncertain)         { @($p.uncertain) }           else { $uncertainAtoms }
+                unresolved        = if ($p.unresolved)        { @($p.unresolved) }          else { $unresolvedToks }
+                update_candidates = if ($p.update_candidates) { @($p.update_candidates) }  else { @() }
+                question          = if ($p.question)          { [string]$p.question }       else { "" }
+            }
+        } catch {
+            return [ordered]@{
+                ok = $true; summary = $stripped.Trim(); known = $knownAtoms
+                uncertain = $uncertainAtoms; unresolved = $unresolvedToks
+                update_candidates = @(); question = ""
+            }
+        }
+    } catch {
+        return $null
+    }
+}
+
+function Invoke-TrackMuQuery {
+    param(
+        [string]$Query,
+        [string]$BaseUrl,
+        [string]$ModelId,
+        [string]$TrackLabel,
+        [double]$Temperature = 0.3,
+        [int]$MaxTokens = 64
+    )
+    $url = "$BaseUrl/v1/chat/completions"
+    $payload = @{
+        model    = $ModelId
+        messages = @(@{ role = "user"; content = $Query })
+        temperature = $Temperature
+        max_tokens  = $MaxTokens
+    } | ConvertTo-Json -Depth 6 -Compress
+    try {
+        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 180
+        $content = $resp.choices[0].message.content
+        if ([string]::IsNullOrWhiteSpace($content)) { return $null }
+        $keySlug = ($TrackLabel.ToLowerInvariant() -replace '[^\x00-\x7F]', '' -replace '[^a-z0-9]', '_').TrimEnd('_')
+        try {
+            Invoke-JsonRpcCall -Url $RpcUrl -MethodName "record_key" -ParamsObject @{
+                key      = "${keySlug}:$Query"
+                response = $content
+            } | Out-Null
+        } catch {}
+        return [ordered]@{ ok = $true; status = "mu_response"; source = $TrackLabel; text = $content; governing_track = $TrackLabel }
+    } catch {
+        return $null
+    }
+}
+
 switch ($Action) {
     "aiml" {
         $inputText = if ([string]::IsNullOrWhiteSpace($Query)) { "status" } else { $Query.Trim() }
@@ -1098,6 +1279,10 @@ switch ($Action) {
             $inputText -match '(?i)\brecent news\b' -or
             $inputText -match '(?i)\blatest news\b' -or
             $inputText -match '(?i)\bheadlines?\b'
+        if ($inputText -match '(?i)\bask\s+my\s+advisor\b' -or
+            $inputText -match '(?i)\bi\s+(don''?t|do\s+not)\s+know\s+the\s+answer\b') {
+            $preferDirectResearch = $false
+        }
         $effective = $inputText
         if (-not $preferAimlCatalog -and -not $preferDirectResearch -and $effective -notmatch '^(Mx2LM:|@mx2lm)') {
             $effective = "Mx2LM: $effective"
@@ -1119,6 +1304,139 @@ switch ($Action) {
                     Emit-ResultPayload -ResultPayload $researchResponse
                     break
                 }
+            }
+            # µ-model routing and miss->advisor fallback
+            $rInner    = if ($null -ne $result -and $null -ne $result.PSObject -and $result.PSObject.Properties.Match("result").Count -gt 0) { $result.result } else { $result }
+            $rPhase    = Read-ObjectString -Object $rInner -Name "phase"
+            $rMissKind = Read-ObjectString -Object $rInner -Name "miss_kind"
+            $rStatus   = Read-ObjectString -Object $rInner -Name "status"
+            $rGovTrack = Read-ObjectString -Object $rInner -Name "governing_track"
+            if ([string]::IsNullOrWhiteSpace($rGovTrack)) {
+                $rGovTrack = Read-ObjectString -Object $rInner -Name "track"
+            }
+            $rActionOps = @()
+            if ($null -ne $rInner -and $null -ne $rInner.PSObject -and $rInner.PSObject.Properties.Match("action_grams").Count -gt 0) {
+                foreach ($ag in @($rInner.action_grams)) {
+                    if ($null -eq $ag) { continue }
+                    $op = Read-ObjectString -Object $ag -Name "op"
+                    if (-not [string]::IsNullOrWhiteSpace($op)) {
+                        $rActionOps += $op
+                    }
+                }
+            }
+
+            $triggerAdvisor = ($rActionOps -contains "advisor_web_research_trigger") -or ($rGovTrack -match '(?i)\badvisor\b')
+            if ($triggerAdvisor -and -not [string]::IsNullOrWhiteSpace($AdvisorUrl)) {
+                try {
+                    $advisorQuery = "$inputText`n`nContext: MISS or low-confidence semantic gap. Build a bounded web-research + advisor plan."
+                    $advisorHit = Invoke-AdvisorQuery -Query $advisorQuery
+                    if ($advisorHit.ok -and -not [string]::IsNullOrWhiteSpace($advisorHit.text)) {
+                        Emit-ResultPayload -ResultPayload ([ordered]@{
+                            ok              = $true
+                            status          = "advisor_triggered"
+                            source          = "advisor"
+                            text            = $advisorHit.text
+                            governing_track = "ADVISOR-µ"
+                            trigger         = "advisor_web_research_trigger"
+                        })
+                        break
+                    }
+                } catch {}
+            }
+
+            $triggerLfmToolHelp = ($rActionOps -contains "lfm_tool_help_trigger")
+            if ($triggerLfmToolHelp -and -not [string]::IsNullOrWhiteSpace($ChatMuUrl)) {
+                try {
+                    $lfmPrompt = "Tool-selection assist request: $inputText"
+                    $muResult = Invoke-TrackMuQuery -Query $lfmPrompt -BaseUrl $ChatMuUrl -ModelId "LFM2.5-1.2B-Instruct-Q8_0" -TrackLabel "CHAT-µ" -Temperature 0.25 -MaxTokens 96
+                    if ($null -ne $muResult) {
+                        $muResult.status = "lfm_tool_help_triggered"
+                        $muResult.trigger = "lfm_tool_help_trigger"
+                        Emit-ResultPayload -ResultPayload $muResult
+                        break
+                    }
+                } catch {}
+            }
+
+            if ($rGovTrack -match '(?i)\bchat\b' -and -not [string]::IsNullOrWhiteSpace($ChatMuUrl)) {
+                $muResult = Invoke-TrackMuQuery -Query $inputText -BaseUrl $ChatMuUrl -ModelId "LFM2.5-1.2B-Instruct-Q8_0" -TrackLabel "CHAT-µ" -Temperature 0.3 -MaxTokens 64
+                if ($null -ne $muResult) { Emit-ResultPayload -ResultPayload $muResult; break }
+            }
+            if ($rGovTrack -match '(?i)\btool\b' -and -not [string]::IsNullOrWhiteSpace($ToolMuUrl)) {
+                $muResult = Invoke-TrackMuQuery -Query $inputText -BaseUrl $ToolMuUrl -ModelId "gemma-3-1b-it-qat-q4_0" -TrackLabel "TOOL-µ" -Temperature 0.1 -MaxTokens 64
+                if ($null -ne $muResult) { Emit-ResultPayload -ResultPayload $muResult; break }
+            }
+            $isMiss = ($rPhase -match '(?i)fallback_projection') -or
+                      (-not [string]::IsNullOrWhiteSpace($rMissKind)) -or
+                      ($rStatus -ieq "miss")
+            if ($isMiss -and -not [string]::IsNullOrWhiteSpace($AdvisorUrl)) {
+                # Stage 1 - fold_graph_parse -> LFM projection (CHAT-µ narrates F_Q; does not enlarge it)
+                $lfmResult      = $null
+                $lfmSummaryText = $null
+                if (-not [string]::IsNullOrWhiteSpace($ChatMuUrl)) {
+                    try {
+                        $foldRpc = Invoke-JsonRpcCall -Url $RpcUrl -MethodName "fold_graph_parse" -ParamsObject @{ query = $inputText }
+                        # fold_graph_parse is nested: result.fold_graph_parse
+                        $fgpInner = $null
+                        if ($foldRpc.result -and $foldRpc.result.fold_graph_parse)      { $fgpInner = $foldRpc.result.fold_graph_parse }
+                        elseif ($foldRpc.fold_graph_parse)                               { $fgpInner = $foldRpc.fold_graph_parse }
+                        if ($null -ne $fgpInner) {
+                            $lfmResult = Invoke-LfmUnfoldSummary -Query $inputText -FoldParse $fgpInner -BaseUrl $ChatMuUrl
+                            if ($null -ne $lfmResult -and $lfmResult.ok) { $lfmSummaryText = $lfmResult.summary }
+                        }
+                    } catch {}
+                }
+
+                # Stage 2 - Advisor: cap rewrite (pendingVerify) or free-text elaboration
+                $advisorText   = $null
+                $pendingVerify = $false
+                try { $pendingVerify = [bool]$rInner.factory_mutation.pending_advisor_verify } catch {}
+                if ($pendingVerify) {
+                    $fm            = $rInner.factory_mutation
+                    $micronautId   = if ($fm.micronaut)                 { [string]$fm.micronaut }                 else { "" }
+                    $micronautDesc = if ($rInner.micronaut_description) { [string]$rInner.micronaut_description } else { "" }
+                    $seedCaps      = if ($fm.added_capabilities)        { @($fm.added_capabilities) }            else { @() }
+                    $seedGovs      = if ($fm.added_governs)             { @($fm.added_governs) }                 else { @() }
+                    $delta = Invoke-AdvisorEvolveQuery `
+                        -MicronautId          $micronautId `
+                        -MicronautDescription $micronautDesc `
+                        -UserQuery            $inputText `
+                        -SeedCapabilities     $seedCaps `
+                        -SeedGoverns          $seedGovs
+                    if ($delta.ok -and ($delta.accepted_capabilities.Count -gt 0 -or $delta.accepted_governs.Count -gt 0)) {
+                        try {
+                            Invoke-JsonRpcCall -Url $RpcUrl -MethodName "factory_advisor_commit" -ParamsObject @{
+                                micronaut_id          = $micronautId
+                                accepted_capabilities = $delta.accepted_capabilities
+                                accepted_governs      = $delta.accepted_governs
+                            } | Out-Null
+                        } catch {}
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($delta.reply)) { $advisorText = $delta.reply }
+                } else {
+                    # Thread Q_gap from LFM into advisor - advisor answers from the gap, not just the raw query
+                    $advisorQuery = $inputText
+                    if ($null -ne $lfmResult -and -not [string]::IsNullOrWhiteSpace($lfmResult.question)) {
+                        $advisorQuery = "$inputText`n`nKnowledge gap (from semantic field): $($lfmResult.question)"
+                    }
+                    $adResult = Invoke-AdvisorQuery -Query $advisorQuery
+                    if ($adResult.ok -and -not [string]::IsNullOrWhiteSpace($adResult.text)) { $advisorText = $adResult.text }
+                }
+
+                # Stage 3 - Combine: LFM gram context + advisor elaboration/learned text
+                $parts = @()
+                if (-not [string]::IsNullOrWhiteSpace($lfmSummaryText)) { $parts += $lfmSummaryText }
+                if (-not [string]::IsNullOrWhiteSpace($advisorText))    { $parts += $advisorText }
+                $replyText = if ($parts.Count -gt 0) { $parts -join "`n`n" } else { "Advisor not available." }
+
+                Emit-ResultPayload -ResultPayload ([ordered]@{
+                    ok              = $true
+                    status          = "advisor"
+                    source          = "advisor"
+                    text            = $replyText
+                    governing_track = "Advisor"
+                })
+                break
             }
             Emit-Response $result
         } catch {
@@ -1190,6 +1508,11 @@ switch ($Action) {
         $paramsObj = Parse-ParamsJson -JsonText $ParamsJson
         $result = Invoke-JsonRpcCall -Url $McpUrl -MethodName $Tool -ParamsObject $paramsObj
         Emit-Response $result
+    }
+    "advisor_consult" {
+        $q = if ([string]::IsNullOrWhiteSpace($Query)) { "What is your status?" } else { $Query }
+        $advisorResult = Invoke-AdvisorQuery -Query $q
+        Emit-ResultPayload -ResultPayload $advisorResult
     }
 }
 '@
