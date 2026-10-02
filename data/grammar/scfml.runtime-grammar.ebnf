@@ -99,4 +99,3 @@ template_text = ? AIML template text ? ;
 gram_text = ? ordered gram text; token order is semantic ? ;
 epoch_ms = ? milliseconds since UNIX epoch ? ;
 sequence = ? per-process sequence number ? ;
-

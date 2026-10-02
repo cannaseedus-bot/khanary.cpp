@@ -134,8 +134,10 @@ q_gram_channels       = "\"gram_channels\":", "{", gram_channel, { ",", gram_cha
 q_hyperbolic_event    = "\"hyperbolic_event\":", hyperbolic_event_object ;
 
 (* Hyperbolic key-grammar event projection: the key addresses a future-directed
-   candidate continuation from a current origin. Rapidity/direction/interval are
-   routing geometry only; semantic_authority must remain false.
+   candidate continuation from a current origin. This is the relativity-event
+   analogue for key grammar: a track/phase/time occurrence with optional
+   Minkowski four-vector geometry. Rapidity/direction/interval are routing
+   geometry only; semantic_authority must remain false.
 
    Preferred v1 shape uses nested hyperbolic_metrics + bounds. Legacy flat
    rapidity/direction/interval fields are still accepted for existing rows. *)
@@ -353,7 +355,9 @@ memory_event_key = "memory:event:", memory_event_kind, ":", epoch_ms, "-", seque
 
 (* ── Shared memory-event envelope ────────────────────────────────────── *)
 (* Prompts, model responses, and plans are key-grammar events. They are
-   event-journal evidence, not automatic fact commits. *)
+   event-journal evidence, not automatic fact commits. When a row carries
+   hyperbolic_event, the memory event is also a future-sheet routing projection:
+   causal interval class can guide branch eligibility, never truth authority. *)
 memory_event_row =
     "{",
       q_me_schema, ",", q_me_key, ",", q_me_event_kind, ",", q_me_source, ",",
