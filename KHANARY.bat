@@ -333,6 +333,8 @@ exit /b 0
 
 :write_ports_json
 rem Write data/ports.json so factory.py always knows live ports.
+rem Keep legacy top-level keys for old readers, but bind micronauts to abstract
+rem port classes so integrations do not allocate one socket per micronaut.
 rem Usage: call :write_ports_json  (reads RESOLVED_CHAT_MU_PORT etc.)
 if not defined RESOLVED_CHAT_MU_PORT set "RESOLVED_CHAT_MU_PORT=%KHANARY_CHAT_MU_PORT%"
 if not defined RESOLVED_TOOL_MU_PORT set "RESOLVED_TOOL_MU_PORT=%KHANARY_TOOL_MU_PORT%"
@@ -340,11 +342,63 @@ if not defined RESOLVED_MCP_PORT     set "RESOLVED_MCP_PORT=%KHANARY_MCP_PORT%"
 if not defined RESOLVED_COMPLETION_PORT set "RESOLVED_COMPLETION_PORT=%KHANARY_COMPLETION_API_PORT%"
 (
   echo {
+  echo   "$schema": "urn:kuhul:khanary:schema:ports:v1",
+  echo   "@type": "khanary.port_registry.v1",
   echo   "chat_mu": %RESOLVED_CHAT_MU_PORT%,
   echo   "tool_mu": %RESOLVED_TOOL_MU_PORT%,
   echo   "completion": %RESOLVED_COMPLETION_PORT%,
   echo   "mcp":     %RESOLVED_MCP_PORT%,
-  echo   "rpc":     8787
+  echo   "rpc":     8787,
+  echo   "policy": {
+  echo     "known_micronauts_bind_to_abstract_ports": true,
+  echo     "do_not_allocate_unique_socket_per_micronaut": true,
+  echo     "concrete_ports_are_host_bindings_only": true,
+  echo     "abstract_ports_are_the_runtime_contract": true,
+  echo     "authority": "routing/configuration only; not semantic authority"
+  echo   },
+  echo   "concrete_ports": {
+  echo     "chat_mu": %RESOLVED_CHAT_MU_PORT%,
+  echo     "tool_mu": %RESOLVED_TOOL_MU_PORT%,
+  echo     "completion": %RESOLVED_COMPLETION_PORT%,
+  echo     "mcp": %RESOLVED_MCP_PORT%,
+  echo     "rpc": 8787
+  echo   },
+  echo   "abstract_ports": {
+  echo     "chat": {"port_ref": "chat_mu", "protocol": "openai-compatible-chat", "role": "general conversational micronaut lane"},
+  echo     "tool": {"port_ref": "tool_mu", "protocol": "openai-compatible-chat", "role": "tool/action micronaut lane"},
+  echo     "completion": {"port_ref": "completion", "protocol": "openai-compatible-completion", "role": "single completion facade over chat/tool lanes"},
+  echo     "mcp": {"port_ref": "mcp", "protocol": "mcp/http", "role": "tool gateway and mesh-control surface"},
+  echo     "rpc": {"port_ref": "rpc", "protocol": "json-rpc/http", "role": "native KHANARY runtime API"},
+  echo     "tensor": {"port_ref": "rpc", "protocol": "json-rpc/http", "role": "tensor/vector/KQL query operations"},
+  echo     "memory": {"port_ref": "rpc", "protocol": "json-rpc/http", "role": "JROM/KQL/gram memory operations"},
+  echo     "control": {"port_ref": "mcp", "protocol": "mcp/http", "role": "orchestration and policy control"}
+  echo   },
+  echo   "known_micronauts": {
+  echo     "ADVISOR-µ": {"abstract_port": "chat", "fallback_abstract_port": "completion"},
+  echo     "APP-WIZARD-µ": {"abstract_port": "completion", "fallback_abstract_port": "chat"},
+  echo     "BLOG-µ": {"abstract_port": "chat", "fallback_abstract_port": "completion"},
+  echo     "CODE-µ": {"abstract_port": "tool", "fallback_abstract_port": "completion"},
+  echo     "CONTROL-µ": {"abstract_port": "control", "fallback_abstract_port": "rpc"},
+  echo     "CREATE-µ": {"abstract_port": "completion", "fallback_abstract_port": "chat"},
+  echo     "FGP-µ": {"abstract_port": "tensor", "fallback_abstract_port": "rpc"},
+  echo     "FILE-µ": {"abstract_port": "tool", "fallback_abstract_port": "memory"},
+  echo     "GRAPHICS-µ": {"abstract_port": "completion", "fallback_abstract_port": "tool"},
+  echo     "GREETING-µ": {"abstract_port": "chat", "fallback_abstract_port": "completion"},
+  echo     "INFER-µ": {"abstract_port": "chat", "fallback_abstract_port": "tensor"},
+  echo     "JOKE-µ": {"abstract_port": "chat", "fallback_abstract_port": "completion"},
+  echo     "MEM-µ": {"abstract_port": "memory", "fallback_abstract_port": "rpc"},
+  echo     "METRIC-µ": {"abstract_port": "tensor", "fallback_abstract_port": "rpc"},
+  echo     "Mx2LM": {"abstract_port": "tensor", "fallback_abstract_port": "memory"},
+  echo     "NET-µ": {"abstract_port": "tool", "fallback_abstract_port": "mcp"},
+  echo     "ORCH-µ": {"abstract_port": "control", "fallback_abstract_port": "mcp"},
+  echo     "PLAN-µ": {"abstract_port": "chat", "fallback_abstract_port": "control"},
+  echo     "POLITICS-µ": {"abstract_port": "chat", "fallback_abstract_port": "completion"},
+  echo     "REASON-µ": {"abstract_port": "chat", "fallback_abstract_port": "tensor"},
+  echo     "TENSOR-µ": {"abstract_port": "tensor", "fallback_abstract_port": "rpc"},
+  echo     "TOOL-µ": {"abstract_port": "tool", "fallback_abstract_port": "mcp"},
+  echo     "VECTOR-µ": {"abstract_port": "tensor", "fallback_abstract_port": "rpc"},
+  echo     "WEB-RESEARCH-µ": {"abstract_port": "tool", "fallback_abstract_port": "mcp"}
+  echo   }
   echo }
 ) > "%DATA_DIR%\ports.json"
 exit /b 0

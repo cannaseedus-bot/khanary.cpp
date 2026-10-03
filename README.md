@@ -330,8 +330,32 @@ appends both scripts before `</body>`, and copies `khanary-registry.json` to the
 `data/ports.json` holds the live resolved ports written at server startup:
 
 ```json
-{"chat_mu": 17889, "tool_mu": 17890, "completion": 17892, "mcp": 8764, "rpc": 8787}
+{
+  "chat_mu": 17889,
+  "tool_mu": 17890,
+  "completion": 17892,
+  "mcp": 8764,
+  "rpc": 8787,
+  "abstract_ports": {
+    "chat": { "port_ref": "chat_mu" },
+    "tool": { "port_ref": "tool_mu" },
+    "tensor": { "port_ref": "rpc" },
+    "memory": { "port_ref": "rpc" },
+    "control": { "port_ref": "mcp" }
+  },
+  "known_micronauts": {
+    "ADVISOR-µ": { "abstract_port": "chat" },
+    "TOOL-µ": { "abstract_port": "tool" },
+    "TENSOR-µ": { "abstract_port": "tensor" }
+  }
+}
 ```
+
+Consumers should keep using the legacy top-level keys when they only need the raw socket,
+but micronaut-aware code should bind through `known_micronauts[*].abstract_port` and
+`abstract_ports[*].port_ref`. Do not allocate one concrete port per micronaut; the known
+micronauts share abstract lanes such as `chat`, `tool`, `tensor`, `memory`, `control`,
+`completion`, `mcp`, and `rpc`.
 
 ## Bot Command Center (`bot.py`)
 
