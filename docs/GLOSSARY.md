@@ -51,6 +51,43 @@ contract for a semantic fold; it does not become the fold or the phase. The
 registry at `data/grammar/fold-bindings.contracts.json` is checked by
 `tools/check_fold_bindings.py`.
 
+## Fold Kernel
+
+A **Fold Kernel** is the JSON lifecycle record for a fold as it moves from
+unbound observation to autonomous routing. It is state-dependent: `@learned`
+appears when the N-Gram Burner owns a reusable pattern, `@binding` appears when
+the Binding Resolver attaches an executor contract, `@evidence` appears when
+the Observation System has proof counts, and `@policy`/`@route` appear when
+XCFE can choose a consequence.
+
+```
+FoldKernel =
+  core(@fold,@phase,@semantic,@state)
+  + learned?
+  + binding?
+  + evidence?
+  + policy?
+  + route?
+  + ui?
+```
+
+Ownership stays separated:
+
+| field | owner |
+| --- | --- |
+| `@fold`, `@phase`, `@semantic` | K'UHUL semantic layer |
+| `@learned` | N-Gram Burner |
+| `@binding` | Binding Resolver |
+| `@evidence` | Observation System |
+| `@policy` | Policy Registry |
+| `@route` | XCFE |
+| `@ui` | projection/UI only |
+
+XCFE owns the route; `@ui` is non-normative. The grammar is
+`data/grammar/fold-kernel.ebnf`, the lifecycle contract is
+`data/grammar/fold-kernel.contracts.json`, and validation is performed by
+`tools/check_fold_kernel.py`.
+
 ## Terms
 
 ### Fold — structure plus interpretation (not a tuple)

@@ -73,6 +73,46 @@ The binding registry is `data/grammar/fold-bindings.contracts.json`, and the
 validator is `tools/check_fold_bindings.py`. A backend binding can accelerate,
 lower, or execute a phase contract, but it does not define semantic authority.
 
+## Fold Kernel lifecycle record
+
+The **Fold Kernel** is the lifecycle record that surrounds a semantic fold as
+it becomes reusable. It is JSON-shaped, but the JSON does not own semantic
+authority. K'UHUL owns the fold/phase identity; the N-Gram Burner owns learned
+patterns; the Binding Resolver owns executor bindings; the Observation System
+owns evidence; the Policy Registry owns scoring inputs; XCFE owns the route.
+
+State-dependent requirements:
+
+| state | required additions |
+|---|---|
+| `unbound` | core keys only |
+| `observed` | core keys only |
+| `learned` | `@learned` |
+| `bound` | `@learned`, `@binding` |
+| `validated` | `@learned`, `@binding`, `@evidence`, `@route` |
+| `autonomous` | `@learned`, `@binding`, `@evidence`, `@policy`, `@route` |
+
+The N-Gram Burner lifecycle is therefore machine-checkable:
+
+```
+unbound → observed → learned → bound → validated → autonomous
+```
+
+Key invariants:
+
+```
+observations = support + exceptions
+validated >= failures
+alpha + beta + gamma + delta = 1
+fallback <= autonomy
+route.authority = "XCFE"
+confidence = Γ_policy(evidence)
+```
+
+The grammar is `data/grammar/fold-kernel.ebnf`, the semantic contract is
+`data/grammar/fold-kernel.contracts.json`, and the conformance gate is
+`tools/check_fold_kernel.py`.
+
 ## Convergent definition
 
 ```

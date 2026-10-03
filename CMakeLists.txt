@@ -317,6 +317,10 @@ if(Python3_Interpreter_FOUND)
     # per-phase Hoare contracts before they can execute as projections.
     add_test(NAME KHANARY_FOLD_BINDING_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_bindings.py")
+    # Fold Kernel lifecycle: state-dependent JSON kernel records grow from
+    # learned n-grams through binding/evidence/policy into XCFE-owned routes.
+    add_test(NAME KHANARY_FOLD_KERNEL_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_kernel.py")
     # The capability-gap artifact must stay current with the operator table and
     # the tracks' declared capabilities.
     add_test(NAME KHANARY_CAPABILITY_GAP_TEST

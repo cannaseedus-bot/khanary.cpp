@@ -1,0 +1,153 @@
+{
+  "@type": "khanary.fold_kernel_contracts.v1",
+  "version": "1.0.0",
+  "authority": "fold_kernel_lifecycle_contract_not_semantic_authority",
+  "semantic_authority": false,
+  "owner": {
+    "fold_phase_semantics": "K'UHUL",
+    "learned": "N-Gram Burner",
+    "binding": "Binding Resolver",
+    "evidence": "Observation System",
+    "policy": "Policy Registry",
+    "route": "XCFE",
+    "ui": "Projection/UI"
+  },
+  "phase_cycle": [
+    "Pop",
+    "Wo",
+    "Yax",
+    "Sek",
+    "Ch'en",
+    "Xul"
+  ],
+  "states": [
+    "unbound",
+    "observed",
+    "learned",
+    "bound",
+    "validated",
+    "autonomous"
+  ],
+  "state_requirements": {
+    "unbound": [],
+    "observed": [],
+    "learned": [
+      "@learned"
+    ],
+    "bound": [
+      "@learned",
+      "@binding"
+    ],
+    "validated": [
+      "@learned",
+      "@binding",
+      "@evidence",
+      "@route"
+    ],
+    "autonomous": [
+      "@learned",
+      "@binding",
+      "@evidence",
+      "@policy",
+      "@route"
+    ]
+  },
+  "required_core_keys": [
+    "@fold",
+    "@phase",
+    "@semantic",
+    "@state"
+  ],
+  "allowed_route_targets": [
+    "local",
+    "local-test",
+    "fallback"
+  ],
+  "allowed_evidence_inputs": [
+    "observations",
+    "support",
+    "exceptions",
+    "validated",
+    "failures"
+  ],
+  "semantic_tags_by_phase": {
+    "Pop": [
+      "XCFE:PERCEIVE",
+      "XCFE:READ"
+    ],
+    "Wo": [
+      "XCFE:GUARD",
+      "XCFE:CONSTRAIN"
+    ],
+    "Yax": [
+      "XCFE:BRANCH",
+      "XCFE:CANDIDATE"
+    ],
+    "Sek": [
+      "XCFE:INFER",
+      "XCFE:OPERATE",
+      "XCFE:DISPATCH"
+    ],
+    "Ch'en": [
+      "XCFE:OBSERVE",
+      "XCFE:VERIFY"
+    ],
+    "Xul": [
+      "XCFE:COLLAPSE",
+      "XCFE:COMMIT"
+    ]
+  },
+  "invariants": {
+    "I1": "evidence.observations = evidence.support + evidence.exceptions",
+    "I2": "evidence.validated >= evidence.failures",
+    "I3": "weights.alpha + weights.beta + weights.gamma + weights.delta = 1",
+    "I4": "thresholds.fallback <= thresholds.autonomy",
+    "I5": "evidence.confidence in [0, 1]",
+    "S1": "state in {learned,bound,validated,autonomous} implies learned != null",
+    "S2": "state in {bound,validated,autonomous} implies binding != null",
+    "S3": "state in {validated,autonomous} implies evidence != null",
+    "S4": "state = autonomous implies policy != null",
+    "S5": "state in {validated,autonomous} implies route != null",
+    "A1": "route != null implies route.authority = XCFE",
+    "A2": "evidence.confidence = Gamma_policy(evidence)",
+    "A3": "state = XCFE(previous_state,event,evidence,policy)",
+    "P1": "phase in phase_cycle implies fold in compatible_folds(phase)",
+    "P2": "semantic in semantic_tags(phase)"
+  },
+  "confidence_policy": {
+    "@type": "khanary.xcfe.confidence_gamma.v1",
+    "formula": "alpha*support_rate + beta*validation_rate + gamma*non_exception_rate + delta*non_failure_rate",
+    "support_rate": "support / observations",
+    "validation_rate": "(validated - failures) / validated",
+    "non_exception_rate": "support / observations",
+    "non_failure_rate": "(validated - failures) / validated",
+    "zero_denominator": 0.0,
+    "tolerance": 1e-6
+  },
+  "lifecycle": [
+    {
+      "state": "unbound",
+      "meaning": "core fold/phase/semantic identity exists without learned evidence"
+    },
+    {
+      "state": "observed",
+      "meaning": "N-Gram Burner has observed candidate evidence but no required learned projection"
+    },
+    {
+      "state": "learned",
+      "meaning": "@learned is present"
+    },
+    {
+      "state": "bound",
+      "meaning": "@binding is present and checkable"
+    },
+    {
+      "state": "validated",
+      "meaning": "@evidence and XCFE route are present"
+    },
+    {
+      "state": "autonomous",
+      "meaning": "@policy and XCFE route authorize autonomous selection"
+    }
+  ]
+}
