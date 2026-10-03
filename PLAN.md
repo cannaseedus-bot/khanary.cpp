@@ -152,7 +152,7 @@ Invariant: **Executor implements contract; contract does not implement executor.
 | GAP-082 | COVERAGE | Open | WGSL lane validates emitted shape, not browser/native WGSL compilation or numerical behavior. | `src/tests/test_wgsl_codegen.cpp`, `docs/CONFORMANCE.md` |
 | GAP-083 | COVERAGE | Open | DirectML availability/fallback is compile-time configured but not reported as a conformance lane with explicit PASS/SKIP/UNAVAILABLE semantics. | `CMakeLists.txt`, `src/gpu/dml_ops.cpp` |
 | GAP-090 | OPERABILITY | Open | Canonical language/docs plan is still broader than implemented runtime truth; active/legacy/experimental tags need continuous enforcement. | `README.md`, `docs/`, old PLAN content |
-| GAP-091 | AUTHORITY | Open | The frozen semantic core is documented, but executor request/result envelopes are not yet schema-backed or phase-gated in runtime. | `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `src/io/request_router.cpp`, `src/micronaut/*` |
+| GAP-091 | AUTHORITY | Open | The frozen semantic core and Fold Binding Grammar are documented, but executor request/result envelopes are not yet schema-backed or phase-gated in runtime. | `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `kuhul-grammar-kit/docs/FOLD_BINDING.md`, `src/io/request_router.cpp`, `src/micronaut/*` |
 
 ---
 
@@ -370,10 +370,10 @@ Invariant: **Executor implements contract; contract does not implement executor.
   - Work: every externally addressable track declares schemes, verbs, key patterns/templates/grammar, capabilities, and authority boundary.
   - Validate: repository-wide track contract validator fails on missing/ambiguous route surfaces.
 
-- [ ] **T3.16 / GAP-091 — Schema-back the heterogeneous executor envelope.**
-  - Files: `data/schema/executor-contract.schema.json`, `src/io/request_router.*`, `src/micronaut/*`, `src/decision/*`, conformance fixtures
-  - Work: define `EXECUTOR_REQUEST` / `EXECUTOR_RESULT` with phase, fold, input, context, policy, capabilities, optional representation, output, evidence, confidence, status, and diagnostics. Let tracks/micronauts declare `realizes` capabilities such as `Yax.candidate`, `Sek.COMPARE`, or `Ch'en.observation` without making any executor the semantic law.
-  - Validate: deterministic and model-backed executors satisfy the same phase contract; missing capability returns typed `MISS_capability`; no executor can bypass Ch'en/Xul; changing executor does not alter the K'UHUL program identity.
+- [ ] **T3.16 / GAP-091 — Schema-back the Fold Binding and executor envelope.**
+  - Files: `data/schema/fold-binding.schema.json`, `data/schema/executor-contract.schema.json`, `src/io/request_router.*`, `src/micronaut/*`, `src/decision/*`, conformance fixtures
+  - Work: implement the documented Fold Binding record (`@fold`, `@phase`, `@semantic`, `@backend`, `@entry`, `@dispatch`, `@contract`, `@resources`, `@fallback`) and the `EXECUTOR_REQUEST` / `EXECUTOR_RESULT` envelope. Let tracks/micronauts declare `realizes` capabilities such as `Yax.candidate`, `Sek.COMPARE`, or `Ch'en.observation` without making any executor the semantic law.
+  - Validate: registry resolves `(fold, phase, backend) -> binding`; invalid bindings fail V1–V7; missing capability returns typed `MISS_capability`; fallback bindings stay contract-bound; deterministic and model-backed executors satisfy the same phase contract; no executor can bypass Ch'en/Xul.
 
 ### Phase 4 — Semantic Attention, GPU Geometry, and Lorentz Execution Hardening
 **Goal:** GPU geometry becomes a verified execution surface, not an advisory black box.
