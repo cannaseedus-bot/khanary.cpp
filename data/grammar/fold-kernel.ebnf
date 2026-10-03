@@ -95,34 +95,9 @@ FailuresKey     ::= '"@failures"'     ":" Integer ;
 ConfidenceKey   ::= '"@confidence"'   ":" Number ;
 EvidenceExtKey  ::= '"@"' Identifier ":" Value ;
 
-Policy          ::= "{" PolicyMember ( "," PolicyMember )* "}" ;
-PolicyMember    ::= RefKey
-                  | EvidenceInputsKey
-                  | DeriveKey
-                  | WeightsKey
-                  | ThresholdsKey
-                  | RoutesKey
-                  | PolicyExtKey ;
-RefKey          ::= '"@ref"' ":" String ;
-EvidenceInputsKey ::= '"@inputs"' ":" Array ;
-DeriveKey       ::= '"@derive"' ":" Object ;
-WeightsKey      ::= '"@weights"' ":" Weights ;
-ThresholdsKey   ::= '"@thresholds"' ":" Thresholds ;
-RoutesKey       ::= '"@routes"' ":" Routes ;
-PolicyExtKey    ::= '"@"' Identifier ":" Value ;
-
-Weights         ::= "{" WeightsMember ( "," WeightsMember )* "}" ;
-WeightsMember   ::= AlphaKey | BetaKey | GammaKey | DeltaKey ;
-AlphaKey        ::= '"@alpha"' ":" Number ;
-BetaKey         ::= '"@beta"'  ":" Number ;
-GammaKey        ::= '"@gamma"' ":" Number ;
-DeltaKey        ::= '"@delta"' ":" Number ;
-
-Thresholds      ::= "{" ThresholdsMember ( "," ThresholdsMember )* "}" ;
-ThresholdsMember ::= AutonomyKey | FallbackKey | FailureLimitKey ;
-AutonomyKey     ::= '"@autonomy"'      ":" Number ;
-FallbackKey     ::= '"@fallback"'      ":" Number ;
-FailureLimitKey ::= '"@failure_limit"' ":" Integer ;
+Policy          ::= XCFEPolicy ;
+XCFEPolicy      ::= ? see data/grammar/xcfe-policy.ebnf ;
+(* @policy is data. XCFE is the evaluator. Policy != Control != Execution. *)
 
 Routes          ::= "{" RoutesMember ( "," RoutesMember )* "}" ;
 RoutesMember    ::= AutonomousRouteKey | ValidatedRouteKey | DefaultRouteKey ;
@@ -192,12 +167,8 @@ EvidenceADT     ::= "<" "observations" ":" Nat ","
                          "validated" ":" Nat ","
                          "failures" ":" Nat ">" ;
 
-PolicyADT       ::= "<" "ref" ":" PolicyRef ","
-                         "inputs" ":" "[" EvidenceField* "]" ","
-                         "derive" ":" ScoringFunction ","
-                         "weights" ":" Weights ","
-                         "thresholds" ":" Thresholds ","
-                         "routes" ":" RouteTable ">" ;
+PolicyADT       ::= XCFEPolicyADT ;
+XCFEPolicyADT   ::= ? see data/grammar/xcfe-policy.ebnf abstract grammar ;
 
 RouteADT        ::= "<" "authority" ":" "XCFE" ","
                          "target" ":" RouteTarget ","
@@ -218,8 +189,8 @@ OptionalUI       ::= UI | Null ;
 
 I1 ::= evidence.observations = evidence.support + evidence.exceptions ;
 I2 ::= evidence.validated >= evidence.failures ;
-I3 ::= weights.alpha + weights.beta + weights.gamma + weights.delta = 1 ;
-I4 ::= thresholds.fallback <= thresholds.autonomy ;
+I3 ::= XCFEPolicy.W1 weight normalization ;
+I4 ::= XCFEPolicy.W3 threshold ordering ;
 I5 ::= evidence.confidence in [0, 1] ;
 
 S1 ::= state in { learned, bound, validated, autonomous } implies learned != null ;
@@ -229,7 +200,7 @@ S4 ::= state = autonomous implies policy != null ;
 S5 ::= state in { validated, autonomous } implies route != null ;
 
 A1 ::= route != null implies route.authority = "XCFE" ;
-A2 ::= evidence.confidence = Gamma_policy(evidence) ;
+A2 ::= evidence.confidence = XCFEPolicy(evidence) ;
 A3 ::= state = XCFE(previous_state, event, evidence, policy) ;
 
 P1 ::= phase in phase_cycle implies fold in compatible_folds(phase) ;

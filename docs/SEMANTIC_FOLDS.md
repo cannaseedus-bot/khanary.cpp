@@ -113,6 +113,17 @@ The grammar is `data/grammar/fold-kernel.ebnf`, the semantic contract is
 `data/grammar/fold-kernel.contracts.json`, and the conformance gate is
 `tools/check_fold_kernel.py`.
 
+## XCFE Policy grammar
+
+An **XCFE Policy** is the control grammar used by autonomous Fold Kernel records. A policy is data, and XCFE is the evaluator. The policy induces:
+
+```
+Pi(Evidence, State, Event) -> (State, Route)
+Policy != Control != Execution
+```
+
+The policy layer consumes Observation System evidence, computes confidence through a total arithmetic expression, applies thresholds and guards, and returns the next lifecycle state plus route. It never executes the backend binding and never stores Fold Kernel state. The standalone grammar is `data/grammar/xcfe-policy.ebnf`, the contract is `data/grammar/xcfe-policy.contracts.json`, and the conformance gate is `tools/check_xcfe_policy.py`.
+
 ## Convergent definition
 
 ```

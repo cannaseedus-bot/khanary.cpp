@@ -8,7 +8,7 @@
     "learned": "N-Gram Burner",
     "binding": "Binding Resolver",
     "evidence": "Observation System",
-    "policy": "Policy Registry",
+    "policy": "XCFE Policy Registry",
     "route": "XCFE",
     "ui": "Projection/UI"
   },
@@ -100,8 +100,8 @@
   "invariants": {
     "I1": "evidence.observations = evidence.support + evidence.exceptions",
     "I2": "evidence.validated >= evidence.failures",
-    "I3": "weights.alpha + weights.beta + weights.gamma + weights.delta = 1",
-    "I4": "thresholds.fallback <= thresholds.autonomy",
+    "I3": "XCFE Policy W1: alpha + beta + gamma + delta = 1",
+    "I4": "XCFE Policy W3: thresholds.fallback <= thresholds.autonomy",
     "I5": "evidence.confidence in [0, 1]",
     "S1": "state in {learned,bound,validated,autonomous} implies learned != null",
     "S2": "state in {bound,validated,autonomous} implies binding != null",
@@ -109,20 +109,16 @@
     "S4": "state = autonomous implies policy != null",
     "S5": "state in {validated,autonomous} implies route != null",
     "A1": "route != null implies route.authority = XCFE",
-    "A2": "evidence.confidence = Gamma_policy(evidence)",
+    "A2": "evidence.confidence = XCFEPolicy(evidence)",
     "A3": "state = XCFE(previous_state,event,evidence,policy)",
     "P1": "phase in phase_cycle implies fold in compatible_folds(phase)",
     "P2": "semantic in semantic_tags(phase)"
   },
   "confidence_policy": {
-    "@type": "khanary.xcfe.confidence_gamma.v1",
-    "formula": "alpha*support_rate + beta*validation_rate + gamma*non_exception_rate + delta*non_failure_rate",
-    "support_rate": "support / observations",
-    "validation_rate": "(validated - failures) / validated",
-    "non_exception_rate": "support / observations",
-    "non_failure_rate": "(validated - failures) / validated",
-    "zero_denominator": 0.0,
-    "tolerance": 1e-6
+    "@type": "khanary.xcfe_policy_confidence.v1",
+    "source": "data/grammar/xcfe-policy.contracts.json",
+    "formula": "policy.@evidence.@derive.@confidence or xcfe default_derive",
+    "tolerance": 1e-06
   },
   "lifecycle": [
     {
@@ -149,5 +145,6 @@
       "state": "autonomous",
       "meaning": "@policy and XCFE route authorize autonomous selection"
     }
-  ]
+  ],
+  "policy_contract": "data/grammar/xcfe-policy.contracts.json"
 }

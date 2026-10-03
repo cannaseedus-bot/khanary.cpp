@@ -88,6 +88,17 @@ XCFE owns the route; `@ui` is non-normative. The grammar is
 `data/grammar/fold-kernel.contracts.json`, and validation is performed by
 `tools/check_fold_kernel.py`.
 
+## XCFE Policy
+
+An **XCFE Policy** is the declarative control object for Fold Kernel lifecycle movement. A policy is data; XCFE is the evaluator. The policy declares evidence inputs, a total confidence expression, thresholds, routes, and optional guards. It does not execute folds, store state, or create semantic truth.
+
+```
+Pi(Evidence, State, Event) -> (State, Route)
+Policy != Control != Execution
+```
+
+The grammar is `data/grammar/xcfe-policy.ebnf`, the machine contract is `data/grammar/xcfe-policy.contracts.json`, fixtures live in `data/conformance/xcfe_policy.json`, and validation is performed by `tools/check_xcfe_policy.py`. Fold Kernel `@policy` fields point at this XCFE-owned grammar instead of defining an inline policy subset.
+
 ## Terms
 
 ### Fold — structure plus interpretation (not a tuple)

@@ -155,29 +155,31 @@
           "@exceptions": 2,
           "@validated": 5,
           "@failures": 1,
-          "@confidence": 0.8
+          "@confidence": 0.8166665561111307
         },
         "@policy": {
-          "@ref": "urn:khanary:policy:fold-kernel:autonomy:v1",
-          "@inputs": [
-            "support",
-            "exceptions",
-            "validated",
-            "failures"
-          ],
-          "@derive": {
-            "@function": "Gamma_policy"
+          "@ref": "xcfe://fold-kernel/autonomy@1.0.0",
+          "@evidence": {
+            "@inputs": [
+              "observations",
+              "support",
+              "exceptions",
+              "validated",
+              "failures"
+            ]
           },
           "@weights": {
-            "@alpha": 0.4,
-            "@beta": 0.3,
-            "@gamma": 0.2,
-            "@delta": 0.1
+            "@alpha": 0.5,
+            "@beta": 0.5,
+            "@gamma": 0.0,
+            "@delta": 0.0,
+            "@epsilon": 1e-06
           },
           "@thresholds": {
             "@autonomy": 0.75,
             "@fallback": 0.45,
-            "@failure_limit": 2
+            "@failure_limit": 2,
+            "@hysteresis": 0.02
           },
           "@routes": {
             "@autonomous": "local",
@@ -537,17 +539,33 @@
           "@confidence": 0.5
         },
         "@policy": {
-          "@ref": "urn:khanary:policy:fold-kernel:autonomy:v1",
+          "@ref": "xcfe://fold-kernel/autonomy@1.0.0",
+          "@evidence": {
+            "@inputs": [
+              "observations",
+              "support",
+              "exceptions",
+              "validated",
+              "failures"
+            ]
+          },
           "@weights": {
-            "@alpha": 0.4,
-            "@beta": 0.3,
-            "@gamma": 0.2,
-            "@delta": 0.1
+            "@alpha": 0.5,
+            "@beta": 0.5,
+            "@gamma": 0.0,
+            "@delta": 0.0,
+            "@epsilon": 1e-06
           },
           "@thresholds": {
             "@autonomy": 0.75,
             "@fallback": 0.45,
-            "@failure_limit": 2
+            "@failure_limit": 2,
+            "@hysteresis": 0.02
+          },
+          "@routes": {
+            "@autonomous": "local",
+            "@validated": "local-test",
+            "@default": "fallback"
           }
         },
         "@route": {
@@ -559,7 +577,7 @@
     {
       "id": "policy_weights_not_normalized",
       "expect": "FAIL",
-      "error": "POLICY_WEIGHTS_NOT_NORMALIZED",
+      "error": "WEIGHTS_NOT_NORMALIZED",
       "record": {
         "@fold": "reasoning",
         "@phase": "Xul",
@@ -588,17 +606,33 @@
           "@failures": 0
         },
         "@policy": {
-          "@ref": "urn:khanary:policy:fold-kernel:autonomy:v1",
+          "@ref": "xcfe://fold-kernel/autonomy@1.0.0",
+          "@evidence": {
+            "@inputs": [
+              "observations",
+              "support",
+              "exceptions",
+              "validated",
+              "failures"
+            ]
+          },
           "@weights": {
             "@alpha": 0.7,
             "@beta": 0.3,
             "@gamma": 0.2,
-            "@delta": 0.1
+            "@delta": 0.1,
+            "@epsilon": 1e-06
           },
           "@thresholds": {
             "@autonomy": 0.75,
             "@fallback": 0.45,
-            "@failure_limit": 2
+            "@failure_limit": 2,
+            "@hysteresis": 0.02
+          },
+          "@routes": {
+            "@autonomous": "local",
+            "@validated": "local-test",
+            "@default": "fallback"
           }
         },
         "@route": {
@@ -610,7 +644,7 @@
     {
       "id": "policy_threshold_order_invalid",
       "expect": "FAIL",
-      "error": "POLICY_THRESHOLD_ORDER",
+      "error": "THRESHOLD_ORDER",
       "record": {
         "@fold": "reasoning",
         "@phase": "Xul",
@@ -639,17 +673,33 @@
           "@failures": 0
         },
         "@policy": {
-          "@ref": "urn:khanary:policy:fold-kernel:autonomy:v1",
+          "@ref": "xcfe://fold-kernel/autonomy@1.0.0",
+          "@evidence": {
+            "@inputs": [
+              "observations",
+              "support",
+              "exceptions",
+              "validated",
+              "failures"
+            ]
+          },
           "@weights": {
-            "@alpha": 0.25,
-            "@beta": 0.25,
-            "@gamma": 0.25,
-            "@delta": 0.25
+            "@alpha": 0.5,
+            "@beta": 0.5,
+            "@gamma": 0.0,
+            "@delta": 0.0,
+            "@epsilon": 1e-06
           },
           "@thresholds": {
             "@autonomy": 0.4,
             "@fallback": 0.5,
-            "@failure_limit": 2
+            "@failure_limit": 2,
+            "@hysteresis": 0.02
+          },
+          "@routes": {
+            "@autonomous": "local",
+            "@validated": "local-test",
+            "@default": "fallback"
           }
         },
         "@route": {

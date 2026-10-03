@@ -317,6 +317,10 @@ if(Python3_Interpreter_FOUND)
     # per-phase Hoare contracts before they can execute as projections.
     add_test(NAME KHANARY_FOLD_BINDING_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_bindings.py")
+    # XCFE Policy grammar: policy is declarative data; XCFE evaluates
+    # Pi(Evidence, State, Event) into the next state and route.
+    add_test(NAME KHANARY_XCFE_POLICY_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_xcfe_policy.py")
     # Fold Kernel lifecycle: state-dependent JSON kernel records grow from
     # learned n-grams through binding/evidence/policy into XCFE-owned routes.
     add_test(NAME KHANARY_FOLD_KERNEL_TEST

@@ -61,11 +61,15 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `data/grammar/kuhul.runtime-grammar.ebnf` | Canonical runtime grammar surface; mirrors the v8 event/CSO/contraction constructs while preserving the full phase/fold/XCFE contract |
 | `data/grammar/fold-bindings.contracts.json` | Fold Binding registry: `(α, θ, backend, entrypoint, contract)` records that bind K'UHUL semantic folds/phases to backend executors without transferring semantic authority |
 | `data/grammar/fold-kernel.ebnf` | Fold Kernel concrete/abstract grammar: state-dependent JSON lifecycle records for learned folds |
-| `data/grammar/fold-kernel.contracts.json` | Machine-readable Fold Kernel lifecycle contract: state requirements, evidence invariants, policy normalization, and XCFE route authority |
+| `data/grammar/fold-kernel.contracts.json` | Machine-readable Fold Kernel lifecycle contract: state requirements, evidence invariants, XCFE policy linkage, and XCFE route authority |
+| `data/grammar/xcfe-policy.ebnf` | XCFE Policy grammar: policy is data; XCFE is the evaluator for `Pi(Evidence, State, Event) -> (State, Route)` and `Policy != Control != Execution` |
+| `data/grammar/xcfe-policy.contracts.json` | Machine-readable XCFE Policy contract: evidence fields, total confidence expression language, weight/threshold invariants, routes, guards, and transition cases |
 | `data/conformance/fold_kernel.json` | Positive/negative Fold Kernel fixtures covering unbound→autonomous progression and invalid evidence/policy/route/binding cases |
+| `data/conformance/xcfe_policy.json` | Positive/negative XCFE Policy fixtures covering default scoring, explicit derive expressions, guards, route transitions, and malformed policies |
 | `tools/check_kuhul_grammar.py` | Conformance checker for standalone/runtime grammar drift and the fold namespace boundary |
 | `tools/check_fold_bindings.py` | Conformance checker for Fold Binding phase contracts, HLSL entrypoints, dispatch shape, and the law `K_θ^backend ⊨ Contract(α_θ)` |
 | `tools/check_fold_kernel.py` | Conformance checker for Fold Kernel lifecycle records; verifies state-dependent field growth, XCFE confidence derivation, and binding-registry compatibility |
+| `tools/check_xcfe_policy.py` | Conformance checker for XCFE Policy records; validates total expression parsing, policy invariants, guard typing, and lifecycle transition output |
 | `docs/SEMANTIC_FOLDS.md` | Declares that K'UHUL semantic folds are algebraic/catamorphic folds; KLSL/KXC/KHLC folds are backend/compiler lowering folds unless explicitly bound to the semantic contract |
 
 ### KLSL Compiler

@@ -8,10 +8,14 @@ import re
 from pathlib import Path
 from typing import Any
 
+from check_xcfe_policy import evaluate_confidence as evaluate_xcfe_confidence
+from check_xcfe_policy import validate_policy_record
+
 ROOT = Path(__file__).resolve().parents[1]
 GRAMMAR = ROOT / "data/grammar/fold-kernel.ebnf"
 CONTRACTS = ROOT / "data/grammar/fold-kernel.contracts.json"
 BINDINGS = ROOT / "data/grammar/fold-bindings.contracts.json"
+XCFE_POLICY_CONTRACTS = ROOT / "data/grammar/xcfe-policy.contracts.json"
 FIXTURES = ROOT / "data/conformance/fold_kernel.json"
 GLOSSARY = ROOT / "docs/GLOSSARY.md"
 SEMANTIC_FOLDS = ROOT / "docs/SEMANTIC_FOLDS.md"
@@ -33,11 +37,7 @@ ROOT_KEYS = {
 LEARNED_KEYS = {"@pattern", "@ngrams", "@signature"}
 BINDING_KEYS = {"@backend", "@entry", "@dispatch", "@contract"}
 EVIDENCE_KEYS = {"@observations", "@support", "@exceptions", "@validated", "@failures", "@confidence"}
-POLICY_KEYS = {"@ref", "@inputs", "@derive", "@weights", "@thresholds", "@routes"}
-WEIGHT_KEYS = {"@alpha", "@beta", "@gamma", "@delta"}
-THRESHOLD_KEYS = {"@autonomy", "@fallback", "@failure_limit"}
 ROUTE_KEYS = {"@authority", "@target", "@executor", "@reason"}
-ROUTES_KEYS = {"@autonomous", "@validated", "@default"}
 UI_KEYS = {"@display", "@color", "@icon"}
 
 AT_KEY_RE = re.compile(r"^@[A-Za-z][A-Za-z0-9_]*$")
@@ -51,10 +51,10 @@ GRAMMAR_TOKENS = [
     "Fold Binding binds (alpha, theta) to a backend entrypoint",
     "State           ::= '\"unbound\"'",
     "Evidence        ::= \"{\" EvidenceMember",
-    "Policy          ::= \"{\" PolicyMember",
+    "Policy          ::= XCFEPolicy",
     "I1 ::= evidence.observations = evidence.support + evidence.exceptions",
     "S5 ::= state in { validated, autonomous } implies route != null",
-    "A2 ::= evidence.confidence = Gamma_policy(evidence)",
+    "A2 ::= evidence.confidence = XCFEPolicy(evidence)",
     "TypeJudgment ::= \"⊢\" FoldKernelADT \":\" \"FoldKernel\"",
 ]
 
@@ -185,71 +185,19 @@ def validate_evidence(value: Any) -> str:
     return ""
 
 
-def validate_weights(value: Any) -> str:
-    if not is_object(value):
-        return "INVALID_POLICY_WEIGHTS"
-    if set(value.keys()) != WEIGHT_KEYS:
-        return "INVALID_POLICY_WEIGHTS"
-    for key in WEIGHT_KEYS:
-        if not is_probability(value.get(key)):
-            return "INVALID_POLICY_WEIGHTS"
-    total = sum(float(value[key]) for key in WEIGHT_KEYS)
-    if abs(total - 1.0) > 1e-6:
-        return "POLICY_WEIGHTS_NOT_NORMALIZED"
-    return ""
 
-
-def validate_thresholds(value: Any) -> str:
-    if not is_object(value):
-        return "INVALID_POLICY_THRESHOLDS"
-    if set(value.keys()) != THRESHOLD_KEYS:
-        return "INVALID_POLICY_THRESHOLDS"
-    if not is_probability(value.get("@autonomy")) or not is_probability(value.get("@fallback")):
-        return "INVALID_POLICY_THRESHOLDS"
-    if not is_nonnegative_int(value.get("@failure_limit")):
-        return "INVALID_POLICY_THRESHOLDS"
-    if float(value["@fallback"]) > float(value["@autonomy"]):
-        return "POLICY_THRESHOLD_ORDER"
-    return ""
-
+def policy_evidence_from_fold(evidence: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "observations": evidence.get("@observations", 0),
+        "support": evidence.get("@support", 0),
+        "exceptions": evidence.get("@exceptions", 0),
+        "validated": evidence.get("@validated", 0),
+        "failures": evidence.get("@failures", 0),
+    }
 
 def validate_route_target(value: Any, allowed_targets: list[str]) -> str:
     if value not in allowed_targets:
         return "INVALID_ROUTE_TARGET"
-    return ""
-
-
-def validate_policy(value: Any, contracts: dict[str, Any]) -> str:
-    if not is_object(value):
-        return "INVALID_POLICY"
-    if not has_only_at_extension_keys(value, POLICY_KEYS):
-        return "INVALID_MEMBER_KEY"
-    if not is_string(value.get("@ref")):
-        return "INVALID_POLICY_REF"
-    if "@inputs" in value:
-        allowed_inputs = set(contracts.get("allowed_evidence_inputs", []))
-        inputs = value["@inputs"]
-        if not isinstance(inputs, list) or not all(item in allowed_inputs for item in inputs):
-            return "INVALID_POLICY_INPUT"
-    if "@derive" in value and not is_object(value["@derive"]):
-        return "INVALID_POLICY_DERIVE"
-    weights_error = validate_weights(value.get("@weights"))
-    if weights_error:
-        return weights_error
-    thresholds_error = validate_thresholds(value.get("@thresholds"))
-    if thresholds_error:
-        return thresholds_error
-    if "@routes" in value:
-        routes = value["@routes"]
-        if not is_object(routes):
-            return "INVALID_POLICY_ROUTES"
-        if not set(routes.keys()).issubset(ROUTES_KEYS):
-            return "INVALID_POLICY_ROUTES"
-        allowed_targets = contracts.get("allowed_route_targets", [])
-        for target in routes.values():
-            route_error = validate_route_target(target, allowed_targets)
-            if route_error:
-                return route_error
     return ""
 
 
@@ -328,7 +276,7 @@ def matches_binding_registry(record: dict[str, Any], binding_registry: dict[str,
     return False
 
 
-def validate_record(record: Any, contracts: dict[str, Any], binding_registry: dict[str, Any]) -> str:
+def validate_record(record: Any, contracts: dict[str, Any], binding_registry: dict[str, Any], policy_contracts: dict[str, Any]) -> str:
     if not is_object(record):
         return "RECORD_NOT_OBJECT"
     if not has_only_at_extension_keys(record, ROOT_KEYS):
@@ -377,7 +325,7 @@ def validate_record(record: Any, contracts: dict[str, Any], binding_registry: di
         if error:
             return error
     if "@policy" in record and record["@policy"] is not None:
-        error = validate_policy(record["@policy"], contracts)
+        error = validate_policy_record(record["@policy"], policy_contracts)
         if error:
             return error
     if "@route" in record and record["@route"] is not None:
@@ -394,12 +342,12 @@ def validate_record(record: Any, contracts: dict[str, Any], binding_registry: di
     if is_object(evidence) and "@confidence" in evidence:
         if not is_object(policy):
             return "CONFIDENCE_REQUIRES_POLICY"
-        confidence_policy = contracts.get("confidence_policy", {})
-        expected = gamma_confidence(
-            evidence,
+        expected = evaluate_xcfe_confidence(
             policy,
-            float(confidence_policy.get("zero_denominator", 0.0)),
+            policy_evidence_from_fold(evidence),
+            policy_contracts,
         )
+        confidence_policy = contracts.get("confidence_policy", {})
         tolerance = float(confidence_policy.get("tolerance", 1e-6))
         if abs(float(evidence["@confidence"]) - expected) > tolerance:
             return "CONFIDENCE_DERIVATION_MISMATCH"
@@ -410,6 +358,7 @@ def validate_record(record: Any, contracts: dict[str, Any], binding_registry: di
 def main() -> int:
     contracts = load_json(CONTRACTS) if CONTRACTS.exists() else {}
     binding_registry = load_json(BINDINGS) if BINDINGS.exists() else {}
+    policy_contracts = load_json(XCFE_POLICY_CONTRACTS) if XCFE_POLICY_CONTRACTS.exists() else {}
     fixtures = load_json(FIXTURES) if FIXTURES.exists() else {}
     grammar = read(GRAMMAR)
     docs = "\n".join(read(path) for path in (GLOSSARY, SEMANTIC_FOLDS, SPEC))
@@ -422,6 +371,8 @@ def main() -> int:
     check("contracts_file_present", CONTRACTS.exists())
     check("fixtures_file_present", FIXTURES.exists())
     check("binding_registry_file_present", BINDINGS.exists())
+    check("xcfe_policy_contracts_file_present", XCFE_POLICY_CONTRACTS.exists())
+    check("xcfe_policy_contracts_type", policy_contracts.get("@type") == "khanary.xcfe_policy_contracts.v1")
     check("contracts_type", contracts.get("@type") == "khanary.fold_kernel_contracts.v1")
     check("semantic_authority_false", contracts.get("semantic_authority") is False)
     check("authority_boundary", "not_semantic_authority" in str(contracts.get("authority", "")))
@@ -466,7 +417,7 @@ def main() -> int:
             continue
         case_id = str(case.get("id", "unnamed"))
         expected = case.get("expect")
-        error = validate_record(case.get("record"), contracts, binding_registry)
+        error = validate_record(case.get("record"), contracts, binding_registry, policy_contracts)
         actual = "PASS" if not error else "FAIL"
         if actual == "PASS":
             pass_seen += 1
