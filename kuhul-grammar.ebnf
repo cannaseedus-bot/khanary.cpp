@@ -5,9 +5,11 @@
 (* Fold namespace boundary: K'UHUL semantic folds are algebraic             *)
 (* interpretation/catamorphism folds. KLSL/KXC/KHLC folds are backend       *)
 (* lowering/projection folds unless explicitly preserving that contract.     *)
+(* Fold bindings are the contract-carrying links from semantic folds/phases  *)
+(* to backend executors: Fold -> Binding -> KXC -> backend -> hardware.      *)
 (* ======================================================================= *)
 
-program         = { statement | bundle_decl | manifold_decl | universe_decl | cso_decl } ;
+program         = { statement | bundle_decl | manifold_decl | universe_decl | cso_decl | fold_binding_decl } ;
 
 (* ── Tensor Bundle & Geodesic Manifold Declarations ───────────────────── *)
 bundle_decl     = "bundle" identifier "over" identifier "{" { bundle_section } "}" ;
@@ -61,10 +63,33 @@ cso_decl        = "cso" identifier [ "id" ":" cso_hash_id ] "{"
 
 cdata_block     = "<![CDATA[" , hlsl_kernel_source , "]]>" ;
 
+(* ── Fold Binding Contracts ────────────────────────────────────────────── *)
+(* K'UHUL owns alpha and theta. Backends provide entrypoints only when their
+   contract satisfies the semantic phase contract:
+   Bind_backend(alpha_theta) = K_theta^backend
+   Valid iff K_theta^backend models Contract(alpha_theta). *)
+fold_binding_decl = "bind" "fold" identifier "phase" phase_expression
+                    "to" backend_type "entry" identifier "{"
+                      { fold_binding_section }
+                    "}" ;
+
+fold_binding_section = "semantic" ":" string
+                     | "dispatch" ":" dispatch_shape
+                     | "contract" ":" hoare_contract ;
+
+backend_type    = "hlsl" | "cuda" | "cpp" | "scxq2" | "wgsl" | "cpu" | "kxc" | "khlc" ;
+dispatch_shape  = "[" integer "," integer "," integer "]" ;
+hoare_contract  = "{"
+                    "pre" ":" contract_predicate ","
+                    "post" ":" contract_predicate
+                  "}" ;
+contract_predicate = string | identifier ;
+
 (* ── Core Statement Architecture ──────────────────────────────────────── *)
 statement       = universe_decl | funcDecl | typeDecl | varDecl | ifStmt |
                   whileStmt | forStmt | returnStmt | exprStmt |
-                  phaseDecl | bundle_decl | manifold_decl | cso_decl | event_decl ;
+                  phaseDecl | bundle_decl | manifold_decl | cso_decl | event_decl |
+                  fold_binding_decl ;
 
 funcDecl        = "func" identifier "(" [ parameters ] ")" [ "->" type ] [ block ] ;
 typeDecl        = "type" identifier "=" type ;

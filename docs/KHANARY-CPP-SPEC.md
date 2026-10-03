@@ -59,7 +59,9 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 |---|---|
 | `kuhul-grammar.ebnf` | K'UHUL v8 standalone grammar: tensor bundles, Minkowski/hyperbolic events, Einstein contraction, holographic mesh boundaries, and CSO/CDATA kernel dispatch |
 | `data/grammar/kuhul.runtime-grammar.ebnf` | Canonical runtime grammar surface; mirrors the v8 event/CSO/contraction constructs while preserving the full phase/fold/XCFE contract |
+| `data/grammar/fold-bindings.contracts.json` | Fold Binding registry: `(α, θ, backend, entrypoint, contract)` records that bind K'UHUL semantic folds/phases to backend executors without transferring semantic authority |
 | `tools/check_kuhul_grammar.py` | Conformance checker for standalone/runtime grammar drift and the fold namespace boundary |
+| `tools/check_fold_bindings.py` | Conformance checker for Fold Binding phase contracts, HLSL entrypoints, dispatch shape, and the law `K_θ^backend ⊨ Contract(α_θ)` |
 | `docs/SEMANTIC_FOLDS.md` | Declares that K'UHUL semantic folds are algebraic/catamorphic folds; KLSL/KXC/KHLC folds are backend/compiler lowering folds unless explicitly bound to the semantic contract |
 
 ### KLSL Compiler

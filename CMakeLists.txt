@@ -313,6 +313,10 @@ if(Python3_Interpreter_FOUND)
     # CSO/CDATA dispatch, Einstein contraction, and semantic-vs-backend fold namespaces.
     add_test(NAME KHANARY_KUHUL_GRAMMAR_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_kuhul_grammar.py")
+    # Fold Binding layer: K'UHUL owns alpha/theta; backend entries must satisfy
+    # per-phase Hoare contracts before they can execute as projections.
+    add_test(NAME KHANARY_FOLD_BINDING_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_bindings.py")
     # The capability-gap artifact must stay current with the operator table and
     # the tracks' declared capabilities.
     add_test(NAME KHANARY_CAPABILITY_GAP_TEST

@@ -61,6 +61,7 @@ program
         bundle_definition*
         event_definition*
         cso_definition*
+        fold_binding_definition*
         fold_definition*
         micronaut_definition*
         semantic_cycle
@@ -306,6 +307,75 @@ cso_hash_id
 
 hlsl_kernel_source
     ::= ? raw unescaped HLSL/DirectCompute shader source code text ?
+    ;
+
+
+(* ================================================================
+   4C. FOLD BINDING CONTRACTS
+
+   Fold Binding = (alpha, theta, backend, entrypoint, contract).
+   K'UHUL owns alpha and theta. The backend owns the entrypoint.
+   The binding is a contract-carrying link, not an identity:
+
+       Fold -> Phase Binding -> Backend Binding -> Executor
+       K'UHUL Fold -> Fold Binding -> KXC -> HLSL -> GPU
+
+   Bind_backend(alpha_theta) = K_theta^backend.
+   Valid iff K_theta^backend models Contract(alpha_theta).
+   ================================================================ *)
+
+fold_binding_definition
+    ::= "bind" "fold" identifier "phase" phase_ref
+        "to" backend_target "entry" identifier
+        "{"
+            fold_binding_section*
+        "}"
+    ;
+
+fold_binding_decl ::= fold_binding_definition ;
+
+fold_binding_section
+    ::= semantic_binding_section
+      | dispatch_binding_section
+      | backend_contract_section
+    ;
+
+semantic_binding_section
+    ::= "semantic" ":" string
+    ;
+
+dispatch_binding_section
+    ::= "dispatch" ":" dispatch_shape
+    ;
+
+backend_contract_section
+    ::= "contract" ":" hoare_contract
+    ;
+
+backend_target
+    ::= "hlsl"
+      | "cuda"
+      | "cpp"
+      | "scxq2"
+      | "wgsl"
+      | "cpu"
+      | "kxc"
+      | "khlc"
+    ;
+
+dispatch_shape
+    ::= "[" integer "," integer "," integer "]"
+    ;
+
+hoare_contract
+    ::= "{"
+            "pre" ":" contract_predicate ","
+            "post" ":" contract_predicate
+        "}"
+    ;
+
+contract_predicate
+    ::= string | identifier
     ;
 
 (* vertical_transition: adjacent phase step, delta_theta=pi/3, weight=+0.5.
@@ -1052,6 +1122,7 @@ phase_statement
       | manifold_definition
       | event_definition
       | cso_definition
+      | fold_binding_definition
       | topology_read
       | fold_operation
       | field_accumulation
@@ -1082,6 +1153,7 @@ declaration
       | bundle_definition
       | event_definition
       | cso_definition
+      | fold_binding_definition
     ;
 
 immutable_declaration ::= "Wo" identifier "=" value ;

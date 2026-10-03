@@ -19,6 +19,7 @@ STANDALONE_TOKENS = [
     "CDATA GPU Kernel Dispatches",
     "program",
     "cso_decl",
+    "fold_binding_decl",
     "cdata_block",
     "hlsl_kernel_source",
     "event_decl",
@@ -36,6 +37,9 @@ STANDALONE_TOKENS = [
     "Ch'en",
     "Fold namespace boundary",
     "KLSL/KXC/KHLC folds",
+    "Fold Binding",
+    "Bind_backend",
+    "hoare_contract",
 ]
 
 RUNTIME_TOKENS = [
@@ -46,6 +50,8 @@ RUNTIME_TOKENS = [
     "event_decl",
     "cso_definition",
     "cso_decl",
+    "fold_binding_definition",
+    "fold_binding_decl",
     "cdata_block",
     "hlsl_kernel_source",
     "minkowski_four_vector",
@@ -57,6 +63,9 @@ RUNTIME_TOKENS = [
     "⊓",
     "semantic authority",
     "projection and",
+    "Fold Binding = (alpha, theta, backend, entrypoint, contract)",
+    "K'UHUL Fold -> Fold Binding -> KXC -> HLSL -> GPU",
+    "K_theta^backend models Contract(alpha_theta)",
 ]
 
 FOLD_NAMESPACE_TOKENS = [
@@ -65,6 +74,8 @@ FOLD_NAMESPACE_TOKENS = [
     "KXC fold",
     "KHLC fold",
     "N(k) --[α, θ]--> B --Xul--> k'",
+    "Fold Binding = (α, θ, backend, entrypoint, contract)",
+    "K'UHUL Fold → Fold Binding → KXC → HLSL → GPU",
 ]
 
 
@@ -95,14 +106,47 @@ def main() -> int:
         check(f"semantic_folds/fold_namespace/{token}", token in semantic_folds)
 
     check(
-        "standalone/program_admits_cso",
-        "program         = { statement | bundle_decl | manifold_decl | universe_decl | cso_decl } ;"
+        "standalone/program_admits_cso_and_fold_binding",
+        "program         = { statement | bundle_decl | manifold_decl | universe_decl | cso_decl | fold_binding_decl } ;"
         in standalone,
     )
     check(
-        "standalone/statement_admits_event",
-        "phaseDecl | bundle_decl | manifold_decl | cso_decl | event_decl"
-        in standalone,
+        "standalone/statement_admits_event_and_fold_binding",
+        "phaseDecl | bundle_decl | manifold_decl | cso_decl | event_decl |" in standalone
+        and "fold_binding_decl" in standalone,
+    )
+    check(
+        "standalone/fold_binding_contract_surface",
+        "fold_binding_decl = \"bind\" \"fold\"" in standalone
+        and "hoare_contract" in standalone
+        and "backend_type" in standalone,
+    )
+    check(
+        "runtime/program_admits_fold_binding",
+        "fold_binding_definition*" in runtime
+        and "fold_binding_decl ::= fold_binding_definition" in runtime,
+    )
+    check(
+        "runtime/phase_statement_admits_fold_binding",
+        "| fold_binding_definition" in runtime,
+    )
+    check(
+        "runtime/declaration_admits_fold_binding",
+        "| fold_binding_definition" in runtime
+        and "19. DECLARATIONS" in runtime,
+    )
+    check(
+        "runtime/fold_binding_contract_surface",
+        "backend_target" in runtime and "hoare_contract" in runtime and "dispatch_shape" in runtime,
+    )
+    check(
+        "docs/fold_binding_backend_boundary",
+        "backend supplies the entrypoint" in glossary
+        and "K_θ^backend ⊨ Contract(α_θ)" in semantic_folds,
+    )
+    check(
+        "docs/fold_binding_registry_named",
+        "fold-bindings.contracts.json" in glossary and "tools/check_fold_bindings.py" in semantic_folds,
     )
     check(
         "runtime/program_admits_event_and_cso",

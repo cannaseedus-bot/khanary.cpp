@@ -32,6 +32,25 @@ Only the K'UHUL semantic fold carries the `N(k) --[α, θ]--> B --Xul--> k'`
 contract. Backend/compiler folds may preserve or project that contract, but they
 do not define it.
 
+## Fold Binding
+
+**Fold Binding = (α, θ, backend, entrypoint, contract).** It is the
+contract-carrying link between a K'UHUL semantic fold at a phase and a concrete
+executor. K'UHUL owns the fold and phase; the backend supplies the entrypoint,
+dispatch shape, and evidence that it satisfies the declared contract.
+
+```
+Fold → Phase Binding → Backend Binding → Executor
+K'UHUL Fold → Fold Binding → KXC → HLSL → GPU
+Bind_backend(α_θ) = K_θ^backend
+valid iff K_θ^backend ⊨ Contract(α_θ)
+```
+
+This is a binding, not an identity. An HLSL kernel may implement a phase
+contract for a semantic fold; it does not become the fold or the phase. The
+registry at `data/grammar/fold-bindings.contracts.json` is checked by
+`tools/check_fold_bindings.py`.
+
 ## Terms
 
 ### Fold — structure plus interpretation (not a tuple)

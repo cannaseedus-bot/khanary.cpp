@@ -38,6 +38,41 @@ N(k) --[α, θ]--> B --Xul--> k'
 Backend folds must preserve that contract when they claim semantic-fold
 compatibility; otherwise they are ordinary lowering/projection folds.
 
+## Fold Binding layer
+
+**Fold Binding = (α, θ, backend, entrypoint, contract).** It is the missing
+middle object between the semantic fold and a runtime implementation. K'UHUL
+owns the fold and phase; the backend supplies the entrypoint and must satisfy
+the contract of that phase.
+
+```
+Fold → Phase Binding → Backend Binding → Executor
+K'UHUL Fold → Fold Binding → KXC → HLSL → GPU
+Bind_backend(α_θ) = K_θ^backend
+valid iff K_θ^backend ⊨ Contract(α_θ)
+```
+
+The contract is Hoare-shaped:
+
+```
+{ pre } K_θ^backend { post }
+```
+
+Phase contracts are heterogeneous by design:
+
+| phase | contract shape |
+|---|---|
+| Pop | `|k⟩ → dist(N(k))` |
+| Wo | `B_P → (B_W ⊆ B_P, reject)` |
+| Yax | `B_W → B_Y` |
+| Sek | `(B_Y, Π) → B_S = Π_op(B_Y)` |
+| Ch'en | `B_S → B_C` |
+| Xul | `(B_C, Π) → k' = Π(B_C)` |
+
+The binding registry is `data/grammar/fold-bindings.contracts.json`, and the
+validator is `tools/check_fold_bindings.py`. A backend binding can accelerate,
+lower, or execute a phase contract, but it does not define semantic authority.
+
 ## Convergent definition
 
 ```
