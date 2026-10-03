@@ -80,6 +80,8 @@ Lexical cues and morphemes are also grounded into canonical semantic atoms (`wor
 The dictionary feed (`data\gram\english-dictionary.jsonl`) now seeds lexical similarity keys (`word_similarity:*`, `synonym:*`) and prompt-time semantic association links (`assoc:semantic:*`) for meaning-preserving alternate wording.
 The runtime now exposes a deterministic **Fold Graph Parser** surface via JSON-RPC (`fold_graph_parse`) and `key_query` triggers (`fgp: ...`, `@fgp ...`, `fold graph parse ...`), producing `atoms/relations/books/candidates/unresolved/provenance` from lexical evidence, with canonical relation typing (`infer_relation_from_lexical`) + relation phase hints, while keeping phase binding canonical.
 
+The semantic core is frozen as `K = (G_semantic, Θ, 𝒜, Π, X)`: Pop through Ch'en are five fold algebras (`α_P`, `α_W`, `α_Y`, `α_S`, `α_C`), and Xul is the sixth phase but **not** a sixth fold — it is the policy-governed canonicalization/commit boundary. Executors are heterogeneous behind the envelope `E_θ(contract,input,context) -> (result,evidence,status)`; CPU/GPU/model/SCXQ2 paths are replaceable realizations, not semantic law.
+
 ## JOKE-µ delivery-frame routing
 
 `JOKE-µ` is now a first-class reusable µ-track like `PLAN-µ` and `ADVISOR-µ`. It is not a freeform joke authoring module; it is a humor-frame routing layer that permits ambiguity, pun bridges, metaphor routes, and punchline-compatible sense collapse while preserving the selected semantic key separately from rendered answer text.

@@ -6,6 +6,44 @@ topological invariance, and the Ch'en/Xul commit contract.
 
 ---
 
+## Frozen Semantic Core
+
+The semantic core is frozen as:
+
+```text
+K = (G_semantic, Θ, 𝒜, Π, X)
+Θ = (P, W, Y, S, C, X)
+𝒜 = (α_P, α_W, α_Y, α_S, α_C)
+```
+
+Execution law:
+
+```text
+k -> N_G(k) -> α_P -> B_P -> α_W -> B_W -> α_Y -> B_Y
+  -> α_S -> B_S -> α_C -> B_C -> X_Π -> k'
+k'_t -> P_(t+1)
+```
+
+Xul is the sixth phase, **not** a sixth fold. Pop through Ch'en are the five semantic
+fold algebras that transform state; Xul is the boundary/canonicalization operation that
+closes the cycle.
+
+Executors are replaceable and heterogeneous. The shared surface is the envelope:
+
+```text
+E_θ(contract, input, context) -> (result, evidence, status)
+```
+
+A Micronaut may realize one or more fold contracts (for example `Yax.candidate`,
+`Sek.COMPARE`, or `Ch'en.observation`), but it does not become semantic law by doing so.
+The invariant is:
+
+```text
+Executor implements contract; contract does not implement executor.
+```
+
+---
+
 ## Three Spaces and Complete Machine State
 
 K'UHUL execution operates over a product of three distinct spaces:

@@ -64,6 +64,31 @@ If (2) claims behavior not in (1): add mapping task, implement deterministically
 - **OPERABILITY**: can make local startup/API behavior brittle or misleading.
 - **COVERAGE**: implementation exists, but the executed proof surface is incomplete.
 
+### Frozen Semantic Core
+The semantic core is frozen as:
+
+```text
+K = (G_semantic, Θ, 𝒜, Π, X)
+Θ = (P, W, Y, S, C, X)
+𝒜 = (α_P, α_W, α_Y, α_S, α_C)
+```
+
+Execution law:
+
+```text
+k -> N_G(k) -> α_P -> B_P -> α_W -> B_W -> α_Y -> B_Y
+  -> α_S -> B_S -> α_C -> B_C -> X_Π -> k'
+k'_t -> P_(t+1)
+```
+
+Xul is the sixth phase, **not** a sixth fold. Five semantic fold algebras transform state; Xul is the policy-governed boundary/canonicalization operation that closes the cycle. Representations and executors are optional, heterogeneous realizations. The common executor surface is the envelope, not the computation:
+
+```text
+E_θ(contract, input, context) -> (result, evidence, status)
+```
+
+Invariant: **Executor implements contract; contract does not implement executor.**
+
 ---
 
 ## Gap Register
@@ -127,6 +152,7 @@ If (2) claims behavior not in (1): add mapping task, implement deterministically
 | GAP-082 | COVERAGE | Open | WGSL lane validates emitted shape, not browser/native WGSL compilation or numerical behavior. | `src/tests/test_wgsl_codegen.cpp`, `docs/CONFORMANCE.md` |
 | GAP-083 | COVERAGE | Open | DirectML availability/fallback is compile-time configured but not reported as a conformance lane with explicit PASS/SKIP/UNAVAILABLE semantics. | `CMakeLists.txt`, `src/gpu/dml_ops.cpp` |
 | GAP-090 | OPERABILITY | Open | Canonical language/docs plan is still broader than implemented runtime truth; active/legacy/experimental tags need continuous enforcement. | `README.md`, `docs/`, old PLAN content |
+| GAP-091 | AUTHORITY | Open | The frozen semantic core is documented, but executor request/result envelopes are not yet schema-backed or phase-gated in runtime. | `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `src/io/request_router.cpp`, `src/micronaut/*` |
 
 ---
 
@@ -343,6 +369,11 @@ If (2) claims behavior not in (1): add mapping task, implement deterministically
   - Files: `data/tracks/*.json`, `tools/check_micronaut_grammar.py`, contract fixtures
   - Work: every externally addressable track declares schemes, verbs, key patterns/templates/grammar, capabilities, and authority boundary.
   - Validate: repository-wide track contract validator fails on missing/ambiguous route surfaces.
+
+- [ ] **T3.16 / GAP-091 — Schema-back the heterogeneous executor envelope.**
+  - Files: `data/schema/executor-contract.schema.json`, `src/io/request_router.*`, `src/micronaut/*`, `src/decision/*`, conformance fixtures
+  - Work: define `EXECUTOR_REQUEST` / `EXECUTOR_RESULT` with phase, fold, input, context, policy, capabilities, optional representation, output, evidence, confidence, status, and diagnostics. Let tracks/micronauts declare `realizes` capabilities such as `Yax.candidate`, `Sek.COMPARE`, or `Ch'en.observation` without making any executor the semantic law.
+  - Validate: deterministic and model-backed executors satisfy the same phase contract; missing capability returns typed `MISS_capability`; no executor can bypass Ch'en/Xul; changing executor does not alter the K'UHUL program identity.
 
 ### Phase 4 — Semantic Attention, GPU Geometry, and Lorentz Execution Hardening
 **Goal:** GPU geometry becomes a verified execution surface, not an advisory black box.
