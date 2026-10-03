@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KHANARY MeshNet GAS Control Plane</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #111c33;
+      --ink: #e5edf9;
+      --muted: #9fb0ca;
+      --accent: #66e3ff;
+      --accent-2: #8bffb0;
+      --line: rgba(255,255,255,.14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(102,227,255,.2), transparent 30rem),
+        radial-gradient(circle at 80% 20%, rgba(139,255,176,.12), transparent 25rem),
+        var(--bg);
+      color: var(--ink);
+    }
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 72px 0 48px;
+    }
+    .hero, .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(17,28,51,.94), rgba(17,28,51,.72));
+      border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+    }
+    .hero { padding: 44px; }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.1rem, 5vw, 4.2rem);
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+    h2 { margin: 0 0 12px; font-size: 1.15rem; }
+    p { color: var(--muted); margin: 0 0 18px; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    pre {
+      overflow: auto;
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.28);
+      border: 1px solid var(--line);
+      color: #d8f6ff;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border-radius: 999px;
+      color: #06111e;
+      background: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      border: 0;
+      cursor: pointer;
+    }
+    .button.secondary {
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid var(--line);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .card { padding: 24px; }
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--accent-2);
+      font-size: .85rem;
+    }
+    .small { font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="pill">KQL → GAS → user-scoped mesh</div>
+      <h1>Install a KHANARY MeshNet control plane.</h1>
+      <p>
+        This static page has no hosted app backend. The button opens the Google
+        Apps Script web app, where the signed-in Google user owns the session,
+        Drive/Sheets authority, and mesh control-plane boundary.
+      </p>
+      <div class="actions">
+        <a class="button" id="installButton" href="https://script.google.com/macros/s/AKfycbyXCBxH_NbAFdRHQkKNQrSG4bYBgMnwZbFdKssz2l5JGdbjO39Armlx8e_p_Mfo_ZAV/exec?endpoint=status" rel="noopener" target="_blank">
+          Install / Connect GAS Mesh
+        </a>
+        <a class="button secondary" href="./meshnet_static_api_model.example.json" download>
+          Download static API model example
+        </a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Why this avoids the hosting trap</h2>
+        <p class="small">
+          The landing page can be served by any static host. GAS handles user
+          login and orchestration. KQL localizes the session into
+          <code>user_mesh_id</code> tables in KHANARY.CPP.
+        </p>
+        <pre>static page
+  → Google sign-in
+  → GAS control plane
+  → KQL user scope
+  → vector candidates
+  → Ch'en / Xul authority</pre>
+      </article>
+
+      <article class="card">
+        <h2>Endpoint</h2>
+        <p class="small">
+          Anonymous probes are expected to see Google sign-in HTML when the web
+          app is deployed for the user session. Authenticated peers should use
+          server-to-server calls or a deliberate proxy for JSON endpoints.
+        </p>
+        <pre id="endpoint">https://script.google.com/macros/s/AKfycbyXCBxH_NbAFdRHQkKNQrSG4bYBgMnwZbFdKssz2l5JGdbjO39Armlx8e_p_Mfo_ZAV/exec</pre>
+      </article>
+
+      <article class="card">
+        <h2>Contribute a static API model</h2>
+        <p class="small">
+          A peer can register with GAS, then send a
+          <code>static_api_model.contribute.v1</code> message. KQL stores it as
+          provider/routing evidence, never as semantic authority.
+        </p>
+        <pre>{
+  "endpoint": "send",
+  "type": "static_api_model.contribute.v1",
+  "to": "broadcast",
+  "data": { "...": "see example JSON" }
+}</pre>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

@@ -13,17 +13,40 @@ others follow.
 
 > **Fold is structure; `SHF(h,τ)` is its phase-indexed state; K'UHUL phases operate over it.**
 
+Refinement: the bounded neighborhood is the structure being interpreted. A
+K'UHUL semantic fold is the algebraic interpretation of that neighborhood under
+an active target algebra. Phase selects the interpretive position; Xul collapses
+the interpreted result.
+
 ## Terms
 
-### Fold — structure (not a tuple)
+### Fold — structure plus interpretation (not a tuple)
 
 ```
 Fold:{contexts, relations, nodes} -> h
+N(k) --α,θ--> B --Xul--> k'
 ```
 
 A bounded semantic context around a handle `h`, built from three inputs
 (contexts, relations, nodes). The *operation* has declared arity 3. A fold is
 structure; it is not itself a tuple.
+
+At the semantic layer, a fold also names the active interpretation algebra:
+`α : F(B) -> B`. The same structural signature `F` can be interpreted as
+reasoning, retrieval, compression, or an execution route without rewriting the
+underlying neighborhood. This keeps the invariant split explicit:
+
+| layer | meaning |
+| --- | --- |
+| Signature `F` | What semantic constructors and relation verbs exist |
+| Algebra `α` | What those structures mean in the target domain |
+| Phase `θ` | Where that interpretation sits in the K'UHUL cycle |
+
+Compressed contract:
+
+```
+N(k) --[α, θ]--> B --Xul--> k'
+```
 
 ### SHF — the phase-indexed state
 
@@ -245,6 +268,46 @@ xmlns:k="https://khanary.io/tensor"
 **Disambiguation rule**: the parser requires a whitespace character (space, tab, newline, CR) immediately before `k:` to exclude `xmlns:k="..."` declarations and `<k:elem>` tag names from attribute extraction.
 
 **Round-trip**: `FieldDag::to_svg()` emits `xmlns:k` on the `<svg>` element and full `k:*` attrs on every non-ontology node circle and edge path, so its output is valid SVG-Tensor input for `parse_svg_tensor()`. Source: `src/io/svg_tensor.h/.cpp`.
+
+---
+
+## GAS MeshNet Control Plane
+
+A Google Apps Script web app that acts as an HTTPS control-plane node for MeshNet peers. Source: `tools/meshnet_gas_control_plane.gs`; deployment metadata: `tools/meshnet_gas_control_plane.url.json`.
+
+The preferred deployment executes as the **user accessing the web app**. Google sign-in is therefore the outer authority boundary: user-owned Drive, Sheets, and table data remain in that user's Google session, and KHANARY receives only routed outputs after Google admits the request. Anonymous health probes are expected to return Google Accounts sign-in HTML rather than MeshNet JSON.
+
+Peer registration may link to the Google session through `Session.getTemporaryActiveUserKey()`, a script-local temporary user key. Email storage is opt-in (`MESHNET_STORE_GOOGLE_EMAIL=true`) because Apps Script can return blank email strings depending on authorization context. The linked Google session is provenance/routing identity only; it is not semantic or fact authority.
+
+After Google session admission, the script's MeshNet layer still applies its own register handshake, HMAC/shared-secret checks, session tokens, nonce replay guard, and optional code-hash allowlist.
+
+---
+
+## Relativistic Event Projection for Key-Grammar Memory
+
+A relativity event is the model for a key-grammar memory event: an observed occurrence with a track/phase/time address. In KHANARY this is serialized as `key.grammar.memory_event.v1` and may carry a `key_grammar.hyperbolic_event.v1` projection.
+
+| relativity concept | KHANARY projection |
+| --- | --- |
+| event at a definite place and time | `memory:event:<kind>:<epoch>-<seq>` with `track`, `phase`, and source |
+| four-vector coordinate | hyperbolic event `coords = (x0,x1,x2,x3)` or `hyperbolic_metrics` |
+| causal interval class | `timelike_candidate`, `lightlike_boundary`, `spacelike_candidate`, or `unclassified` |
+| causal past/future relation | prompt/model_response/plan parentage and candidate continuation branches |
+| frame of reference | micronaut track + K'UHUL phase + optional Lorentz boost projection |
+
+This is still projection evidence. A prompt, model response, plan, or hyperbolic event can guide routing and recall, but it is not a fact commit by itself. `fact_authority=false` and `semantic_authority=false` remain the default until Ch'en verifies and Xul commits the result.
+
+---
+
+## KQL — User-Scoped Mesh Database
+
+KQL is the planned KHANARY Query Language for localizing the online GAS mesh into `KHANARY.CPP`. It is SQLite-like in role, but its first backend is KHANARY-native append-only event tables plus the existing vector/gram engine.
+
+The key scope is `user_mesh_id`, derived from provider/session identity plus a local salt. Every table read/write is user-scoped by default. Cross-user reads require an explicit shared-mesh grant. See `docs/KQL.md`.
+
+KQL tables separate evidence from authority: prompts, model responses, plans, peer rows, vector candidates, and hyperbolic events are memory/event evidence; only Ch'en-verified and Xul-committed rows enter fact/topology authority tables.
+
+KQL → GAS also defines the lightweight online deployment pattern: a static landing page distributes the install/connect button, GAS supplies the signed-in user orchestration plane, and KQL maps the session into local user-scoped tables. Static API model manifests can be contributed through the mesh as `static_api_model.contribute.v1` provider candidates; they remain routing evidence until verified.
 
 ---
 

@@ -1,0 +1,53 @@
+{
+  "name": "meshnet_gas_control_plane",
+  "service": "Google Apps Script Web App",
+  "endpoint": "https://script.google.com/macros/s/AKfycbyXCBxH_NbAFdRHQkKNQrSG4bYBgMnwZbFdKssz2l5JGdbjO39Armlx8e_p_Mfo_ZAV/exec",
+  "source": "tools/meshnet_gas_control_plane.gs",
+  "landing_page": "tools/meshnet_gas_landing.html",
+  "static_api_model_example": "tools/meshnet_static_api_model.example.json",
+  "static_api_model_message_type": "static_api_model.contribute.v1",
+  "added_at": "2026-10-02T00:00:00-07:00",
+  "expected_status": {
+    "method": "GET",
+    "endpoint": "status",
+    "content_type": "application/json",
+    "success": true,
+    "service": "MeshNet GAS Backend",
+    "requires_google_session": true,
+    "anonymous_result": "google_accounts_sign_in_html",
+    "authenticated_result": {
+      "success": true,
+      "service": "MeshNet GAS Backend"
+    }
+  },
+  "last_probe": {
+    "checked_at": "2026-10-02T00:00:00-07:00",
+    "result": "authenticated_status_ok",
+    "note": "Authenticated Google session reached the Apps Script JSON status endpoint successfully. Sessions and register handshakes are enforced; no peers are currently registered."
+  },
+  "access_model": {
+    "google_boundary": "authenticated_user_session_required",
+    "execute_as": "User accessing the web app",
+    "data_authority": "signed_in_google_user",
+    "anonymous_probe_expected": "google_accounts_sign_in_html",
+    "khanary_trust_boundary": "GAS orchestrates routed outputs; user Drive/Sheets data remains in the user-owned Google session.",
+    "google_session_link": {
+      "enabled_by_default": true,
+      "default_identifier": "Session.getTemporaryActiveUserKey()",
+      "email_storage": "opt-in via MESHNET_STORE_GOOGLE_EMAIL=true; email can be blank depending on Google authorization context",
+      "authority_boundary": "Google session identity is provenance/routing identity, not semantic or fact authority."
+    }
+  },
+  "last_authenticated_status": {
+    "checked_at": "2026-10-02T00:00:00-07:00",
+    "endpoint": "status",
+    "success": true,
+    "service": "MeshNet GAS Backend",
+    "online": true,
+    "peerCount": 0,
+    "sessionEnforced": true,
+    "registerHandshakeEnforced": true,
+    "codeHashAllowlistConfigured": false,
+    "securityMisconfigured": false
+  }
+}

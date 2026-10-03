@@ -1,0 +1,54 @@
+{
+  "@type": "khanary.mesh.static_api_model.v1",
+  "model_id": "static-api:example:echo-v1",
+  "display_name": "Example Echo API",
+  "provider": "example",
+  "owner_peer": "peer:replace-me",
+  "endpoint_host": "api.example.invalid",
+  "endpoint_template": "https://api.example.invalid/v1/{operation}",
+  "operations": [
+    {
+      "name": "text.generate",
+      "method": "POST",
+      "path": "/v1/generate",
+      "input_mime": "application/json",
+      "output_mime": "application/json"
+    }
+  ],
+  "capabilities": [
+    "text.generate"
+  ],
+  "auth": {
+    "mode": "user_supplied",
+    "secret_ref": "local-only:example-api-key"
+  },
+  "routing": {
+    "mesh_message_type": "static_api_model.contribute.v1",
+    "kql_table": "kql_static_api_models",
+    "vector_index_fields": [
+      "provider",
+      "display_name",
+      "capabilities",
+      "tags"
+    ],
+    "tags": [
+      "example",
+      "static-api-model"
+    ]
+  },
+  "bounds": {
+    "fact_authority": false,
+    "semantic_authority": false,
+    "topology_authority": false,
+    "commit_state": "candidate",
+    "authority_boundary": "Provider/routing evidence only. Ch'en verification and Xul commit are required before any fact/topology authority can be derived."
+  },
+  "rate_hint": {
+    "requests_per_minute": 60,
+    "burst": 5
+  },
+  "health": {
+    "status": "unverified",
+    "last_checked_at": null
+  }
+}

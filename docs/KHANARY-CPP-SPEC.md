@@ -7,8 +7,9 @@ Target: HD 4600 (DirectML, D3D11), 1792 MB resident ceiling, Windows 10 x64.
 
 K'UHUL now declares what the math was already doing:
 
-- **Meaning is context-distributed**: a token points to `Book(token)` / fold context.
-- **Fold is a bounded semantic context neighborhood**, not only a hypernym bucket.
+- **Meaning is context-distributed**: a token points to `Book(token)` / semantic neighborhood `N(token)`.
+- **Fold is structure plus interpretation**: the neighborhood is the bounded structure; the semantic fold is the active algebra `α : F(B) -> B` that assigns meaning to that structure under the current phase.
+- **Signature, algebra, and phase stay separate**: `F` declares constructors/relations, `α` interprets them, and `θ` positions that interpretation in the Pop→Wo→Yax→Sek→Ch'en→Xul cycle.
 - **Participation topology is first-class** (`B` incidence), with **pattern strength isolated** (`W_E`).
 - **Distributional semantics remains independent** as a context-similarity channel.
 - **Grammar boundary is explicit** in `data/schema/kuhul.xsd` (structure contract; runtime authorization remains in XCFE/Xul).
@@ -51,7 +52,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/kuhul/fold_engine.cpp/h` | Horizontal fold (Δθ=0), vertical fold (Δθ=π/3), cost table |
 | `src/kuhul/kuhul_vm.cpp/h` | Bracket program executor: [Pop]/[Wo]/[Yax]/[Sek]/[Ch'en]/[Xul] |
 | `src/kuhul/xcfe_executor.cpp/h` | @if/@then/@else, @for, @from, @as, @cause, @direct, @op, @fn, phase-gate enforcement (the op library receives a recursive evaluator) |
-| `src/kuhul/gram_store.cpp/h` | KXML gram nodes; Pop=gramRead, Xul=gramWrite, checkpoint; append log at `data/journal/gram-events.jsonl` |
+| `src/kuhul/gram_store.cpp/h` | KXML gram nodes; Pop=gramRead, Xul=gramWrite, checkpoint; append log at `data/journal/gram-events.jsonl`; prompts/model responses/plans are key-grammar memory events |
 
 ### KLSL Compiler
 | File | Purpose |
@@ -103,12 +104,19 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/memory/semantic_graph.cpp/h` | G_semantic topology; (⟁EVOLVE⟁)-gated node/arc mutation |
 | `src/memory/scoring.cpp/h` | S_µ(Q) = W_µ · C_µ · R_µ(Q); ΔZ = ΔG_semantic ⊕ ΔC_earned |
 
+### User-Scoped Mesh Database / KQL
+| File | Purpose |
+|---|---|
+| `docs/KQL.md` | KHANARY Query Language contract for a local, user-scoped mesh database; SQLite-like query intent over KHANARY-native JSONL/JROM tables backed by the existing vector/gram engine |
+| `src/io/kql.cpp/h` | Native KQL SELECT parser/evaluator surface for user tables, memory events, hyperbolic events, peer rows, vector candidates, static API model manifests, and Xul-committed fact/topology rows |
+| `src/tests/test_kql.cpp` | KQL conformance: user isolation, vector-candidate filtering, hyperbolic event lookup, and authority table boundaries |
+
 ### World Graph
 | File | Purpose |
 |---|---|
 | `src/world/field_dag.cpp/h` | Semantic field DAG: `FieldNode`/`FieldEdge`/`FieldDag`; GML overlay; `to_svg()` (emits `k:*` attrs); geodesic propagator dispatch |
 | `src/world/gml_parser.cpp/h` | Hand-rolled GML text parser → `GmlGraph`; `provider_id` + geometry fields |
-| `src/world/vector_projection.cpp/h` | `VectorProjectionContainer` gen1: GML topology → overlay JSON at `data/world/vector_projection.json` |
+| `src/world/vector_projection.cpp/h` | `VectorProjectionContainer` gen1: GML topology → overlay JSON at `data/world/vector_projection.json`; hyperbolic key-grammar events as future-sheet four-vector routing projections |
 | `src/world/tensor_substrate.h` | `TensorSubstrate` descriptor: shape, dtype, residency, `provider_identity`; `VectorMuMicronaut` projection operator |
 
 ### I/O & Servers
@@ -116,10 +124,18 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 |---|---|
 | `src/io/json_rpc_server.cpp/h` | HTTP/JSON-RPC on 8787; XJSON/XCFE object surface |
 | `src/io/mcp_server.cpp/h` | MCP gateway on 8764; 20 tools incl. kuhul_forge/code_parse/semantic_fold |
-| `src/io/jrom.cpp/h` | JROM audit journal; append log at `data/journal/tool-events.jsonl` |
+| `src/io/jrom.cpp/h` | JROM audit journal; append log at `data/journal/tool-events.jsonl`; event memory evidence for prompt/model_response/plan/hyperbolic_event rows |
 | `src/io/request_router.cpp/h` | Route incoming requests → phase dispatch → micronaut |
 | `src/io/svg_tensor.cpp/h` | SVG-Tensor source loader: `parse_svg_tensor()` / `load_svg_tensor()` → `SVGTensorGraph`; scans `k:*` namespace attributes without XML library |
 | `src/io/stb_map_convert.cpp/h` | Converter chain: `svg_tensor_to_stb_map()` + `field_vectors_to_stb_map()` + `field_dag_to_stb_map()` inline wrapper |
+
+### External Control Planes
+| File | Purpose |
+|---|---|
+| `tools/meshnet_gas_control_plane.gs` | Google Apps Script MeshNet control plane for register/poll/send/peers/transpile; deployed as a user-session web app so Drive/Sheets authority remains with the signed-in Google user; peer registration links to a script-local Google session key with email storage opt-in |
+| `tools/meshnet_gas_control_plane.url.json` | Deployment metadata for the GAS endpoint; records that anonymous probes are expected to receive Google Accounts sign-in HTML before Apps Script JSON endpoints run |
+| `tools/meshnet_gas_landing.html` | Static landing/install page that links users to the GAS control plane without requiring a hosted app backend |
+| `tools/meshnet_static_api_model.example.json` | Example provider manifest for `static_api_model.contribute.v1`; mesh-published API models are provider/routing evidence, not semantic authority |
 
 ### Utilities
 | File | Purpose |

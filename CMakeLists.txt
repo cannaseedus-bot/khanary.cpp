@@ -75,6 +75,7 @@ add_executable(KHANARY
     src/io/mcp_server.cpp
     src/io/code_parser.cpp
     src/io/jrom.cpp
+    src/io/kql.cpp
     src/io/projection.cpp
     src/io/runtime_attention.cpp
     src/io/request_router.cpp
@@ -140,6 +141,14 @@ add_executable(KHANARY_JROM_TEST
 )
 target_include_directories(KHANARY_JROM_TEST PRIVATE src)
 
+add_executable(KHANARY_KQL_TEST
+    src/tests/test_kql.cpp
+    src/io/kql.cpp
+    src/util/json.cpp
+    src/util/sha256.cpp
+)
+target_include_directories(KHANARY_KQL_TEST PRIVATE src)
+
 add_executable(KHANARY_AIML_TEST
     src/tests/test_aiml_graph.cpp
     src/micronaut/aiml_engine.cpp
@@ -199,6 +208,9 @@ add_test(
 add_test(
     NAME KHANARY_JROM_TEST
     COMMAND $<TARGET_FILE:KHANARY_JROM_TEST>)
+add_test(
+    NAME KHANARY_KQL_TEST
+    COMMAND $<TARGET_FILE:KHANARY_KQL_TEST>)
 add_test(
     NAME KHANARY_AIML_TEST
     COMMAND $<TARGET_FILE:KHANARY_AIML_TEST>)
