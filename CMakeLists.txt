@@ -309,6 +309,10 @@ if(Python3_Interpreter_FOUND)
     # implementation (phase geometry, engine arity, formal-model strings).
     add_test(NAME KHANARY_FOLD_GEOMETRY_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/grammar/mini_transpilers.py" fold-geometry-check)
+    # K'UHUL v8 standalone/runtime grammar: tensor bundles, hyperbolic events,
+    # CSO/CDATA dispatch, Einstein contraction, and semantic-vs-backend fold namespaces.
+    add_test(NAME KHANARY_KUHUL_GRAMMAR_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_kuhul_grammar.py")
     # The capability-gap artifact must stay current with the operator table and
     # the tracks' declared capabilities.
     add_test(NAME KHANARY_CAPABILITY_GAP_TEST

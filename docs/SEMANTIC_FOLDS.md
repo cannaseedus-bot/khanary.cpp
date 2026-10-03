@@ -15,6 +15,29 @@ So:
 - incidence `B` models participation; `W_E` remains pattern-strength only
 - fold comparison/logic is operational (`AND/OR/XOR/SUB`, cosine/jaccard/hamming)
 
+## Fold namespace boundary
+
+The word `fold` is used in several KHANARY/K'UHUL-adjacent layers, but those
+uses are not interchangeable:
+
+| namespace | fold object | authority |
+|---|---|---|
+| K'UHUL semantic fold | algebraic interpretation/catamorphism over a semantic neighborhood | semantic contract |
+| KLSL fold | shader/lane lowering, kernel reduction, or projection operation | backend projection only |
+| KXC fold | execution/control lowering fold | control/runtime projection only |
+| KHLC fold | host/compiler lowering fold | compiler projection only |
+
+So a KLSL/KXC/KHLC fold can implement, lower, serialize, or accelerate a
+K'UHUL semantic fold, but it does not become the semantic fold itself. The
+semantic contract remains:
+
+```
+N(k) --[α, θ]--> B --Xul--> k'
+```
+
+Backend folds must preserve that contract when they claim semantic-fold
+compatibility; otherwise they are ordinary lowering/projection folds.
+
 ## Convergent definition
 
 ```

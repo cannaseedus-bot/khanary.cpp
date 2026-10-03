@@ -1,13 +1,16 @@
-(* ================================================================ *)
-(* K'UHUL v8.0.0 Standalone EBNF Grammar                            *)
-(* Tensor Bundle Grounding Reference                                *)
-(* ================================================================ *)
+(* ======================================================================= *)
+(* K'UHUL v8.0.0 Standalone EBNF Grammar                                   *)
+(* Extended for Hyperbolic Event Coordinates, Einstein Contractions,        *)
+(* Holographic Mesh Boundaries, and CDATA GPU Kernel Dispatches             *)
+(* Fold namespace boundary: K'UHUL semantic folds are algebraic             *)
+(* interpretation/catamorphism folds. KLSL/KXC/KHLC folds are backend       *)
+(* lowering/projection folds unless explicitly preserving that contract.     *)
+(* ======================================================================= *)
 
-program         = { statement | bundle_decl | manifold_decl | universe_decl } ;
+program         = { statement | bundle_decl | manifold_decl | universe_decl | cso_decl } ;
 
-(* Tensor Bundle Declarations *)
+(* ── Tensor Bundle & Geodesic Manifold Declarations ───────────────────── *)
 bundle_decl     = "bundle" identifier "over" identifier "{" { bundle_section } "}" ;
-
 bundle_section  = fiber_section | connection_section | geodesic_section | tensor_section ;
 
 fiber_section   = "fiber" "{"
@@ -24,7 +27,8 @@ connection_section = "connection" "{"
 
 geodesic_section = "geodesic" "{"
                      "propagator" ":" identifier ","
-                     "minimizes" ":" minimization_target
+                     "minimizes" ":" minimization_target [ "," ]
+                     [ "raychaudhuri" ":" raychaudhuri_metric ]
                    "}" ;
 
 tensor_section  = "tensor" "{"
@@ -38,16 +42,30 @@ holonomy_type   = "path_ordered" | "abelian" ;
 minimization_target = "entropy" | "action" | "length" ;
 projection_authority = "projection_only" | "semantic_authority_false" ;
 
-(* Manifold *)
+raychaudhuri_metric = "{"
+                        "focusing" ":" expression ","
+                        "expansion" ":" expression
+                      "}" ;
+
+(* ── Manifold Topology with Minkowski Event Bounds ────────────────────── *)
 manifold_decl   = "manifold" identifier ":" manifold_type [ "(" integer ")" ] [ block ] ;
 manifold_type   = "euclidean" | "riemannian" | "minkowski" | "pi_harmonic" | "geodesic" | "spherical" | "smooth" ;
 
-(* Standard statement types *)
-statement       = universeDecl | funcDecl | typeDecl | varDecl | ifStmt |
-                  whileStmt | forStmt | returnStmt | exprStmt |
-                  phaseDecl | bundle_decl | manifold_decl ;
+universe_decl   = "universe" identifier [ ":" expression ] [ block ] ;
 
-universeDecl    = "universe" identifier [ ":" expression ] [ block ] ;
+(* ── CSO & CDATA Hardware Processing Primitives ───────────────────────── *)
+cso_decl        = "cso" identifier [ "id" ":" cso_hash_id ] "{"
+                    "manifest" ":" block ","
+                    "kernel" ":" cdata_block
+                  "}" ;
+
+cdata_block     = "<![CDATA[" , hlsl_kernel_source , "]]>" ;
+
+(* ── Core Statement Architecture ──────────────────────────────────────── *)
+statement       = universe_decl | funcDecl | typeDecl | varDecl | ifStmt |
+                  whileStmt | forStmt | returnStmt | exprStmt |
+                  phaseDecl | bundle_decl | manifold_decl | cso_decl | event_decl ;
+
 funcDecl        = "func" identifier "(" [ parameters ] ")" [ "->" type ] [ block ] ;
 typeDecl        = "type" identifier "=" type ;
 varDecl         = "let" identifier [ ":" type ] [ "=" expression ] ;
@@ -58,11 +76,28 @@ returnStmt      = "return" [ expression ] ;
 exprStmt        = expression [ ";" ] ;
 block           = "{" { statement } "}" ;
 
-(* Phase declarations: θ is the discrete connection, not the geodesic. *)
+(* ── Minkowski Future-Directed Event Primitives ───────────────────────── *)
+event_decl      = "event" identifier "at" minkowski_four_vector "{"
+                    "track" ":" string ","
+                    "rapidity" ":" expression ","
+                    "direction" ":" array_literal ","
+                    "interval" ":" interval_signature [ "," ]
+                    [ "holographic_boundary" ":" mesh_inequality ]
+                  "}" ;
+
+minkowski_four_vector = "[" expression "," expression "," expression "," expression "]" ;
+interval_signature    = "timelike" | "spacelike" | "lightlike" ;
+
+mesh_inequality       = "{"
+                          "circumradius_R" ":" expression ","
+                          "inradius_r" ":" expression
+                        "}" ;
+
+(* ── K'UHUL Catamorphic Phase Algebra ─────────────────────────────────── *)
 phaseDecl       = "phase" identifier [ "=" phase_expression ] ;
 phase_expression = "Pop" | "Wo" | "Yax" | "Sek" | "Chen" | "Ch'en" | "Xul" ;
 
-(* Expressions *)
+(* ── Multilinear Expressions with Einstein Contraction Bounds ─────────── *)
 expression      = assignment ;
 assignment      = ternary [ ( "=" | "+=" | "-=" | "*=" | "/=" ) assignment ] ;
 ternary         = logicalOr [ "?" expression ":" expression ] ;
@@ -71,15 +106,20 @@ logicalAnd      = equality { "&&" equality } ;
 equality        = comparison { ( "==" | "!=" ) comparison } ;
 comparison      = additive { ( "<" | ">" | "<=" | ">=" ) additive } ;
 additive        = multiplicative { ( "+" | "-" ) multiplicative } ;
-multiplicative  = tensorExpr { ( "*" | "/" | "%" ) tensorExpr } ;
+multiplicative  = contractionExpr { ( "*" | "/" | "%" ) contractionExpr } ;
+
+(* Einstein summation and tensor product primitives. *)
+contractionExpr = tensorExpr { "⊓" tensorExpr } ; (* explicit lower-to-upper dummy index matching *)
 tensorExpr      = exponentiation { "⊗" exponentiation } ;
 exponentiation  = unary [ "^" exponentiation ] ;
 unary           = [ ( "!" | "-" | "+" | "~" | "∇" | "d" | "ι" | "Π" ) ] postfix ;
 postfix         = primary { ( "(" [ args ] ")" | "[" expression "]" | "." identifier ) } ;
 primary         = number | string | bool | identifier | "(" expression ")" |
-                  "[" [ expressions ] "]" | "{" [ pairs ] "}" ;
+                  array_literal | "{" [ pairs ] "}" ;
 
-(* Types *)
+array_literal   = "[" [ expressions ] "]" ;
+
+(* ── Structural Type Signatures ───────────────────────────────────────── *)
 type            = typeBase [ "?" | ( "[" "]" ) ] ;
 typeBase        = identifier | "(" [ types ] ")" "->" type | bundle_type | fiber_type | connection_t | geodesic_t ;
 bundle_type     = "bundle" "<" identifier "," integer "," integer ">" ;
@@ -87,14 +127,22 @@ fiber_type      = "fiber" "<" integer "," integer ">" ;
 connection_t    = "connection" ;
 geodesic_t      = "geodesic" ;
 
-(* Lexical placeholders shared with the runtime grammar. *)
-identifier      = ? implementation identifier ? ;
-integer         = ? integer literal ? ;
-number          = ? numeric literal ? ;
-string          = ? UTF-8 string literal ? ;
+(* ── Lexer Placeholders ────────────────────────────────────────────────── *)
+identifier      = ( letter | "_" ) , { letter | digit | "_" } ;
+cso_hash_id     = '"' , "cso://" , ( cso_sha256_id | cso_raw_hex_id ) , '"' ;
+cso_sha256_id   = "sha256(" , hex_digit , { hex_digit } , ")" ;
+cso_raw_hex_id  = hex_digit , { hex_digit } ;
+letter          = ? ASCII letter a-z or A-Z ? ;
+hex_digit       = digit | "a" | "b" | "c" | "d" | "e" | "f" | "A" | "B" | "C" | "D" | "E" | "F" ;
+integer         = [ "-" | "+" ] , digit , { digit } ;
+digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+number          = integer , [ "." , digit , { digit } ] , [ ( "e" | "E" ) , [ "-" | "+" ] , digit , { digit } ] ;
+string          = '"', { string_char }, '"' ;
+string_char     = ? any UTF-8 character except '"' and '\\' ? | "\\" , ( '"' | "\\" | "n" | "t" ) ;
 bool            = "true" | "false" ;
 parameters      = ? parameter list ? ;
 args            = ? argument list ? ;
 expressions     = expression { "," expression } ;
 pairs           = ? object pairs ? ;
 types           = type { "," type } ;
+hlsl_kernel_source = ? raw unescaped HLSL/DirectCompute shader source code text ? ;

@@ -18,6 +18,20 @@ K'UHUL semantic fold is the algebraic interpretation of that neighborhood under
 an active target algebra. Phase selects the interpretive position; Xul collapses
 the interpreted result.
 
+Fold vocabulary is namespace-scoped. A K'UHUL semantic fold is not the same
+object as a KLSL, KXC, or KHLC fold:
+
+| namespace | fold means |
+| --- | --- |
+| K'UHUL semantic fold | algebraic interpretation/catamorphism over a semantic neighborhood |
+| KLSL fold | shader/lane lowering or kernel-side reduction/projection surface |
+| KXC fold | execution/control lowering surface unless explicitly bound to K'UHUL semantics |
+| KHLC fold | host/compiler lowering surface unless explicitly bound to K'UHUL semantics |
+
+Only the K'UHUL semantic fold carries the `N(k) --[α, θ]--> B --Xul--> k'`
+contract. Backend/compiler folds may preserve or project that contract, but they
+do not define it.
+
 ## Terms
 
 ### Fold — structure plus interpretation (not a tuple)

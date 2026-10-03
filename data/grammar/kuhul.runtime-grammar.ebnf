@@ -18,6 +18,9 @@
    Fundamental laws:
 
        Fold != Xul
+       K'UHULSemanticFold != KLSLFold
+       K'UHULSemanticFold != KXCFold
+       K'UHULSemanticFold != KHLCFold
        Phase != Opcode
        Reachability != Authority
        Representation != Authority
@@ -34,6 +37,9 @@
 
    XCFE owns control.
    K'UHUL owns semantic execution.
+   KLSL/KXC/KHLC folds are backend/compiler lowering folds unless they
+   explicitly preserve the K'UHUL semantic fold contract:
+       N(k) --[alpha, theta]--> B --Xul--> k'
    Ch'en verifies.
    Xul is the only topology commit boundary.
 
@@ -53,6 +59,8 @@ program
         declaration*
         manifold_definition*
         bundle_definition*
+        event_definition*
+        cso_definition*
         fold_definition*
         micronaut_definition*
         semantic_cycle
@@ -202,6 +210,7 @@ geodesic_section
     ::= "geodesic" "{"
             "propagator" ":" identifier ","
             "minimizes" ":" minimization_target
+            [ "," "raychaudhuri" ":" raychaudhuri_metric ]
         "}"
     ;
 
@@ -227,12 +236,77 @@ minimization_target ::= "entropy" | "action" | "length" ;
 
 projection_authority ::= "projection_only" | "semantic_authority_false" ;
 
+raychaudhuri_metric
+    ::= "{"
+            "focusing" ":" expression ","
+            "expansion" ":" expression
+        "}"
+    ;
+
 bundle_ref ::= identifier ;
 connection_ref ::= identifier "." "connection" ;
 geodesic_ref ::= identifier ;
 parallel_transport ::= "parallel_transport" "(" expression "," geodesic_ref "," connection_ref ")" ;
 tensor_product ::= expression "⊗" expression ;
+einstein_contraction ::= expression "⊓" expression ;
 interior_product ::= "ι" "(" expression "," expression ")" ;
+
+(* ================================================================
+   4B. HYPERBOLIC EVENT AND HARDWARE KERNEL SURFACES
+
+   Events are key-grammar memory/routing projections on a Minkowski
+   future sheet. CSO declarations bind hash-identified compiled shader
+   artifacts to CDATA kernel source envelopes. Both are projection and
+   execution surfaces; neither can manufacture semantic authority.
+   ================================================================ *)
+
+event_definition
+    ::= "event" identifier "at" minkowski_four_vector "{"
+            "track" ":" string ","
+            "rapidity" ":" expression ","
+            "direction" ":" list ","
+            "interval" ":" interval_signature
+            [ "," "holographic_boundary" ":" mesh_inequality ]
+        "}"
+    ;
+
+event_decl ::= event_definition ;
+
+minkowski_four_vector
+    ::= "[" expression "," expression "," expression "," expression "]"
+    ;
+
+interval_signature
+    ::= "timelike" | "spacelike" | "lightlike"
+    ;
+
+mesh_inequality
+    ::= "{"
+            "circumradius_R" ":" expression ","
+            "inradius_r" ":" expression
+        "}"
+    ;
+
+cso_definition
+    ::= "cso" identifier [ "id" ":" cso_hash_id ] "{"
+            "manifest" ":" object ","
+            "kernel" ":" cdata_block
+        "}"
+    ;
+
+cso_decl ::= cso_definition ;
+
+cdata_block
+    ::= "<![CDATA[" hlsl_kernel_source "]]>"
+    ;
+
+cso_hash_id
+    ::= string
+    ;
+
+hlsl_kernel_source
+    ::= ? raw unescaped HLSL/DirectCompute shader source code text ?
+    ;
 
 (* vertical_transition: adjacent phase step, delta_theta=pi/3, weight=+0.5.
    SC-3: dist MUST equal 1; requires XCFE authorization. *)
@@ -976,6 +1050,8 @@ phase_statement
     ::= declaration
       | bundle_definition
       | manifold_definition
+      | event_definition
+      | cso_definition
       | topology_read
       | fold_operation
       | field_accumulation
@@ -1004,6 +1080,8 @@ declaration
       | field_definition
       | manifold_definition
       | bundle_definition
+      | event_definition
+      | cso_definition
     ;
 
 immutable_declaration ::= "Wo" identifier "=" value ;
@@ -1034,6 +1112,7 @@ expression
       | geodesic_ref
       | parallel_transport
       | tensor_product
+      | einstein_contraction
       | interior_product
       | math_expression
       | "(" expression ")"
