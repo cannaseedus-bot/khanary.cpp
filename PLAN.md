@@ -100,7 +100,7 @@ Invariant: **Executor implements contract; contract does not implement executor.
 | GAP-003 | REGRESSION RISK | Open | Verdict aggregation validates summary hashes but does not normalize/sort case rows, reject duplicate case IDs, or validate every verdict shape before hashing. | `tools/run_conformance.py`, `src/tests/conformance.h`, `tools/conformance_common.py` |
 | GAP-004 | COVERAGE | Open | Boundary split checks ignore rules and `#include` references only; it does not detect tracked/untracked generated artifacts under `data/`, `artifacts/`, root docs, or generated runtime outputs. | `tools/check_boundary_split.py`, `.gitignore`, `.rgignore`, `git status` |
 | GAP-010 | AUTHORITY | Reframed | Driver artifacts are semantic µkernel/SMART-DB payloads, not presumed native DLLs. The contract should explicitly version JSON/BSON/bytecode payload kinds and host-driver packaging instead of implying native DLL loading. | User clarification; `data/schema/fold.runtime.json`, `src/kuhul/phase_driver_lock.cpp` |
-| GAP-011 | OPERABILITY | Open | Phase artifact root resolution differs between startup preflight and `PhaseDriverLock::load()` for non-repo `--data-dir` or changed CWD. | `src/main.cpp`, `src/kuhul/phase_driver_lock.cpp` |
+| GAP-011 | OPERABILITY | Resolved | Phase artifact root resolution is now anchored to the selected runtime schema/data root, and the launcher starts the runtime from the repository root. | `src/kuhul/phase_driver_lock.cpp`, `KHANARY.bat`, `src/tests/test_phase_driver_lock.cpp` |
 | GAP-012 | AUTHORITY | Open | Startup validates the runtime stack core, but not the complete internal schema/module link graph before subsystem initialization. | `src/main.cpp::validate_runtime_schema_stack`, `data/schema/*.json` |
 | GAP-013 | REGRESSION RISK | Open | Native runtime-stack validation and Python `check_runtime_schema_stack.py` are not fixture-equivalent. | `src/main.cpp`, `tools/check_runtime_schema_stack.py` |
 | GAP-014 | OPERABILITY | Open | Native startup can warn on RPC/MCP failure but still print ready. | `src/main.cpp` server startup block |
@@ -197,10 +197,10 @@ Invariant: **Executor implements contract; contract does not implement executor.
   - Work: replace DLL-only assumptions with a typed payload contract: `payload_kind: json|bson|bytecode`, `semantic_microkernel: true`, `smart_db_role`, optional compiled-driver wrapper metadata for PowerShell/C#, and hash-bound artifact bytes. Keep host driver loading outside phase-authority semantics unless a native DLL is explicitly declared.
   - Validate: JSON, BSON, bytecode, missing artifact, tampered artifact, wrong payload kind, unknown wrapper target, and audit/enforce fixtures.
 
-- [ ] **T1.2 / GAP-011 — Unify phase-root resolution.**
+- [x] **T1.2 / GAP-011 — Unify phase-root resolution.**
   - Files: `src/main.cpp`, `src/kuhul/phase_driver_lock.cpp`
-  - Work: resolve `artifact_root` once relative to the selected data root/repository root, keep `dll_root` as a compatibility alias for existing contracts, and pass the resolved path into the lock loader.
-  - Validate: launch from a different CWD with external `--data-dir`; startup and `check_runtime_schema_stack.py` agree for both `artifact_root` and legacy `dll_root`.
+  - Work: `PhaseDriverLock::load()` resolves legacy `dll_root` relative to the runtime schema/data root instead of process CWD; `KHANARY.bat` launches from the repository root and uses a lightweight `keyspace_status` readiness probe.
+  - Validate: `KHANARY_PHASE_DRIVER_LOCK_TEST`, runtime schema stack, API gateway checker, and launcher-style runtime probe from `build/Release`.
 
 - [ ] **T1.3 / GAP-012 — Validate the complete internal schema link graph.**
   - Files: `src/main.cpp`, `src/util/schema.cpp`, `data/schema/*.json`

@@ -297,6 +297,12 @@ add_executable(KHANARY_METRIC_TENSOR_TEST src/tests/test_metric_tensor.cpp
 target_include_directories(KHANARY_METRIC_TENSOR_TEST PRIVATE src)
 add_test(NAME KHANARY_METRIC_TENSOR_TEST COMMAND KHANARY_METRIC_TENSOR_TEST)
 
+add_executable(KHANARY_PHASE_DRIVER_LOCK_TEST src/tests/test_phase_driver_lock.cpp
+    src/kuhul/phase_driver_lock.cpp src/kuhul/phase_engine.cpp src/util/json.cpp src/util/sha256.cpp)
+target_include_directories(KHANARY_PHASE_DRIVER_LOCK_TEST PRIVATE src)
+add_test(NAME KHANARY_PHASE_DRIVER_LOCK_TEST
+    COMMAND KHANARY_PHASE_DRIVER_LOCK_TEST "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}")
+
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
     add_test(NAME KHANARY_SCHEMA_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_contracts.py")

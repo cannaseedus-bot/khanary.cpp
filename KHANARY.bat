@@ -121,7 +121,7 @@ if not exist "%KEYCACHE_META%" set "NEED_KEYCACHE=1"
 if "%DRY_RUN%"=="1" (
     if "%NEED_KEYCACHE%"=="1" call :emit_keycache_build_command
     echo [dry-run] "%SHELL_EXE%" -NoProfile -Command "RPC ready check on http://127.0.0.1:8787"
-    echo [dry-run] "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath '%RUNTIME_EXE%' -ArgumentList @(%RUNTIME_ARGS%) -WorkingDirectory '%RUNTIME_WORKDIR%' -WindowStyle Hidden"
+    echo [dry-run] "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath '%RUNTIME_EXE%' -ArgumentList @(%RUNTIME_ARGS%) -WorkingDirectory '%REPO_ROOT%' -WindowStyle Hidden"
     call :start_advisor
     call :start_chat_mu
     call :start_tool_mu
@@ -254,7 +254,7 @@ endlocal & set "RUNTIME_ARGS=%UPDATED_ARGS%"
 exit /b 0
 
 :rpc_ready
-"%SHELL_EXE%" -NoProfile -Command "$body = ConvertTo-Json -InputObject @{ jsonrpc = '2.0'; id = 1; method = 'key_query'; params = @{ query = 'STATUS:' } } -Compress; try { $resp = Invoke-RestMethod -Uri 'http://127.0.0.1:8787/rpc' -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 2; if ($null -eq $resp) { exit 1 }; if ($null -ne $resp.PSObject -and $resp.PSObject.Properties.Match('error').Count -gt 0) { exit 1 }; exit 0 } catch { exit 1 }" >nul 2>nul
+"%SHELL_EXE%" -NoProfile -Command "$body = ConvertTo-Json -InputObject @{ jsonrpc = '2.0'; id = 1; method = 'keyspace_status'; params = @{} } -Compress; try { $resp = Invoke-RestMethod -Uri 'http://127.0.0.1:8787/rpc' -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 2; if ($null -eq $resp) { exit 1 }; if ($null -ne $resp.PSObject -and $resp.PSObject.Properties.Match('error').Count -gt 0) { exit 1 }; if ($null -ne $resp.result -and $resp.result.PSObject.Properties.Match('ok').Count -gt 0 -and -not $resp.result.ok) { exit 1 }; exit 0 } catch { exit 1 }" >nul 2>nul
 exit /b %ERRORLEVEL%
 
 :wait_rpc
@@ -277,7 +277,7 @@ set "RUNTIME_PID_FILE=%TEMP%\khanary_runtime_pid.tmp"
 del "!RUNTIME_PID_FILE!" >nul 2>nul
 del "%RUNTIME_STDOUT_LOG%" >nul 2>nul
 del "%RUNTIME_STDERR_LOG%" >nul 2>nul
-"%SHELL_EXE%" -NoProfile -Command "$p = Start-Process -FilePath '%RUNTIME_EXE%' -ArgumentList @(%RUNTIME_ARGS%) -WorkingDirectory '%RUNTIME_WORKDIR%' -WindowStyle Hidden -RedirectStandardOutput '%RUNTIME_STDOUT_LOG%' -RedirectStandardError '%RUNTIME_STDERR_LOG%' -PassThru; $p.Id" > "!RUNTIME_PID_FILE!" 2>nul
+"%SHELL_EXE%" -NoProfile -Command "$p = Start-Process -FilePath '%RUNTIME_EXE%' -ArgumentList @(%RUNTIME_ARGS%) -WorkingDirectory '%REPO_ROOT%' -WindowStyle Hidden -RedirectStandardOutput '%RUNTIME_STDOUT_LOG%' -RedirectStandardError '%RUNTIME_STDERR_LOG%' -PassThru; $p.Id" > "!RUNTIME_PID_FILE!" 2>nul
 if errorlevel 1 (
     endlocal & exit /b 1
 )

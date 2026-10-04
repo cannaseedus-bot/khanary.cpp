@@ -225,6 +225,14 @@
       <vector_meta source="phase_default" qkv_role="K" x="-2" y="2.44929e-16" z="3"/>
       <tensors perceive="0" learn="0" think="0" evaluate="1" confidence="0" memory="0" evolve="0"/>
     </node>
+    <node id="@node:frame:argument" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="0.2" health="1" wcr_prior="0.2" coordinator="false" category="abstract-frame" vector_source="phase_default" x="-1" y="1.73205" z="4.5">
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="4.5"/>
+      <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
+    <node id="@node:frame:ideology" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="0.2" health="1" wcr_prior="0.2" coordinator="false" category="abstract-frame" vector_source="phase_default" x="-1" y="1.73205" z="5">
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="5"/>
+      <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
+    </node>
     <node id="@node:gravity" kind="track" phase="Pop" face="Phi" block="perceive" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="2" y="0" z="3.5">
       <effects>gramRead gramWrite</effects>
       <vector_meta source="phase_default" qkv_role="K" x="2" y="0" z="3.5"/>
@@ -240,9 +248,9 @@
       <vector_meta source="phase_default" qkv_role="K" x="1" y="-1.73205" z="0.5"/>
       <tensors perceive="0" learn="0" think="0" evaluate="0" confidence="0" memory="1" evolve="0"/>
     </node>
-    <node id="@node:reasoner" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-1" y="1.73205" z="4.5">
+    <node id="@node:reasoner" kind="track" phase="Yax" face="Gram" block="think" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" vector_source="phase_default" x="-1" y="1.73205" z="5.5">
       <effects>gramRead gramWrite semantic_graph:read semantic_graph:write</effects>
-      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="4.5"/>
+      <vector_meta source="phase_default" qkv_role="K" x="-1" y="1.73205" z="5.5"/>
       <tensors perceive="0" learn="0" think="1" evaluate="0" confidence="0" memory="0" evolve="0"/>
     </node>
     <node id="@node:Organization" kind="ontology" phase="Ch&apos;en" face="Projection" block="confidence" confidence="1" static_weight="1" health="1" wcr_prior="1" coordinator="false" category="ontology" vector_source="ontology_static" x="0.05" y="1.85" z="0">
@@ -971,6 +979,8 @@
     <edge from="@node:POLITICS-µ" to="@node:ADVISOR-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:POLITICS-µ" to="@node:PLAN-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:POLITICS-µ" to="@node:JOKE-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:POLITICS-µ" to="@node:frame:argument" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:frame:ideology" type="delegate" verb="@defines" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
     <edge from="@node:REASON-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:RICK-µ" to="@node:CHAT-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:RICK-µ" to="@node:MEM-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
@@ -1002,6 +1012,10 @@
     <edge from="@node:WEB-RESEARCH-µ" to="@node:Librarian" type="delegate" verb="@delegates_to" relation_phase="Sek" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:INFER-µ" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:ORCH-µ" type="delegate" verb="@produces" relation_phase="Wo" weight="-0.499999" delta_theta="120" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:POLITICS-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:frame:argument" to="@node:REASON-µ" type="delegate" verb="@supports" relation_phase="Ch&apos;en" weight="0.500001" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:frame:argument" type="delegate" verb="@defines" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:POLITICS-µ" type="horizontal_fold" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:ADVISOR-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1018,6 +1032,8 @@
     <edge from="@node:APP-WIZARD-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:APP-WIZARD-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1028,6 +1044,8 @@
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1060,6 +1078,8 @@
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:COMP-THEORY-OF-MIND-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1134,6 +1154,8 @@
     <edge from="@node:EMAIL-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:EMAIL-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:EMAIL-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:EMAIL-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:EMAIL-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FACTORY-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FACTORY-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1144,6 +1166,8 @@
     <edge from="@node:FACTORY-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FACTORY-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FACTORY-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FACTORY-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FACTORY-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1154,6 +1178,8 @@
     <edge from="@node:FREE-WILL-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:FREE-WILL-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:FREE-WILL-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1164,6 +1190,8 @@
     <edge from="@node:Factory" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:Factory" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:Factory" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:GREETING-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1240,6 +1268,8 @@
     <edge from="@node:PHIL-AI-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-AI-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-AI-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1250,6 +1280,8 @@
     <edge from="@node:PHIL-SELF-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PHIL-SELF-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PHIL-SELF-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1260,6 +1292,8 @@
     <edge from="@node:PLAN-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:PLAN-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:PLAN-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:POLITICS-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:POLITICS-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1280,6 +1314,8 @@
     <edge from="@node:RICK-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:RICK-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:RICK-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TEMPLATE-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TEMPLATE-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1297,6 +1333,8 @@
     <edge from="@node:TENSOR-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TENSOR-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TENSOR-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:TENSOR-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TENSOR-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1307,6 +1345,8 @@
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THEORY-OF-MIND-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THEORY-OF-MIND-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:ADVISOR-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:BLOG-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1317,6 +1357,8 @@
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TOOL-µ" to="@node:Coordinator" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:TOOL-µ" to="@node:INFER-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1345,6 +1387,8 @@
     <edge from="@node:VECTOR-µ" to="@node:POLITICS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:VECTOR-µ" to="@node:TEMPLATE-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:VECTOR-µ" to="@node:WEB-RESEARCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:frame:argument" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:VECTOR-µ" to="@node:frame:ideology" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:VECTOR-µ" to="@node:reasoner" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1356,6 +1400,20 @@
     <edge from="@node:coder" to="@node:Coordinator" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:coder" to="@node:INFER-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:coder" to="@node:ORCH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:REASON-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:TOOL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:DECISION-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:KNOWLED-1" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:MATH-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:Mx2LM" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:REASON-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:TOOL-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:coder" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:APP-WIZARD-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
     <edge from="@node:gravity" to="@node:COMP-THEORY-OF-MIND-µ" type="vertical_fold" weight="0.5" delta_theta="60" xcfe_required="true" directed="true"/>
@@ -1418,6 +1476,10 @@
     <edge from="@node:TEMPLATE-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ADVISOR-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:ADVISOR-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ADVISOR-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:ADVISOR-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1434,6 +1496,10 @@
     <edge from="@node:TEMPLATE-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:BLOG-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:BLOG-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:BLOG-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:BLOG-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1448,6 +1514,10 @@
     <edge from="@node:TEMPLATE-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CONCEPT-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CONCEPT-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CONCEPT-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:CONCEPT-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1460,6 +1530,10 @@
     <edge from="@node:TEMPLATE-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CREATE-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:CREATE-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:CREATE-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:CREATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:JOKE-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1470,6 +1544,10 @@
     <edge from="@node:TEMPLATE-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:JOKE-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:JOKE-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:JOKE-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:JOKE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1478,20 +1556,42 @@
     <edge from="@node:TEMPLATE-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Librarian" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:Librarian" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:Librarian" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:Librarian" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:POLITICS-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:TEMPLATE-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:POLITICS-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:POLITICS-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:POLITICS-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:POLITICS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:TEMPLATE-µ" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:TEMPLATE-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:TEMPLATE-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:TEMPLATE-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:WEB-RESEARCH-µ" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:WEB-RESEARCH-µ" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:reasoner" to="@node:WEB-RESEARCH-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:argument" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:reasoner" to="@node:frame:argument" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:frame:ideology" to="@node:reasoner" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
+    <edge from="@node:reasoner" to="@node:frame:ideology" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:ARTIFICIAL-CONSCIOUSNESS-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:ARTIFICIAL-CONSCIOUSNESS-µ" to="@node:APP-WIZARD-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
     <edge from="@node:APP-WIZARD-µ" to="@node:COMP-THEORY-OF-MIND-µ" type="horizontal_fold" weight="1" delta_theta="0" xcfe_required="false" directed="true"/>
@@ -1866,10 +1966,12 @@
     <edge from="@node:RICK-µ" to="@node:Connector" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:TENSOR-µ" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:THOUGHT-OUTLINE-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:frame:argument" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:TOOL-µ" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:reasoner" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:memory-agent" to="@node:Information" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:coder" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
+    <edge from="@node:frame:ideology" to="@node:Function" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
     <edge from="@node:Organization" to="@node:Function" type="ontology" verb="@part_of" relation_phase="Pop" weight="0.85" delta_theta="30" xcfe_required="false" directed="true"/>
     <edge from="@node:Organization" to="@node:Component" type="ontology" verb="@delegates_to" relation_phase="Sek" weight="0.85" delta_theta="30" xcfe_required="false" directed="true"/>
     <edge from="@node:Perspective" to="@node:Organization" type="ontology" verb="@related_to" relation_phase="Pop" weight="1" delta_theta="0" xcfe_required="false" directed="false"/>
@@ -2143,6 +2245,8 @@
     <edge from="@node:VECTOR-µ" to="@phase:Wo" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:WEB-RESEARCH-µ" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:coder" to="@phase:Sek" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:frame:argument" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
+    <edge from="@node:frame:ideology" to="@phase:Yax" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:gravity" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:intent-unresolved" to="@phase:Pop" type="phase_anchor" arc_weight="1.000" directed="true"/>
     <edge from="@node:memory-agent" to="@phase:Xul" type="phase_anchor" arc_weight="1.000" directed="true"/>

@@ -63,6 +63,30 @@ std::string lookup_declared_hash(const util::JsonValue* hash_map, const std::str
     return {};
 }
 
+fs::path resolve_driver_root(const std::string& configured_root,
+                             const std::string& fold_runtime_path)
+{
+    fs::path root(configured_root.empty() ? "data/drivers/phases" : configured_root);
+    if (root.is_absolute()) return root.lexically_normal();
+
+    const fs::path runtime_abs = fs::absolute(fs::path(fold_runtime_path)).lexically_normal();
+    const fs::path schema_dir = runtime_abs.parent_path();
+    const fs::path data_dir =
+        lower_copy(schema_dir.filename().string()) == "schema"
+            ? schema_dir.parent_path()
+            : schema_dir;
+    const fs::path repo_dir =
+        lower_copy(data_dir.filename().string()) == "data"
+            ? data_dir.parent_path()
+            : data_dir.parent_path();
+
+    auto it = root.begin();
+    if (it != root.end() && lower_copy(it->string()) == "data")
+        return (repo_dir / root).lexically_normal();
+
+    return (data_dir / root).lexically_normal();
+}
+
 } // namespace
 
 bool PhaseDriverLock::load(const std::string& fold_runtime_path,
@@ -123,7 +147,7 @@ bool PhaseDriverLock::load(const std::string& fold_runtime_path,
     }
     const util::JsonValue* hash_map = read_hash_map(runtime_meta_json);
 
-    const fs::path dll_root_path = fs::path(dll_root);
+    const fs::path dll_root_path = resolve_driver_root(dll_root, fold_runtime_path);
     for (const auto& phase_ptr : phases_val->as_array()) {
         if (!phase_ptr || !phase_ptr->is_object()) continue;
 
