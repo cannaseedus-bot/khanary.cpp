@@ -136,6 +136,13 @@ if "%DRY_RUN%"=="1" (
 
     call :rpc_ready
     if errorlevel 1 (
+        call :rpc_port_blocked
+        if not errorlevel 1 (
+            echo [error] RPC port 8787 is already in use but is not serving KHANARY RPC.
+            call :show_rpc_port_owner
+            echo [error] Stop the conflicting process or set KHANARY runtime to a different RPC port.
+            exit /b 1
+        )
         echo [runtime] Starting KHANARY runtime...
         call :start_runtime
         if errorlevel 1 exit /b 1
@@ -256,6 +263,14 @@ exit /b 0
 :rpc_ready
 "%SHELL_EXE%" -NoProfile -Command "$body = ConvertTo-Json -InputObject @{ jsonrpc = '2.0'; id = 1; method = 'keyspace_status'; params = @{} } -Compress; try { $resp = Invoke-RestMethod -Uri 'http://127.0.0.1:8787/rpc' -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 2; if ($null -eq $resp) { exit 1 }; if ($null -ne $resp.PSObject -and $resp.PSObject.Properties.Match('error').Count -gt 0) { exit 1 }; if ($null -ne $resp.result -and $resp.result.PSObject.Properties.Match('ok').Count -gt 0 -and -not $resp.result.ok) { exit 1 }; exit 0 } catch { exit 1 }" >nul 2>nul
 exit /b %ERRORLEVEL%
+
+:rpc_port_blocked
+"%SHELL_EXE%" -NoProfile -Command "try { $rows = @(Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue); if ($rows.Count -gt 0) { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>nul
+exit /b %ERRORLEVEL%
+
+:show_rpc_port_owner
+"%SHELL_EXE%" -NoProfile -Command "$rows = @(Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue); foreach ($row in $rows) { $proc = Get-Process -Id $row.OwningProcess -ErrorAction SilentlyContinue; $name = if ($proc) { $proc.ProcessName } else { 'unknown' }; $path = if ($proc) { $proc.Path } else { '' }; Write-Host ('[error] 8787 owner PID=' + $row.OwningProcess + ' process=' + $name + ' path=' + $path) }"
+exit /b 0
 
 :wait_rpc
 setlocal
