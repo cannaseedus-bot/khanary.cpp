@@ -572,41 +572,47 @@ exit /b 0
 
 :start_llama_mcp
 rem Start llama-server as an MCP server using --hf-repo (HuggingFace) + --ui-mcp-proxy.
-rem Skipped when KHANARY_MCP_HF_REPO is empty.
+rem Skipped when KHANARY_MCP_HF_REPO is empty or a placeholder value.
+setlocal EnableDelayedExpansion
 set "MCP_REPO_RAW=%KHANARY_MCP_HF_REPO%"
-set "MCP_REPO=%MCP_REPO_RAW:"=%"
-if not defined MCP_REPO exit /b 0
-if "%DRY_RUN%"=="1" (
-    if not defined KHANARY_MCP_PORT set "KHANARY_MCP_PORT=17891"
-    echo [dry-run] llama-mcp server ^(repo=%MCP_REPO%, port=%KHANARY_MCP_PORT%^)
-    exit /b 0
+set "MCP_REPO=!MCP_REPO_RAW:"=!"
+if not defined MCP_REPO endlocal & exit /b 0
+if "!MCP_REPO!"=="=" (
+    echo [llama-mcp] KHANARY_MCP_HF_REPO is not a repo slug, skipping MCP server.
+    endlocal & exit /b 0
 )
-setlocal
+set "KHANARY_MCP_REPO_CANDIDATE=!MCP_REPO!"
+"%SHELL_EXE%" -NoProfile -Command "$repo = ($env:KHANARY_MCP_REPO_CANDIDATE -replace [char]34, '').Trim(); if ($repo -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') { exit 0 } else { exit 1 }" >nul 2>nul
+if errorlevel 1 (
+    echo [llama-mcp] Invalid KHANARY_MCP_HF_REPO value "!MCP_REPO!", skipping MCP server.
+    endlocal & exit /b 0
+)
 if not defined KHANARY_MCP_PORT set "KHANARY_MCP_PORT=17891"
 set "MCP_PORT=%KHANARY_MCP_PORT%"
-set "MCP_REPO=%MCP_REPO%"
+if "%DRY_RUN%"=="1" (
+    echo [dry-run] llama-mcp server ^(repo=!MCP_REPO!, port=!MCP_PORT!^)
+    endlocal & exit /b 0
+)
 rem Check if already running
-"%SHELL_EXE%" -NoProfile -Command "try { Invoke-RestMethod -Uri 'http://127.0.0.1:%MCP_PORT%/v1/models' -Method Get -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }" >nul 2>nul
+"%SHELL_EXE%" -NoProfile -Command "try { Invoke-RestMethod -Uri 'http://127.0.0.1:!MCP_PORT!/v1/models' -Method Get -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }" >nul 2>nul
 if not errorlevel 1 (
-    echo [llama-mcp] Already running at http://127.0.0.1:%MCP_PORT%
+    echo [llama-mcp] Already running at http://127.0.0.1:!MCP_PORT!
     endlocal & exit /b 0
 )
 if not defined KHANARY_LLAMA_SERVER_EXE (
     set "KHANARY_LLAMA_SERVER_EXE=%REPO_ROOT%\build\llama-haswell\bin\llama-server.exe"
 )
-if not exist "%KHANARY_LLAMA_SERVER_EXE%" (
+if not exist "!KHANARY_LLAMA_SERVER_EXE!" (
     echo [llama-mcp] llama-server.exe not found, skipping MCP server.
     endlocal & exit /b 0
 )
-for %%D in ("%KHANARY_LLAMA_SERVER_EXE%") do set "MCP_EXE_DIR=%%~dpD"
+for %%D in ("!KHANARY_LLAMA_SERVER_EXE!") do set "MCP_EXE_DIR=%%~dpD"
 if not defined KHANARY_MCP_CTX set "KHANARY_MCP_CTX=4096"
 set "MCP_HF_FILE=%KHANARY_MCP_HF_FILE%"
-echo [llama-mcp] Starting MCP server ^(repo=%MCP_REPO%, port=%MCP_PORT%^)...
-if not "%MCP_HF_FILE%"=="" (
-    "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath '%KHANARY_LLAMA_SERVER_EXE%' -ArgumentList @('--hf-repo','%MCP_REPO%','--port','%MCP_PORT%','--ctx-size','%KHANARY_MCP_CTX%','--ui-mcp-proxy','--log-disable','--hf-file','%MCP_HF_FILE%') -WorkingDirectory '%MCP_EXE_DIR%' -WindowStyle Hidden"
-) else (
-    "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath '%KHANARY_LLAMA_SERVER_EXE%' -ArgumentList @('--hf-repo','%MCP_REPO%','--port','%MCP_PORT%','--ctx-size','%KHANARY_MCP_CTX%','--ui-mcp-proxy','--log-disable') -WorkingDirectory '%MCP_EXE_DIR%' -WindowStyle Hidden"
-)
+set "MCP_ARG_LIST='--hf-repo','!MCP_REPO!','--port','!MCP_PORT!','--ctx-size','!KHANARY_MCP_CTX!','--ui-mcp-proxy','--log-disable'"
+if defined MCP_HF_FILE set "MCP_ARG_LIST=!MCP_ARG_LIST!,'--hf-file','!MCP_HF_FILE!'"
+echo [llama-mcp] Starting MCP server ^(repo=!MCP_REPO!, port=!MCP_PORT!^)...
+"%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath '!KHANARY_LLAMA_SERVER_EXE!' -ArgumentList @(!MCP_ARG_LIST!) -WorkingDirectory '!MCP_EXE_DIR!' -WindowStyle Hidden"
 endlocal & exit /b 0
 
 :advisor_ready
