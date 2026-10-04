@@ -107,5 +107,16 @@
     "checker:tools/check_micronaut_grammar.py",
     "purpose:projection-only Micronaut profile/tensor-slot/route/JROM grammar",
     "law:profile-and-progression-do-not-grant-authority"
+  ],
+  "schema:fold_event": [
+    "data/schema/fold-event.schema.json",
+    "id:urn:khanary:schema:fold-event:1",
+    "kind:fold_event_json_schema",
+    "contract:data/grammar/fold-event.contracts.json",
+    "checker:tools/check_fold_event.py",
+    "law:event-is-not-transition-authority — p_next = delta_XCFE(p_t,e_t,Pi)",
+    "law:field-gradient-is-candidate-pressure-not-legal-direction",
+    "law:delta_B-requires-Verified-Authorized-Fresh-Xul",
+    "purpose:typed Fold Event logging ABI for Fold Space navigation and Fold Field/topology proposals"
   ]
 }

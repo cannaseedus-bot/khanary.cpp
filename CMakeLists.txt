@@ -325,6 +325,10 @@ if(Python3_Interpreter_FOUND)
     # track, fold/unfold extent, optional competence, and mutable state.
     add_test(NAME KHANARY_FOLD_SPACE_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_space.py")
+    # Fold Event JSON Schema: events log proposed/observed Fold Space movement;
+    # XCFE owns p_next = delta_XCFE(p_t, e_t, Pi) transition authority.
+    add_test(NAME KHANARY_FOLD_EVENT_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_event.py")
     # Fold Lattice product graph: phase theta and competence sigma stay
     # orthogonal, with metrics recommending movement but XCFE retaining authority.
     add_test(NAME KHANARY_FOLD_LATTICE_TEST

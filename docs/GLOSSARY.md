@@ -109,6 +109,32 @@ LOCATE -> UNFOLD -> NAVIGATE -> OPERATE -> VERIFY -> FOLD -> XUL
 
 C6 is the authoritative execution coordinate; S1 is a projection for geometry/HLSL/SVG visualization. Distance is typed rather than universal: semantic, phase, track, and behavior metrics answer different questions. Fold Lattice is the K = (theta, sigma) slice of Fold Space, not the full position. The grammar is `data/grammar/fold-space.ebnf`, the contract is `data/grammar/fold-space.contracts.json`, fixtures live in `data/conformance/fold_space.json`, and validation is performed by `tools/check_fold_space.py`.
 
+## Fold Theory, Fold Field, and Fold Events
+
+**Fold Theory** is the umbrella calculus:
+
+```
+FrakturF = (F_K, M_F, E_F, delta_Pi, B, Exe)
+```
+
+`F_K` is Fold Space, `M_F` is the Fold Field, `E_F` is the Fold Event set, `delta_Pi` is the XCFE transition/control law, `B` is Fold Bindings, and `Exe` is the executor layer. This keeps theory, space, field, event logging, binding, and execution as separate authority layers.
+
+The **Fold Field** is a field defined over Fold topology, optionally admitting continuous geometric projections:
+
+```
+M_F(h) = bigoplus_tau B_tau[h,*] tensor W_tau
+```
+
+The direct sum preserves typed incidence channels. A graph, tensor, SVG3D, HLSL, SCXQ2, JROM, or KQL view is a projection of the field, not the field itself. `gradient_Q(M_F) is candidate navigation pressure`; it is not legal direction. XCFE remains the owner of legal movement.
+
+A **Fold Event** is a typed proposed or observed transition in Fold Space. The event does not decide the next state:
+
+```
+p_next = delta_XCFE(p_t, e_t, Pi)
+```
+
+The event ABI covers `EVENT_SHIFT_TRACK`, `EVENT_CYCLE_PHASE`, `EVENT_FOLD_STATE`, `EVENT_SUBSTRATE_HANDSHAKE`, `EVENT_COMPETENCE_CANDIDATE`, `EVENT_COMPETENCE_UPGRADE`, `EVENT_FIELD_GRADIENT`, `EVENT_TOPOLOGY_CANDIDATE`, and `EVENT_TOPOLOGY_COMMIT`. Topology mutation is special: `delta_B != 0` commits only when Verified, Authorized, Fresh, and Xul all hold. The JSON Schema is `data/schema/fold-event.schema.json`, the contract is `data/grammar/fold-event.contracts.json`, fixtures live in `data/conformance/fold_event.json`, and validation is performed by `tools/check_fold_event.py`.
+
 ## Fold Lattice
 
 The **Fold Lattice** is the product-graph slice inside Fold Space that separates phase position from evolutionary competence while preserving the full runtime coordinate:

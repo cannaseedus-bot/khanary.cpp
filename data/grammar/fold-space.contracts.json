@@ -15,7 +15,8 @@
     "pipeline": "LOCATE -> UNFOLD -> NAVIGATE -> OPERATE -> VERIFY -> FOLD -> XUL",
     "boundary": "Fold Space != Fold Lattice != Fold Kernel != XCFE Policy != Execution",
     "fold_boundary": "Fold != Xul; fold/unfold toggles s while Xul remains the commit/collapse phase.",
-    "proof_boundary": "Sek proposes, Ch'en proves, XCFE authorizes, Xul commits."
+    "proof_boundary": "Sek proposes, Ch'en proves, XCFE authorizes, Xul commits.",
+    "event_transition_boundary": "Fold Events record proposed/observed movement; XCFE evaluates p_next = delta_XCFE(p_t,e_t,Pi)."
   },
   "phase_cycle": [
     "Pop",
@@ -97,5 +98,7 @@
     "FS13": "navigation order is LOCATE -> UNFOLD -> NAVIGATE -> OPERATE -> VERIFY -> FOLD -> XUL",
     "FS14": "Fold != Xul",
     "FS15": "Sek proposes, Ch'en proves, XCFE authorizes, Xul commits"
-  }
+  },
+  "fold_event_schema": "data/schema/fold-event.schema.json",
+  "fold_event_contract": "data/grammar/fold-event.contracts.json"
 }

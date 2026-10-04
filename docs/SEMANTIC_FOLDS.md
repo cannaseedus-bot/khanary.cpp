@@ -133,6 +133,33 @@ LOCATE -> UNFOLD -> NAVIGATE -> OPERATE -> VERIFY -> FOLD -> XUL
 
 C6 is the authoritative execution coordinate; S1 is a projection for geometric visualization or shader-friendly layout. Distance is typed: `semantic`, `phase`, `track`, and `behavior` projections do not collapse into one universal metric. Fold Lattice is the K = (theta, sigma) slice of Fold Space. The grammar is `data/grammar/fold-space.ebnf`, the contract is `data/grammar/fold-space.contracts.json`, and the conformance gate is `tools/check_fold_space.py`.
 
+## Fold Theory, Fold Field, and Fold Events
+
+The compact Fold Theory stack is:
+
+```
+FrakturF = (F_K, M_F, E_F, delta_Pi, B, Exe)
+```
+
+`F_K` is Fold Space. `M_F` is the Fold Field defined over Fold topology. `E_F` is the typed Fold Event set. `delta_Pi` is the XCFE transition/control law. `B` is Fold Bindings. `Exe` is the executor layer.
+
+The Fold Field is intentionally substrate independent:
+
+```
+M_F(h) = bigoplus_tau B_tau[h,*] tensor W_tau
+Pi_R(M_F) is a projection, not the object
+```
+
+A field gradient supplies candidate navigation pressure, not legal direction. The legal direction remains policy/capability/XCFE-gated.
+
+Fold Events are the logging ABI for movement through Fold Space and proposals against the Fold Field:
+
+```
+p_next = delta_XCFE(p_t, e_t, Pi)
+```
+
+So `EVENT_COMPETENCE_CANDIDATE` can be emitted by the N-Gram Burner, but `EVENT_COMPETENCE_UPGRADE` requires XCFE authorization. `EVENT_TOPOLOGY_CANDIDATE` can carry a proposed `delta_B`; `EVENT_TOPOLOGY_COMMIT` requires Verified, Authorized, Fresh, and Xul. The JSON Schema is `data/schema/fold-event.schema.json`, the contract is `data/grammar/fold-event.contracts.json`, and the conformance gate is `tools/check_fold_event.py`.
+
 ## Fold Lattice product graph
 
 The **Fold Lattice** is the product-graph slice inside Fold Space that keeps semantic phase and learning competence orthogonal while preserving the full runtime coordinate:
