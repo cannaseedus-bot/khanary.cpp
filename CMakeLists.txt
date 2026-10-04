@@ -329,6 +329,11 @@ if(Python3_Interpreter_FOUND)
     # XCFE owns p_next = delta_XCFE(p_t, e_t, Pi) transition authority.
     add_test(NAME KHANARY_FOLD_EVENT_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_event.py")
+    # Fold Graph recoverable contraction and orientation: Handle is an
+    # addressable contracted graph state; traversal must satisfy semantic edge
+    # orientation plus C6 phase-forward law.
+    add_test(NAME KHANARY_FOLD_GRAPH_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_graph.py")
     # Fold Lattice product graph: phase theta and competence sigma stay
     # orthogonal, with metrics recommending movement but XCFE retaining authority.
     add_test(NAME KHANARY_FOLD_LATTICE_TEST

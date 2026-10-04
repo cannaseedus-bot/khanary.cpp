@@ -118,5 +118,18 @@
     "law:field-gradient-is-candidate-pressure-not-legal-direction",
     "law:delta_B-requires-Verified-Authorized-Fresh-Xul",
     "purpose:typed Fold Event logging ABI for Fold Space navigation and Fold Field/topology proposals"
+  ],
+  "grammar:fold_graph_contract": [
+    "data/grammar/fold-graph.contracts.json",
+    "doc:docs/FOLD_GRAPH.md",
+    "fixture:data/conformance/fold_graph.json",
+    "checker:tools/check_fold_graph.py",
+    "law:G_F(h)=(V_h,E_h,B_h,W_h,tau_h)",
+    "law:Unfold(Fold(G_F))~=G_F",
+    "law:Fold-does-not-destroy-graph",
+    "law:Xul-required-for-delta_B",
+    "law:orientation-not-weight",
+    "law:semantic-and-phase-forward-orientation",
+    "purpose:recoverable Fold Graph contraction, directed traversal, and local composition boundary"
   ]
 }

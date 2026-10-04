@@ -96,16 +96,25 @@ for Fold Space or persistent global topology:
 
 ```
 Unfold(h, τ) = { e | B_τ[h, e] ≠ 0 }
-𝒢_F(h, τ, Q) = query-conditioned graph exposed by unfolding Fold h
+𝒢_F(h, τ, Q) = query-conditioned directed graph exposed by unfolding Fold h
 ```
+
+Fold Graph orientation is separate from edge weight: `W_E` is relationship
+strength, while `O_E` is permitted traversal direction. A valid runtime path must
+satisfy both semantic edge orientation and the C6 phase-forward law. Geometry or
+SVG/HLSL projection does not define execution orientation.
 
 Yax derives the **Active Fold Graph** `𝒢_F^Q(h)` from `𝒢_F(h)` using the query
 gate. Sek operates on the Active Fold Graph; Fold contracts it back into a
-bounded unit. Unfold reveals existing structure and does not create semantic
+recoverable Handle. Unfold reveals existing structure and does not create semantic
 relationships. Fold does not destroy the graph; it is a topology-preserving
 contraction with recoverable local structure, so `Unfold(Fold(𝒢_F)) ≃ 𝒢_F`
 under the Fold contract. Only the verified/authorized Xul path may persist a
 topology delta. See `docs/FOLD_GRAPH.md`.
+
+The machine contract for this layer is `data/grammar/fold-graph.contracts.json`,
+with fixtures in `data/conformance/fold_graph.json` and validation in
+`tools/check_fold_graph.py`.
 
 ## Fold Space
 
