@@ -64,6 +64,7 @@ This launcher:
 - starts `KHANARY.exe` on RPC/MCP ports if it is not already ready (passing `--gguf-model` from `KHANARY_GGUF_MODEL` and DDS args from `KHANARY_DDS_KSON` / `KHANARY_DDS_MANIFEST` / `KHANARY_DDS_SHARDS`),
 - starts CHAT-µ (LFM2.5-1.2B) and TOOL-µ (gemma-3-1B) llama-server instances — each checks if its default port is free, scans the next 20 if not, and resolves to the first available port,
 - starts a KHANARY single-completion OpenAI-compatible gateway (`tools\khanary_completion_api.py`) that fronts `key_query` and allows phase-gated CHAT-µ/TOOL-µ contributions on one endpoint,
+- keeps the public API contract at `https://api.kuhul.dev:443` while local development stays on `127.0.0.1:17892`; see `docs/API_GATEWAY.md` for text completion, code modification, image generation, learning event, and allowlisted RPC surfaces,
 - writes `data\ports.json` with all resolved live ports so `lfm_factory.py` and `bot.py` connect automatically,
 - serves the custom WebUI from `build\webui` via `--path` when `index.html` is present there,
 - opens the WPF terminal/console shell.
@@ -323,6 +324,7 @@ appends both scripts before `</body>`, and copies `khanary-registry.json` to the
 |------|---------|
 | 8764 | MCP gateway (20 tools) |
 | 8787 | JSON-RPC 2.0 |
+| 443 | Public HTTPS API edge (`https://api.kuhul.dev`) |
 | 17892 | KHANARY single completion API (`/v1/chat/completions`) |
 | 17889 | CHAT-µ — LFM2.5-1.2B (default; auto-reassigned if taken) |
 | 17890 | TOOL-µ — gemma-3-1B (default; auto-reassigned if taken) |

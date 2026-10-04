@@ -119,6 +119,7 @@ Invariant: **Executor implements contract; contract does not implement executor.
 | GAP-032 | COVERAGE | Open | Gateway extracts only the latest user message; system/assistant context and structured content are not normalized into KHANARY. | `tools/khanary_completion_api.py` |
 | GAP-033 | OPERABILITY | Open | Contributor capability state (`disabled`, `unavailable`, `failed`, `used`) is not advertised as a first-class readiness/response contract. | `tools/khanary_completion_api.py`, `KHANARY.bat` |
 | GAP-034 | OPERABILITY | Open | `bot.py` still presents separate advisor/chat profiles as primary, competing with the single completion gateway. | `bot.py`, `openai.yaml`, `README.md` |
+| GAP-035 | AUTHORITY / EXPOSURE | Contracted | Public `api.kuhul.dev:443` reachability needs a schema-backed edge contract proving text/code/image/learning/RPC surfaces are projections and cannot bypass Ch'en/XCFE/Xul. | `docs/API_GATEWAY.md`, `data/grammar/api-gateway.contracts.json`, `tools/check_api_gateway.py`, `tools/khanary_completion_api.py` |
 | GAP-040 | AUTHORITY | Open | Semantic attention dispatches from prompt archive rows without a parser/policy/XCFE eligibility gate. | `src/main.cpp`, `src/inference/semantic_attention.cpp` |
 | GAP-041 | AUTHORITY | Open | GPU shader hard gates exist, but host packing forces `policy_ok`, `capable`, and `xcfe_ok` to `1.0f`. | `src/gpu/gram_gpu_scorer.cpp`, `data/shaders/attention.hlsl` |
 | GAP-042 | OPERABILITY | Open | GPU failure and “no results” both collapse to `{}` at the `InferenceEngine` caller. | `src/inference/inference_engine.cpp`, `src/gpu/gram_gpu_scorer.cpp` |
@@ -293,6 +294,11 @@ Invariant: **Executor implements contract; contract does not implement executor.
   - Files: `bot.py`, `openai.yaml`, `README.md`
   - Work: default profile targets the gateway; legacy advisor/chat profiles become explicit advanced modes.
   - Validate: `bot.py` prompt-mode integration test reaches `/v1/chat/completions` on the gateway.
+
+- [x] **T2.16 / GAP-035 — Schema-back the public API gateway contract.**
+  - Files: `docs/API_GATEWAY.md`, `data/grammar/api-gateway.contracts.json`, `data/conformance/api_gateway.json`, `tools/check_api_gateway.py`, `tools/khanary_completion_api.py`
+  - Work: define `https://api.kuhul.dev:443` as the public edge, keep `127.0.0.1:17892` as the local projection, expose text completion/code modification/image generation/learning event/allowlisted RPC surfaces, and mark learning as `learning_commenced` evidence rather than topology mutation.
+  - Validate: `KHANARY_API_GATEWAY_TEST` proves public port 443, endpoint coverage, non-authority boundaries, learning status, session scope, and RPC allowlisting.
 
 ### Phase 3 — Semantic Authority, JROM, and Micronaut Contract Closure
 **Goal:** projections can bias routing, but only Ch’en verifies and only Xul commits.

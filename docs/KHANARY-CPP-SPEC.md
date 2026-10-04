@@ -65,6 +65,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `data/schema/fold-event.schema.json` | Draft 2020-12 JSON Schema for Fold Event rows; events log proposed/observed movement and carry XCFE decision state without owning transition authority |
 | `data/grammar/fold-event.contracts.json` | Machine-readable Fold Theory/Field/Event contract: `FrakturF=(F_K,M_F,E_F,delta_Pi,B,Exe)`, Fold Field projection laws, event-axis mapping, and topology commit requirements |
 | `data/grammar/fold-graph.contracts.json` | Machine-readable Fold Graph contract: `G_F(h)=(V_h,E→_h,B_h,W_h,tau_h,Theta_h)`, recoverable Handle contraction, orientation/phase-forward traversal, local validity plus boundary compatibility, and Xul topology boundary |
+| `data/grammar/api-gateway.contracts.json` | Machine-readable public API gateway contract: `https://api.kuhul.dev:443` as the reachable edge, local `tools/khanary_completion_api.py` projection, text/code/image/learning/RPC endpoint boundaries, and Ch'en/XCFE/Xul commit gate |
 | `data/grammar/fold-kernel.ebnf` | Fold Kernel concrete/abstract grammar: state-dependent JSON lifecycle records for learned folds |
 | `data/grammar/fold-kernel.contracts.json` | Machine-readable Fold Kernel lifecycle contract: state requirements, evidence invariants, XCFE policy linkage, Fold Lattice linkage, and XCFE route authority |
 | `data/grammar/fold-lattice.ebnf` | Fold Lattice grammar: full coordinate `K_t = (F_h, phi, T, s, sigma, X_t)` with checkable `K = (theta, sigma)` phase/competence slice |
@@ -74,6 +75,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `data/conformance/fold_space.json` | Positive/negative Fold Space fixtures covering valid positions, movement-axis constraints, Book boundaries, typed distances, and projection authority rules |
 | `data/conformance/fold_event.json` | Positive/negative Fold Event fixtures covering track/phase/fold-state moves, competence candidates/upgrades, field gradients, topology candidates, topology commits, and schema failures |
 | `data/conformance/fold_graph.json` | Positive/negative Fold Graph fixtures covering typed directed edges, incidence, weights, orientation modes, recoverability, active query gates, composition boundaries, and topology-delta rejection |
+| `data/conformance/api_gateway.json` | Positive/negative API Gateway fixtures covering public port 443, text/code/image/learning endpoint authority boundaries, learning_commenced status, session scope, and RPC allowlisting |
 | `data/conformance/fold_kernel.json` | Positive/negative Fold Kernel fixtures covering unbound→autonomous progression and invalid evidence/policy/route/binding cases |
 | `data/conformance/fold_lattice.json` | Positive/negative Fold Lattice fixtures covering valid phase-granular runtime lattices, callback requirements, Xul policy gates, and bounded metric rules |
 | `data/conformance/xcfe_policy.json` | Positive/negative XCFE Policy fixtures covering default scoring, explicit derive expressions, guards, route transitions, and malformed policies |
@@ -82,10 +84,12 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `tools/check_fold_space.py` | Conformance checker for Fold Space records; validates full navigation coordinates, horizontal/vertical/radial movement, typed distance declarations, and C6/S1 authority boundaries |
 | `tools/check_fold_event.py` | Conformance checker for Fold Event records; validates the JSON Schema plus event-axis laws, XCFE transition boundary, field-gradient boundary, and topology commit preconditions |
 | `tools/check_fold_graph.py` | Conformance checker for Fold Graph recoverable contraction; validates directed typed graph shape, incidence, orientation, recoverability, active graph gates, and Xul topology boundary |
+| `tools/check_api_gateway.py` | Conformance checker for the public API Gateway contract; validates `api.kuhul.dev:443`, local gateway implementation tokens, endpoint non-authority laws, learning events, and RPC allowlist |
 | `tools/check_fold_kernel.py` | Conformance checker for Fold Kernel lifecycle records; verifies state-dependent field growth, XCFE confidence derivation, and binding-registry compatibility |
 | `tools/check_fold_lattice.py` | Conformance checker for Fold Lattice product-graph records; validates θ×σ coordinates, callback/substrate rules, metric bounds, and transition recommendations |
 | `tools/check_xcfe_policy.py` | Conformance checker for XCFE Policy records; validates total expression parsing, policy invariants, guard typing, and lifecycle transition output |
 | `docs/SEMANTIC_FOLDS.md` | Declares that K'UHUL semantic folds are algebraic/catamorphic folds; KLSL/KXC/KHLC folds are backend/compiler lowering folds unless explicitly bound to the semantic contract |
+| `docs/API_GATEWAY.md` | Public API gateway contract for `api.kuhul.dev:443`, local `17892` development, user-scoped KQL/MeshNet routing, text/code/image/learning/RPC surfaces, and Ch'en/XCFE/Xul authority boundary |
 
 ### KLSL Compiler
 | File | Purpose |

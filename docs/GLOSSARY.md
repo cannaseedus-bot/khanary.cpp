@@ -32,6 +32,36 @@ Only the K'UHUL semantic fold carries the `N(k) --[α, θ]--> B --Xul--> k'`
 contract. Backend/compiler folds may preserve or project that contract, but they
 do not define it.
 
+## API Gateway
+
+The **KHANARY Public API Gateway** is the reachable transport surface, not the
+semantic authority layer. Its public edge contract is
+`https://api.kuhul.dev:443`; local development uses
+`http://127.0.0.1:17892` via `tools/khanary_completion_api.py`.
+
+The gateway exposes text completions (`/v1/chat/completions`), code
+modification proposals (`/v1/code/modify`), image generation requests
+(`/v1/images/generations`), learning events (`/v1/learn/events`), and an
+allowlisted JSON-RPC bridge (`/rpc`). The route is:
+
+```
+api.kuhul.dev:443
+  -> session/auth
+  -> user_scoped_mesh_kql
+  -> khanary_runtime
+  -> jrom_evidence
+  -> Ch'en/XCFE/Xul
+```
+
+`learning_commenced` means evidence collection has started. It does not grant
+semantic authority, mutate topology, apply patches, or authorize commits. API
+envelopes that can affect learning or routing keep `semantic_authority:false`,
+`topology_mutation:false`, `commit_authorized:false`, and
+`next_gate:"Ch'en/XCFE/Xul"`. The machine contract is
+`data/grammar/api-gateway.contracts.json`, fixtures live in
+`data/conformance/api_gateway.json`, and validation is performed by
+`tools/check_api_gateway.py`.
+
 ## Fold Binding
 
 **Fold Binding = (α, θ, backend, entrypoint, contract).** It is the

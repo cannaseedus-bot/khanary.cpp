@@ -14,6 +14,28 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
 
+PUBLIC_API_BASE_URL = "https://api.kuhul.dev"
+PUBLIC_API_PORT = 443
+LEARNING_COMMENCED_STATUS = "learning_commenced"
+PUBLIC_RPC_METHODS = {
+    "key_query",
+    "resolve_manifest",
+    "fold_query",
+    "fold_graph_parse",
+    "micronaut_dispatch",
+    "micronaut_transpile",
+    "journal_semantic_envelope",
+    "journal_hyperbolic_event",
+    "tensor_register",
+    "tensor_info",
+    "tensor_list",
+    "tensor_stats",
+    "tensor_gemm",
+    "list_keys",
+    "record_key",
+    "infer",
+}
+
 
 def _as_text(value: Any) -> str:
     if isinstance(value, str):
@@ -105,11 +127,42 @@ class GatewayConfig:
     tool_port: int
     timeout_s: float
     model_id: str
+    public_base_url: str
+    public_port: int
 
 
 class CompletionGateway:
     def __init__(self, cfg: GatewayConfig) -> None:
         self.cfg = cfg
+
+    def service_info(self) -> dict[str, Any]:
+        return {
+            "service": "KHANARY public API gateway",
+            "status": "ready",
+            "public_base_url": self.cfg.public_base_url,
+            "public_port": self.cfg.public_port,
+            "public_endpoint": f"{self.cfg.public_base_url}:{self.cfg.public_port}",
+            "local_gateway": f"http://{self.cfg.host}:{self.cfg.port}",
+            "endpoints": [
+                {"method": "GET", "path": "/"},
+                {"method": "GET", "path": "/v1"},
+                {"method": "GET", "path": "/v1/models"},
+                {"method": "POST", "path": "/v1/chat/completions"},
+                {"method": "POST", "path": "/v1/code/modify"},
+                {"method": "POST", "path": "/v1/images/generations"},
+                {"method": "POST", "path": "/v1/learn/events"},
+                {"method": "POST", "path": "/rpc"},
+            ],
+            "authority_boundary": {
+                "completion_is_authority": False,
+                "code_patch_is_commit": False,
+                "image_generation_is_semantic_truth": False,
+                "learning_event_is_topology_mutation": False,
+                "semantic_authority": False,
+                "commit_path": "Ch'en/XCFE/Xul",
+                "public_api_port": 443,
+            },
+        }
 
     def _rpc(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
@@ -118,6 +171,197 @@ class CompletionGateway:
             payload,
             self.cfg.timeout_s,
         )
+
+    def _try_rpc(self, method: str, params: dict[str, Any]) -> tuple[dict[str, Any], str]:
+        try:
+            return self._rpc(method, params), "recorded"
+        except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+            return {"error": str(exc), "method": method}, "pending"
+
+    def _event_id(self, prefix: str) -> str:
+        return f"{prefix}-khanary-{int(time.time() * 1000)}"
+
+    def learning_event(
+        self,
+        request_body: dict[str, Any],
+        *,
+        source: str = "api_gateway",
+    ) -> dict[str, Any]:
+        event_name = str(
+            request_body.get("event")
+            or request_body.get("@event")
+            or request_body.get("type")
+            or "api.learning"
+        )
+        payload = request_body.get("payload")
+        if payload is None:
+            payload = request_body.get("data")
+        if payload is None:
+            payload = {}
+
+        event = {
+            "@type": "khanary.api_gateway.learning_event.v1",
+            "@event": event_name,
+            "@source": source,
+            "@status": LEARNING_COMMENCED_STATUS,
+            "@semantic_authority": False,
+            "@topology_mutation": False,
+            "@commit_authorized": False,
+            "@next_gate": "Ch'en/XCFE/Xul",
+            "@payload": payload,
+        }
+        journal_payload = {
+            "epistemic_type": "observation",
+            "source": source,
+            "semantic_authority": False,
+            "authority_boundary": "learning event is evidence, not topology mutation",
+            "event": event,
+        }
+        journal, journal_state = self._try_rpc("journal_semantic_envelope", journal_payload)
+        return {
+            "id": self._event_id("learn"),
+            "object": "learning.event",
+            "status": LEARNING_COMMENCED_STATUS,
+            "semantic_authority": False,
+            "topology_mutation": False,
+            "commit_authorized": False,
+            "next_gate": "Ch'en/XCFE/Xul",
+            "event": event,
+            "journal": {
+                "attempted": True,
+                "state": journal_state,
+                "result": journal,
+            },
+        }
+
+    def code_modify(self, request_body: dict[str, Any]) -> dict[str, Any]:
+        instruction = _as_text(
+            request_body.get("instructions")
+            or request_body.get("input")
+            or request_body.get("prompt")
+            or request_body.get("query")
+        ).strip()
+        if not instruction:
+            raise ValueError("instructions/input/prompt/query is required")
+
+        files = request_body.get("files", [])
+        if files is None:
+            files = []
+        if not isinstance(files, list):
+            raise ValueError("files must be an array when provided")
+
+        rpc_payload = {
+            "query": f"CODE_MODIFY: {instruction}",
+            "surface": "api_gateway.code_modify",
+            "files": files,
+            "semantic_authority": False,
+        }
+        route_result, route_state = self._try_rpc("key_query", rpc_payload)
+        learning = self.learning_event(
+            {
+                "event": "code.modify.requested",
+                "payload": {
+                    "instruction_chars": len(instruction),
+                    "file_count": len(files),
+                    "route_state": route_state,
+                },
+            },
+            source="api_gateway.code_modify",
+        )
+        return {
+            "id": self._event_id("codemod"),
+            "object": "code.modification.proposal",
+            "status": "proposal_ready" if route_state == "recorded" else "proposal_pending",
+            "applied": False,
+            "commit_authorized": False,
+            "semantic_authority": False,
+            "authority_boundary": "code modification endpoint returns a proposal envelope; it does not apply or commit patches",
+            "next_gate": "Ch'en/XCFE/Xul",
+            "route": {
+                "method": "key_query",
+                "state": route_state,
+                "result": route_result,
+            },
+            "learning": {
+                "status": learning["status"],
+                "event_id": learning["id"],
+                "journal_state": learning["journal"]["state"],
+            },
+        }
+
+    def image_generation(self, request_body: dict[str, Any]) -> dict[str, Any]:
+        prompt = _as_text(request_body.get("prompt") or request_body.get("input") or request_body.get("query")).strip()
+        if not prompt:
+            raise ValueError("prompt/input/query is required")
+        n_value = request_body.get("n", 1)
+        try:
+            n = max(1, min(16, int(n_value)))
+        except (TypeError, ValueError):
+            raise ValueError("n must be an integer") from None
+        size = str(request_body.get("size") or "1024x1024")
+
+        route_result, route_state = self._try_rpc(
+            "key_query",
+            {
+                "query": f"IMAGE_GENERATION: {prompt}",
+                "surface": "api_gateway.images",
+                "n": n,
+                "size": size,
+                "semantic_authority": False,
+            },
+        )
+        learning = self.learning_event(
+            {
+                "event": "image.generation.requested",
+                "payload": {
+                    "prompt_chars": len(prompt),
+                    "n": n,
+                    "size": size,
+                    "route_state": route_state,
+                },
+            },
+            source="api_gateway.images",
+        )
+        return {
+            "id": self._event_id("image"),
+            "object": "image.generation.request",
+            "created": int(time.time()),
+            "status": "request_routed" if route_state == "recorded" else "backend_required",
+            "data": [],
+            "semantic_authority": False,
+            "authority_boundary": "image generation output is media, not semantic truth",
+            "next_gate": "Ch'en/XCFE/Xul",
+            "request": {
+                "prompt": prompt,
+                "n": n,
+                "size": size,
+            },
+            "route": {
+                "method": "key_query",
+                "state": route_state,
+                "result": route_result,
+            },
+            "learning": {
+                "status": learning["status"],
+                "event_id": learning["id"],
+                "journal_state": learning["journal"]["state"],
+            },
+        }
+
+    def rpc_bridge(self, request_body: dict[str, Any]) -> dict[str, Any]:
+        if request_body.get("jsonrpc") != "2.0":
+            raise ValueError("jsonrpc must be '2.0'")
+        method = request_body.get("method")
+        if not isinstance(method, str) or not method:
+            raise ValueError("method is required")
+        if method not in PUBLIC_RPC_METHODS:
+            raise ValueError(f"rpc method not public allowlist: {method}")
+        params = request_body.get("params", {})
+        if params is None:
+            params = {}
+        if not isinstance(params, dict):
+            raise ValueError("params must be an object when provided")
+        return self._rpc(method, params)
 
     def _query_model_server(
         self,
@@ -275,6 +519,26 @@ class CompletionGateway:
                 },
             },
         }
+        learning = self.learning_event(
+            {
+                "event": "text.completion.requested",
+                "payload": {
+                    "completion_id": completion_id,
+                    "model": model,
+                    "status": status,
+                    "governing_track": track,
+                    "response_phase": phase,
+                    "prompt_chars": len(prompt),
+                    "model_contribution_used": bool(contribution_text),
+                },
+            },
+            source="api_gateway.chat_completions",
+        )
+        response["khanary"]["learning"] = {
+            "status": learning["status"],
+            "event_id": learning["id"],
+            "journal_state": learning["journal"]["state"],
+        }
         return response
 
 
@@ -337,7 +601,11 @@ class CompletionHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path == "/v1/models":
+        path = urlparse(self.path).path
+        if path in {"/", "/v1"}:
+            self._send_json(200, self.gateway.service_info())
+            return
+        if path == "/v1/models":
             payload = {
                 "object": "list",
                 "data": [{"id": self.cfg.model_id, "object": "model", "owned_by": "khanary-local"}],
@@ -347,23 +615,36 @@ class CompletionHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": {"message": "not found", "type": "not_found"}})
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/v1/chat/completions":
-            self._send_json(404, {"error": {"message": "not found", "type": "not_found"}})
-            return
-
+        path = urlparse(self.path).path
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         raw = self.rfile.read(content_length).decode("utf-8", errors="replace")
         try:
             body = json.loads(raw) if raw else {}
             if not isinstance(body, dict):
                 raise ValueError("request body must be an object")
-            completion = self.gateway.complete(body)
-            if bool(body.get("stream")):
-                msg = completion.get("choices", [{}])[0].get("message", {})
-                text = _as_text(msg.get("content")).strip()
-                self._send_stream(completion, text)
-            else:
-                self._send_json(200, completion)
+            if path == "/v1/chat/completions":
+                completion = self.gateway.complete(body)
+                if bool(body.get("stream")):
+                    msg = completion.get("choices", [{}])[0].get("message", {})
+                    text = _as_text(msg.get("content")).strip()
+                    self._send_stream(completion, text)
+                else:
+                    self._send_json(200, completion)
+                return
+            if path == "/v1/code/modify":
+                self._send_json(200, self.gateway.code_modify(body))
+                return
+            if path == "/v1/images/generations":
+                self._send_json(200, self.gateway.image_generation(body))
+                return
+            if path == "/v1/learn/events":
+                self._send_json(200, self.gateway.learning_event(body))
+                return
+            if path == "/rpc":
+                self._send_json(200, self.gateway.rpc_bridge(body))
+                return
+            self._send_json(404, {"error": {"message": "not found", "type": "not_found"}})
+            return
         except (json.JSONDecodeError, ValueError) as exc:
             self._send_json(400, {"error": {"message": str(exc), "type": "invalid_request_error"}})
         except (OSError, RuntimeError, TimeoutError) as exc:
@@ -385,6 +666,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tool-port", type=int, default=17890)
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--model-id", default="khanary-single-completion")
+    parser.add_argument("--public-base-url", default=PUBLIC_API_BASE_URL)
+    parser.add_argument("--public-port", type=int, default=PUBLIC_API_PORT)
     return parser
 
 
@@ -398,6 +681,8 @@ def main() -> int:
         tool_port=int(args.tool_port),
         timeout_s=float(args.timeout),
         model_id=str(args.model_id),
+        public_base_url=str(args.public_base_url),
+        public_port=int(args.public_port),
     )
     gateway = CompletionGateway(cfg)
 
@@ -416,6 +701,8 @@ def main() -> int:
                 "chat_port": cfg.chat_port,
                 "tool_port": cfg.tool_port,
                 "model_id": cfg.model_id,
+                "public_base_url": cfg.public_base_url,
+                "public_port": cfg.public_port,
             },
             sort_keys=True,
         ),

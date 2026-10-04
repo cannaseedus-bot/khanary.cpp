@@ -131,5 +131,25 @@
     "law:orientation-not-weight",
     "law:semantic-and-phase-forward-orientation",
     "purpose:recoverable Fold Graph contraction, directed traversal, and local composition boundary"
+  ],
+  "grammar:api_gateway_contract": [
+    "data/grammar/api-gateway.contracts.json",
+    "doc:docs/API_GATEWAY.md",
+    "fixture:data/conformance/api_gateway.json",
+    "checker:tools/check_api_gateway.py",
+    "public:https://api.kuhul.dev:443",
+    "local:tools/khanary_completion_api.py@17892",
+    "surface:text_completions:/v1/chat/completions",
+    "surface:code_modification:/v1/code/modify",
+    "surface:image_generation:/v1/images/generations",
+    "surface:learning_events:/v1/learn/events",
+    "surface:rpc_bridge:/rpc",
+    "law:semantic_authority:false",
+    "law:learning_commenced-is-evidence-not-topology-mutation",
+    "law:code-modification-is-proposal-not-commit",
+    "law:image-generation-is-media-not-semantic-truth",
+    "law:rpc-bridge-is-allowlisted",
+    "law:commit-path-remains-Ch'en-XCFE-Xul",
+    "purpose:public API gateway contract for reachable HTTPS edge and local projection boundary"
   ]
 }

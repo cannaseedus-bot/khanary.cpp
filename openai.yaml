@@ -32,6 +32,14 @@ tool_mu:
   description: "TOOL-µ — gemma-3-1B-it-QAT-Q4_0, fast tool/instruction distillation"
   gguf: "C:/Users/canna/.lmstudio/models/lmstudio-community/gemma-3-1B-it-QAT-GGUF/gemma-3-1B-it-QAT-Q4_0.gguf"
 
+khanary_api:
+  base_url: "https://api.kuhul.dev/v1"
+  public_port: 443
+  model: "khanary-single-completion"
+  temperature: 0.3
+  max_tokens: 1024
+  description: "Public KHANARY API edge — HTTPS 443 projection over the user-scoped mesh/KQL runtime; not semantic authority"
+
 # KHANARY runtime endpoints (once KHANARY.exe is running)
 khanary_mcp:
   base_url: "http://127.0.0.1:8764"

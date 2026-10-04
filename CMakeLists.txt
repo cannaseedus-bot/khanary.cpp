@@ -300,6 +300,10 @@ add_test(NAME KHANARY_METRIC_TENSOR_TEST COMMAND KHANARY_METRIC_TENSOR_TEST)
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
     add_test(NAME KHANARY_SCHEMA_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_contracts.py")
+    # Public API gateway: api.kuhul.dev:443 is the reachable edge contract;
+    # the local gateway remains a projection and cannot bypass Ch'en/XCFE/Xul.
+    add_test(NAME KHANARY_API_GATEWAY_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_api_gateway.py")
     add_test(NAME KHANARY_GEOMETRY_ASSET_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_geometry_model.py")
     # Control-flow grammar: the EBNF control contract must agree with the
     # runtime-emitted control_flow_row artifact (and the Python mirror).

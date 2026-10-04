@@ -1,0 +1,307 @@
+{
+  "@type": "khanary.api_gateway.conformance.v1",
+  "contracts": "data/grammar/api-gateway.contracts.json",
+  "cases": [
+    {
+      "id": "valid_root_info",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "root_info",
+        "method": "GET",
+        "path": "/",
+        "surface": "service_info",
+        "requires_session": false,
+        "semantic_authority": false
+      }
+    },
+    {
+      "id": "valid_v1_info",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "v1_info",
+        "method": "GET",
+        "path": "/v1",
+        "surface": "service_info",
+        "requires_session": false,
+        "semantic_authority": false
+      }
+    },
+    {
+      "id": "valid_models",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "models",
+        "method": "GET",
+        "path": "/v1/models",
+        "surface": "model_list",
+        "requires_session": false,
+        "semantic_authority": false
+      }
+    },
+    {
+      "id": "valid_text_completions",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "text_completions",
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "surface": "text_completions",
+        "operation": "key_query",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "valid_code_modification",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "code_modification",
+        "method": "POST",
+        "path": "/v1/code/modify",
+        "surface": "code_modification",
+        "object": "code.modification.proposal",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "applies_patch": false,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "valid_image_generation",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "image_generation",
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "surface": "image_generation",
+        "object": "image.generation.request",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "valid_learning_events",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "learning_events",
+        "method": "POST",
+        "path": "/v1/learn/events",
+        "surface": "learning_events",
+        "object": "learning.event",
+        "requires_session": true,
+        "status": "learning_commenced",
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "valid_rpc_bridge",
+      "expect": "PASS",
+      "endpoint": {
+        "id": "rpc_bridge",
+        "method": "POST",
+        "path": "/rpc",
+        "surface": "json_rpc_bridge",
+        "requires_session": true,
+        "allowlisted_only": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_public_port",
+      "expect": "FAIL",
+      "error": "PUBLIC_PORT_NOT_443",
+      "contract_patch": {
+        "public_port": 8443
+      },
+      "endpoint": {
+        "id": "text_completions",
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "surface": "text_completions",
+        "operation": "key_query",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_missing_endpoint",
+      "expect": "FAIL",
+      "error": "ENDPOINT_NOT_DECLARED",
+      "endpoint": {
+        "id": "unknown_surface",
+        "method": "POST",
+        "path": "/v1/unknown",
+        "surface": "unknown",
+        "requires_session": true,
+        "semantic_authority": false
+      }
+    },
+    {
+      "id": "invalid_code_applies_patch",
+      "expect": "FAIL",
+      "error": "CODE_ENDPOINT_APPLIES_PATCH",
+      "endpoint": {
+        "id": "code_modification",
+        "method": "POST",
+        "path": "/v1/code/modify",
+        "surface": "code_modification",
+        "object": "code.modification.proposal",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "applies_patch": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_image_claims_authority",
+      "expect": "FAIL",
+      "error": "ENDPOINT_CLAIMS_AUTHORITY",
+      "endpoint": {
+        "id": "image_generation",
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "surface": "image_generation",
+        "object": "image.generation.request",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "semantic_authority": true,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_learning_status",
+      "expect": "FAIL",
+      "error": "LEARNING_STATUS_INVALID",
+      "endpoint": {
+        "id": "learning_events",
+        "method": "POST",
+        "path": "/v1/learn/events",
+        "surface": "learning_events",
+        "object": "learning.event",
+        "requires_session": true,
+        "status": "learned",
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_learning_topology_mutation",
+      "expect": "FAIL",
+      "error": "ENDPOINT_MUTATES_TOPOLOGY",
+      "endpoint": {
+        "id": "learning_events",
+        "method": "POST",
+        "path": "/v1/learn/events",
+        "surface": "learning_events",
+        "object": "learning.event",
+        "requires_session": true,
+        "status": "learning_commenced",
+        "semantic_authority": false,
+        "topology_mutation": true,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_rpc_not_allowlisted",
+      "expect": "FAIL",
+      "error": "RPC_METHOD_NOT_ALLOWLISTED",
+      "rpc_method": "delete_topology",
+      "endpoint": {
+        "id": "rpc_bridge",
+        "method": "POST",
+        "path": "/rpc",
+        "surface": "json_rpc_bridge",
+        "requires_session": true,
+        "allowlisted_only": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_public_post_without_session",
+      "expect": "FAIL",
+      "error": "PUBLIC_ENDPOINT_REQUIRES_SESSION",
+      "endpoint": {
+        "id": "text_completions",
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "surface": "text_completions",
+        "operation": "key_query",
+        "requires_session": false,
+        "emits_learning_event": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    },
+    {
+      "id": "invalid_wrong_next_gate",
+      "expect": "FAIL",
+      "error": "NEXT_GATE_INVALID",
+      "endpoint": {
+        "id": "image_generation",
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "surface": "image_generation",
+        "object": "image.generation.request",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": false,
+        "next_gate": "Xul"
+      }
+    },
+    {
+      "id": "invalid_commit_authorized",
+      "expect": "FAIL",
+      "error": "ENDPOINT_AUTHORIZES_COMMIT",
+      "endpoint": {
+        "id": "code_modification",
+        "method": "POST",
+        "path": "/v1/code/modify",
+        "surface": "code_modification",
+        "object": "code.modification.proposal",
+        "requires_session": true,
+        "emits_learning_event": true,
+        "applies_patch": false,
+        "semantic_authority": false,
+        "topology_mutation": false,
+        "commit_authorized": true,
+        "next_gate": "Ch'en/XCFE/Xul"
+      }
+    }
+  ]
+}
