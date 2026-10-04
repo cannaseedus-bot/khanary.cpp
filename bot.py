@@ -21,10 +21,28 @@ from typing import Any, Optional
 from uuid import uuid4
 from openai import OpenAI
 
-CONFIG_PATH = Path(__file__).parent / "openai.yaml"
-DEFAULT_KHANARY_EXE = Path(__file__).parent / "build" / "Release" / "KHANARY.exe"
-DEFAULT_KHANARY_CWD = Path(__file__).parent
-DEFAULT_TUI_SESSION = Path(__file__).parent / ".khanary_tui.session.json"
+ROOT_DIR = Path(__file__).parent
+CONFIG_PATH = ROOT_DIR / "openai.yaml"
+KHANARY_EXE_CANDIDATES = [
+    ROOT_DIR / "bin" / "KHANARY.exe",
+    ROOT_DIR / "build" / "Release" / "KHANARY.exe",
+    ROOT_DIR / "build" / "Release" / "Release" / "KHANARY.exe",
+    ROOT_DIR / "build" / "RelWithDebInfo" / "KHANARY.exe",
+    ROOT_DIR / "KHANARY.exe",
+    ROOT_DIR / "build" / "Debug" / "KHANARY.exe",
+]
+
+
+def _resolve_default_khanary_exe() -> Path:
+    for candidate in KHANARY_EXE_CANDIDATES:
+        if candidate.exists():
+            return candidate
+    return KHANARY_EXE_CANDIDATES[0]
+
+
+DEFAULT_KHANARY_EXE = _resolve_default_khanary_exe()
+DEFAULT_KHANARY_CWD = ROOT_DIR
+DEFAULT_TUI_SESSION = ROOT_DIR / ".khanary_tui.session.json"
 
 
 def _enable_windows_virtual_terminal() -> bool:

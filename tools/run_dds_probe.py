@@ -25,7 +25,14 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 ROOT     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXE      = os.path.join(ROOT, "build", "conformance", "Release", "KHANARY.exe")
+EXE_CANDIDATES = [
+    os.path.join(ROOT, "bin", "KHANARY.exe"),
+    os.path.join(ROOT, "build", "conformance", "Release", "KHANARY.exe"),
+    os.path.join(ROOT, "build", "Release", "KHANARY.exe"),
+    os.path.join(ROOT, "build", "RelWithDebInfo", "KHANARY.exe"),
+    os.path.join(ROOT, "build", "Debug", "KHANARY.exe"),
+]
+EXE      = next((path for path in EXE_CANDIDATES if os.path.exists(path)), EXE_CANDIDATES[0])
 SDDS_DIR = r"E:\models\GPT2\sdds"
 KSON     = os.path.join(SDDS_DIR, "gpt_oss_20b_folds.kson")
 MANIFEST = os.path.join(SDDS_DIR, "model_dds_manifest.json")
@@ -47,7 +54,8 @@ def main():
 
     if not os.path.exists(EXE):
         print(f"ERROR: KHANARY.exe not found at {EXE}", file=sys.stderr)
-        print("       Run: python tools/run_conformance.py", file=sys.stderr)
+        print("       Run: cmake --build build --config Release", file=sys.stderr)
+        print("       Expected canonical output: bin\\KHANARY.exe", file=sys.stderr)
         return 1
 
     if not os.path.exists(KSON):

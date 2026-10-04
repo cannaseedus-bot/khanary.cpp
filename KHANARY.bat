@@ -217,6 +217,7 @@ exit /b %ERRORLEVEL%
 :resolve_runtime_exe
 set "RUNTIME_EXE="
 for %%P in (
+    "%REPO_ROOT%\bin\KHANARY.exe"
     "%REPO_ROOT%\build\Release\KHANARY.exe"
     "%REPO_ROOT%\build\Release\Release\KHANARY.exe"
     "%REPO_ROOT%\build\RelWithDebInfo\KHANARY.exe"
@@ -226,7 +227,7 @@ for %%P in (
     if not defined RUNTIME_EXE if exist "%%~fP" set "RUNTIME_EXE=%%~fP"
 )
 if not defined RUNTIME_EXE (
-    echo [error] KHANARY.exe not found. Build it first ^(cmake --build build --config Release^).
+    echo [error] KHANARY.exe not found. Build it first ^(cmake --build build --config Release^); output should appear at bin\KHANARY.exe.
     exit /b 1
 )
 for %%Q in ("%RUNTIME_EXE%") do set "RUNTIME_WORKDIR=%%~dpQ"

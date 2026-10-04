@@ -8,8 +8,9 @@ python tools/run_conformance.py
 ```
 
 The runner configures `build/conformance` with the Visual Studio 2022 x64 generator,
-builds the runtime and checks, then runs CTest. This output tree does not overwrite
-the executable in `build/Release` or stop running services. It normalizes inherited
+builds the runtime and checks, then runs CTest. The build tree remains disposable;
+CMake writes runnable executables to the canonical repo-local `bin/` directory.
+It normalizes inherited
 Windows environment keys to avoid the MSBuild `Path`/`PATH` collision. Existing
 toolchain settings in this build tree are preserved; use a separate tree via
 `--build-dir` when a different configuration is needed. DirectML remains optional;

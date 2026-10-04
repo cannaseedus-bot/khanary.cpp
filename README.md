@@ -16,6 +16,11 @@ cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cm
 cmake --build build --config Release
 ```
 
+The canonical runtime output is `.\bin\KHANARY.exe`. Build directories such as
+`build\`, `_build\`, `.build-copilot\`, and `build\conformance\` are disposable
+toolchain/test trees; launcher scripts prefer `bin\KHANARY.exe` and keep old build
+paths only as compatibility fallbacks.
+
 ## Validate
 
 The conformance runner builds an isolated `build/conformance` tree and runs all
@@ -113,13 +118,13 @@ py -3 tools\micronaut\build_keycache.py --data-dir .\data --repo-root .
 Fallback via runtime:
 
 ```powershell
-.\build\Release\KHANARY.exe --data-dir .\data --build-keycache
+.\bin\KHANARY.exe --data-dir .\data --build-keycache
 ```
 
 Compile dictionary lexicon + definition-relation key grammar artifacts:
 
 ```powershell
-.\build\Release\KHANARY.exe --data-dir .\data --build-lexicon-grammar
+.\bin\KHANARY.exe --data-dir .\data --build-lexicon-grammar
 ```
 
 This also emits runtime EBNF specs:

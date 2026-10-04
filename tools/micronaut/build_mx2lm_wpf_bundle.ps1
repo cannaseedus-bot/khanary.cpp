@@ -568,10 +568,10 @@ function Test-RpcReady {
         $body = @{
             jsonrpc = "2.0"
             id = 1
-            method = "key_query"
-            params = @{ query = "STATUS:" }
+            method = "keyspace_status"
+            params = @{}
         } | ConvertTo-Json -Depth 6 -Compress
-        $resp = Invoke-RestMethod -Uri $RpcUrl -Method Post -ContentType "application/json" -Body $body -TimeoutSec 2
+        $resp = Invoke-RestMethod -Uri $RpcUrl -Method Post -ContentType "application/json" -Body $body -TimeoutSec 2 -ErrorAction Stop
         if ($null -eq $resp) {
             return $false
         }
@@ -610,6 +610,7 @@ function Resolve-KhanaryExePath {
         return (Resolve-Path $env:KHANARY_EXE).Path
     }
     $candidates = @(
+        (Join-Path $repoRoot "bin\KHANARY.exe"),
         (Join-Path $repoRoot "build\Release\KHANARY.exe"),
         (Join-Path $repoRoot "build\Release\Release\KHANARY.exe"),
         (Join-Path $repoRoot "build\RelWithDebInfo\KHANARY.exe"),
@@ -631,7 +632,7 @@ function Ensure-KhanaryRuntime {
 
     $exePath = Resolve-KhanaryExePath
     if ([string]::IsNullOrWhiteSpace($exePath)) {
-        throw "KHANARY.exe not found. Set -KhanaryExe or KHANARY_EXE."
+        throw "KHANARY.exe not found. Set -KhanaryExe or KHANARY_EXE. Canonical build output is bin\KHANARY.exe."
     }
     if (-not (Test-Path $DataDir)) {
         throw "Data directory not found: $DataDir"
@@ -723,7 +724,8 @@ function Invoke-JsonRpcCall {
     param(
         [Parameter(Mandatory = $true)][string]$Url,
         [Parameter(Mandatory = $true)][string]$MethodName,
-        [Parameter(Mandatory = $true)][object]$ParamsObject
+        [Parameter(Mandatory = $true)][object]$ParamsObject,
+        [int]$TimeoutSec = 90
     )
 
     Ensure-KhanaryRuntime
@@ -735,7 +737,7 @@ function Invoke-JsonRpcCall {
         params = $ParamsObject
     } | ConvertTo-Json -Depth 20 -Compress
 
-    $resp = Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 90
+    $resp = Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec $TimeoutSec -ErrorAction Stop
     $respError = $null
     if ($null -ne $resp -and $null -ne $resp.PSObject -and $resp.PSObject.Properties.Match("error").Count -gt 0) {
         $respError = $resp.error
@@ -840,6 +842,124 @@ function Read-ObjectBool {
     return $Default
 }
 
+function Test-QuestionLikeInput {
+    param([string]$InputText)
+    if ([string]::IsNullOrWhiteSpace($InputText)) { return $false }
+    $q = $InputText.Trim()
+    $q = $q -replace '(?i)^\s*@mx2lm\s*:?\s*', ''
+    $q = $q -replace '(?i)^\s*mx2lm\s*:\s*', ''
+    return ($q -match '\?\s*$' -or $q -match '(?i)^\s*(who|what|when|where|why|how|can|could|should|would|is|are|do|does|did)\b')
+}
+
+function Resolve-DeterministicKeyGrammarResponse {
+    param([string]$InputText)
+    if ([string]::IsNullOrWhiteSpace($InputText)) { return $null }
+    $q = $InputText.Trim()
+    $q = $q -replace '(?i)^\s*@mx2lm\s*:?\s*', ''
+    $q = $q -replace '(?i)^\s*mx2lm\s*:\s*', ''
+    $isGreeting = $q -match '(?i)^\s*(hi|hello|hey|howdy|yo|good\s+(morning|afternoon|evening))\s*[!.?]*\s*$'
+    if (-not $isGreeting) { return $null }
+
+    return [ordered]@{
+        ok = $true
+        status = "key_grammar_answer"
+        source = "key_grammar"
+        response = "Hi — GREETING-µ is online."
+        text = "Hi — GREETING-µ is online."
+        governing_track = "GREETING-µ"
+        ui_track = "GREETING-µ"
+        phase = "Pop"
+        semantic_authority = $false
+        topology_mutation = $false
+        commit_authorized = $false
+        escalation = "none"
+        route = [ordered]@{
+            layer = "key_grammar"
+            channel = "greeting"
+            fallback = "llm_on_miss_only"
+        }
+    }
+}
+
+function Test-KeyGrammarNoAnswer {
+    param([object]$Payload)
+    if ($null -eq $Payload) { return $true }
+    $inner = $Payload
+    if ($null -ne $Payload.PSObject -and $Payload.PSObject.Properties.Match("result").Count -gt 0) {
+        $inner = $Payload.result
+    }
+    if ($null -eq $inner) { return $true }
+    $ok = Read-ObjectBool -Object $inner -Name "ok" -Default $true
+    $source = Read-ObjectString -Object $inner -Name "source"
+    $status = Read-ObjectString -Object $inner -Name "status"
+    $missKind = Read-ObjectString -Object $inner -Name "miss_kind"
+    $response = Read-ObjectString -Object $inner -Name "response"
+    return ((-not $ok) -or
+            $source -match '(?i)^(miss|no_answer)$' -or
+            $status -match '(?i)^(miss|no_fact_found|no_answer)$' -or
+            -not [string]::IsNullOrWhiteSpace($missKind) -or
+            $response -match '(?i)^\s*=\s*no fact found\s*$')
+}
+
+function Invoke-LlmEscalationForMiss {
+    param(
+        [string]$InputText,
+        [string]$Reason = "key_grammar_miss"
+    )
+    if ([string]::IsNullOrWhiteSpace($ChatMuUrl)) { return $null }
+    $prompt = @"
+KHANARY key-grammar pass could not answer this question. Answer as CHAT-µ.
+Keep the answer concise. Do not claim semantic authority or topology commit.
+
+Question: $InputText
+"@
+    $mu = Invoke-TrackMuQuery -Query $prompt -BaseUrl $ChatMuUrl -ModelId "LFM2.5-1.2B-Instruct-Q8_0" -TrackLabel "CHAT-µ" -Temperature 0.25 -MaxTokens 160 -TimeoutSec 25 -RecordResponse $false
+    if ($null -eq $mu) {
+        $fallbackText = "I do not have a key-grammar answer for that yet, and CHAT-µ did not return inside the UI timeout."
+        return [ordered]@{
+            ok = $false
+            status = "llm_escalation_unavailable"
+            source = "CHAT-µ"
+            response = $fallbackText
+            text = $fallbackText
+            governing_track = "CHAT-µ"
+            ui_track = "CHAT-µ"
+            phase = "Ch'en"
+            semantic_authority = $false
+            topology_mutation = $false
+            commit_authorized = $false
+            escalation = $Reason
+            route = [ordered]@{
+                layer = "key_grammar"
+                channel = "question"
+                fallback = "CHAT-µ"
+            }
+        }
+    }
+    $text = Read-ObjectString -Object $mu -Name "text"
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        $text = "CHAT-µ returned an empty fallback response."
+    }
+    return [ordered]@{
+        ok = $true
+        status = "llm_escalated"
+        source = "CHAT-µ"
+        response = $text
+        text = $text
+        governing_track = "CHAT-µ"
+        ui_track = "CHAT-µ"
+        phase = "Ch'en"
+        semantic_authority = $false
+        topology_mutation = $false
+        commit_authorized = $false
+        escalation = $Reason
+        route = [ordered]@{
+            layer = "key_grammar"
+            channel = "question"
+            fallback = "CHAT-µ"
+        }
+    }
+}
 function Resolve-WebResearchQuery {
     param(
         [string]$InputText,
@@ -881,7 +1001,7 @@ function Invoke-WebResearchFetch {
     $lastErr = ""
     foreach ($url in $urls) {
         try {
-            $resp = Invoke-WebRequest -Uri $url -Method Get -Headers @{ "User-Agent" = "KHANARY-WPF-CLI/1.0" } -TimeoutSec 20
+            $resp = Invoke-WebRequest -Uri $url -Method Get -Headers @{ "User-Agent" = "KHANARY-WPF-CLI/1.0" } -TimeoutSec 20 -ErrorAction Stop
             $content = if ($null -ne $resp -and $null -ne $resp.Content) { [string]$resp.Content } else { "" }
             if ([string]::IsNullOrWhiteSpace($content)) {
                 continue
@@ -1077,7 +1197,7 @@ function Invoke-AdvisorQuery {
         max_tokens  = 512
     } | ConvertTo-Json -Depth 6 -Compress
     try {
-        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 120
+        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 45 -ErrorAction Stop
         $text = $resp.choices[0].message.content
         return [ordered]@{ ok = $true; status = "advisor"; source = "advisor"; text = $text; governing_track = "Advisor" }
     } catch {
@@ -1118,7 +1238,7 @@ Respond ONLY with valid JSON - no markdown fences:
         max_tokens  = 300
     } | ConvertTo-Json -Depth 8 -Compress
     try {
-        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 120
+        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 45 -ErrorAction Stop
         $text = $resp.choices[0].message.content
         $stripped = $text -replace '(?s)^```[a-z]*\s*', '' -replace '(?s)\s*```$', ''
         try {
@@ -1185,7 +1305,7 @@ Respond ONLY with valid JSON (no markdown fences):
         max_tokens  = 128
     } | ConvertTo-Json -Depth 8 -Compress
     try {
-        $resp    = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 60
+        $resp    = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 60 -ErrorAction Stop
         $text    = $resp.choices[0].message.content
         if ([string]::IsNullOrWhiteSpace($text)) { return $null }
         $stripped = $text -replace '(?s)^```[a-z]*\s*', '' -replace '(?s)\s*```$', ''
@@ -1219,7 +1339,9 @@ function Invoke-TrackMuQuery {
         [string]$ModelId,
         [string]$TrackLabel,
         [double]$Temperature = 0.3,
-        [int]$MaxTokens = 64
+        [int]$MaxTokens = 64,
+        [int]$TimeoutSec = 25,
+        [bool]$RecordResponse = $true
     )
     $url = "$BaseUrl/v1/chat/completions"
     $payload = @{
@@ -1229,16 +1351,18 @@ function Invoke-TrackMuQuery {
         max_tokens  = $MaxTokens
     } | ConvertTo-Json -Depth 6 -Compress
     try {
-        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 180
+        $resp = Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body $payload -TimeoutSec $TimeoutSec -ErrorAction Stop
         $content = $resp.choices[0].message.content
         if ([string]::IsNullOrWhiteSpace($content)) { return $null }
         $keySlug = ($TrackLabel.ToLowerInvariant() -replace '[^\x00-\x7F]', '' -replace '[^a-z0-9]', '_').TrimEnd('_')
+        if ($RecordResponse) {
         try {
             Invoke-JsonRpcCall -Url $RpcUrl -MethodName "record_key" -ParamsObject @{
                 key      = "${keySlug}:$Query"
                 response = $content
-            } | Out-Null
+            } -TimeoutSec 2 | Out-Null
         } catch {}
+        }
         return [ordered]@{ ok = $true; status = "mu_response"; source = $TrackLabel; text = $content; governing_track = $TrackLabel }
     } catch {
         return $null
@@ -1248,6 +1372,11 @@ function Invoke-TrackMuQuery {
 switch ($Action) {
     "aiml" {
         $inputText = if ([string]::IsNullOrWhiteSpace($Query)) { "status" } else { $Query.Trim() }
+        $deterministicKeyGrammar = Resolve-DeterministicKeyGrammarResponse -InputText $inputText
+        if ($null -ne $deterministicKeyGrammar) {
+            Emit-ResultPayload -ResultPayload $deterministicKeyGrammar
+            break
+        }
         $skipRouteMap = $inputText -match '(?i)\b(timer|countdown)\b'
         $route = $null
         if (-not $skipRouteMap) {
@@ -1288,7 +1417,14 @@ switch ($Action) {
             $effective = "Mx2LM: $effective"
         }
         try {
-            $result = Invoke-JsonRpcCall -Url $RpcUrl -MethodName "key_query" -ParamsObject @{ query = $effective; aiml_file = $aimlFile; route_map = $toolVerbMapFile }
+            $result = Invoke-JsonRpcCall -Url $RpcUrl -MethodName "key_query" -ParamsObject @{ query = $effective; aiml_file = $aimlFile; route_map = $toolVerbMapFile } -TimeoutSec 8
+            if ((Test-KeyGrammarNoAnswer -Payload $result) -and (Test-QuestionLikeInput -InputText $inputText)) {
+                $llmFallback = Invoke-LlmEscalationForMiss -InputText $inputText -Reason "key_grammar_miss"
+                if ($null -ne $llmFallback) {
+                    Emit-ResultPayload -ResultPayload $llmFallback
+                    break
+                }
+            }
             if ($preferDirectResearch) {
                 $planPayload = $result
                 if ($null -ne $result -and $null -ne $result.PSObject -and $result.PSObject.Properties.Match("result").Count -gt 0) {
@@ -1441,6 +1577,13 @@ switch ($Action) {
             Emit-Response $result
         } catch {
             $initialRuntimeError = $_.Exception.Message
+            if (Test-QuestionLikeInput -InputText $inputText) {
+                $llmFallback = Invoke-LlmEscalationForMiss -InputText $inputText -Reason "key_grammar_timeout"
+                if ($null -ne $llmFallback) {
+                    Emit-ResultPayload -ResultPayload $llmFallback
+                    break
+                }
+            }
             if ($inputText -match '(?i)^\s*(hi|hello|hey)\b') {
                 try {
                     Ensure-KhanaryRuntime
@@ -1471,7 +1614,7 @@ switch ($Action) {
         }
     }
     "status" {
-        $result = Invoke-JsonRpcCall -Url $RpcUrl -MethodName "key_query" -ParamsObject @{ query = "STATUS:" }
+        $result = Invoke-JsonRpcCall -Url $RpcUrl -MethodName "keyspace_status" -ParamsObject @{} -TimeoutSec 8
         Emit-Response $result
     }
     "tools" {

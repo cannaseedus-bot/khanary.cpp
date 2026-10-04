@@ -3,6 +3,15 @@ project(KHANARY CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Canonical executable output.  Build trees stay disposable; runtime launchers
+# and user-facing scripts should resolve KHANARY executables from repo-local bin/.
+set(KHANARY_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${KHANARY_BIN_DIR}")
+foreach(KHANARY_CFG Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER "${KHANARY_CFG}" KHANARY_CFG_UPPER)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${KHANARY_CFG_UPPER} "${KHANARY_BIN_DIR}")
+endforeach()
+
 if(NOT MSVC)
     message(FATAL_ERROR "KHANARY requires MSVC 2022+")
 endif()
