@@ -44,6 +44,53 @@ Executor implements contract; contract does not implement executor.
 
 ---
 
+## Fold Phases and Full Runtime Coordinates
+
+Fold Phases are the C6 operations applied over a Fold; they are not six kinds of Fold
+and they are not the Fold's learning states. The phase-wheel transition matrix satisfies
+`P^6 = I`, but `P` only moves the phase pointer. The typed operator `T_φ` performs the
+semantic operation.
+
+```text
+F_h --Pop--> F_h --Wo--> F_h --Yax--> F_h --Sek--> F_h --Ch'en--> F_h --Xul--> F_h'
+```
+
+| Phase operator | Semantic effect |
+|---|---|
+| `T_Pop` | perceive / activate |
+| `T_Wo` | establish state / constraints |
+| `T_Yax` | admit relevant neighborhood |
+| `T_Sek` | execute operation |
+| `T_Ch'en` | verify / produce certificate |
+| `T_Xul` | collapse / commit |
+
+The full runtime coordinate system is:
+
+```text
+𝒦_t = (F_h, φ, T, s, σ, X_t)
+```
+
+| Coordinate | Meaning |
+|---|---|
+| `F_h` | WHAT structure: fold/hypergraph structure |
+| `φ` | WHERE/WHEN in execution: C6 phase |
+| `T` | WHICH semantic space/track is active |
+| `s` | BOUNDED or EXPANDED: folded/unfolded state |
+| `σ` | HOW LEARNED/TRUSTED: learning/binding state |
+| `X_t` | CURRENT mutable runtime state |
+
+Fold/unfold is an independent axis:
+
+```text
+Handle -> unfold(T) -> Neighborhood -> Attention -> fold(T) -> C_T
+```
+
+A fold can occur during Pop through Ch'en. `Fold ≠ Xul`: folding changes `s`; only Xul
+may commit `F_h -> F_h'`. Learned behavior therefore evolves inside this coordinate
+system without gaining authority to rewrite semantic topology.
+
+---
+
 ## Three Spaces and Complete Machine State
 
 K'UHUL execution operates over a product of three distinct spaces:

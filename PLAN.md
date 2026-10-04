@@ -153,6 +153,7 @@ Invariant: **Executor implements contract; contract does not implement executor.
 | GAP-083 | COVERAGE | Open | DirectML availability/fallback is compile-time configured but not reported as a conformance lane with explicit PASS/SKIP/UNAVAILABLE semantics. | `CMakeLists.txt`, `src/gpu/dml_ops.cpp` |
 | GAP-090 | OPERABILITY | Open | Canonical language/docs plan is still broader than implemented runtime truth; active/legacy/experimental tags need continuous enforcement. | `README.md`, `docs/`, old PLAN content |
 | GAP-091 | AUTHORITY | Open | The frozen semantic core and Fold Binding Grammar are documented, but executor request/result envelopes are not yet schema-backed or phase-gated in runtime. | `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `kuhul-grammar-kit/docs/FOLD_BINDING.md`, `src/io/request_router.cpp`, `src/micronaut/*` |
+| GAP-092 | AUTHORITY | Open | The full runtime coordinate `𝒦_t=(F_h, φ, T, s, σ, X_t)` is documented, but learning/binding state `σ` and Burner observations are not yet schema-backed or separated from fold/phase state in runtime. | `docs/KUHUL_PHASE_ALGEBRA.md`, `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `src/micronaut/*`, `src/io/jrom.cpp` |
 
 ---
 
@@ -374,6 +375,11 @@ Invariant: **Executor implements contract; contract does not implement executor.
   - Files: `data/schema/fold-binding.schema.json`, `data/schema/executor-contract.schema.json`, `src/io/request_router.*`, `src/micronaut/*`, `src/decision/*`, conformance fixtures
   - Work: implement the documented Fold Binding record (`@fold`, `@phase`, `@semantic`, `@backend`, `@entry`, `@dispatch`, `@contract`, `@resources`, `@fallback`) and the `EXECUTOR_REQUEST` / `EXECUTOR_RESULT` envelope. Let tracks/micronauts declare `realizes` capabilities such as `Yax.candidate`, `Sek.COMPARE`, or `Ch'en.observation` without making any executor the semantic law.
   - Validate: registry resolves `(fold, phase, backend) -> binding`; invalid bindings fail V1–V7; missing capability returns typed `MISS_capability`; fallback bindings stay contract-bound; deterministic and model-backed executors satisfy the same phase contract; no executor can bypass Ch'en/Xul.
+
+- [ ] **T3.17 / GAP-092 — Schema-back full fold-phase-learning coordinates.**
+  - Files: `data/schema/fold-runtime-coordinate.schema.json`, `src/io/jrom.*`, `src/micronaut/*`, `src/inference/*`, conformance fixtures
+  - Work: persist runtime observations as `(F_h, φ, T, s, σ, X_t)` with explicit separators between fold identity, phase, track, folded/unfolded state, learning/binding state, and mutable execution state. Burner observations use `τ=(F_h, φ, T, s, Q, input, operation, output, evidence)` and remain proposal evidence until Ch'en/Xul.
+  - Validate: folding at non-Xul phases does not imply commit; Xul-only topology mutation still holds; learning state cannot alter `F_h`; replay can distinguish fold state, phase state, and learned binding state.
 
 ### Phase 4 — Semantic Attention, GPU Geometry, and Lorentz Execution Hardening
 **Goal:** GPU geometry becomes a verified execution surface, not an advisory black box.
