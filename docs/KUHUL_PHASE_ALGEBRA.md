@@ -89,6 +89,18 @@ A fold can occur during Pop through Ch'en. `Fold ≠ Xul`: folding changes `s`; 
 may commit `F_h -> F_h'`. Learned behavior therefore evolves inside this coordinate
 system without gaining authority to rewrite semantic topology.
 
+The **Fold Graph** is the typed relational graph exposed when a Fold/Book is unfolded:
+
+```text
+Unfold(h, τ) = { e | B_τ[h, e] ≠ 0 }
+𝒢_F(h, τ, Q) = query-conditioned graph exposed by unfolding Fold h
+```
+
+Yax derives the Active Fold Graph `𝒢_F^Q(h)` for the current query. Unfold reveals
+existing structure; it does not create semantic relationships. Fold returns the active
+expanded graph to bounded representation; it does not destroy the graph. Only Xul may
+persist a topology delta. See `FOLD_GRAPH.md`.
+
 ---
 
 ## Three Spaces and Complete Machine State

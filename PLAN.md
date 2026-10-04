@@ -154,6 +154,7 @@ Invariant: **Executor implements contract; contract does not implement executor.
 | GAP-090 | OPERABILITY | Open | Canonical language/docs plan is still broader than implemented runtime truth; active/legacy/experimental tags need continuous enforcement. | `README.md`, `docs/`, old PLAN content |
 | GAP-091 | AUTHORITY | Open | The frozen semantic core and Fold Binding Grammar are documented, but executor request/result envelopes are not yet schema-backed or phase-gated in runtime. | `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `kuhul-grammar-kit/docs/FOLD_BINDING.md`, `src/io/request_router.cpp`, `src/micronaut/*` |
 | GAP-092 | AUTHORITY | Open | The full runtime coordinate `𝒦_t=(F_h, φ, T, s, σ, X_t)` is documented, but learning/binding state `σ` and Burner observations are not yet schema-backed or separated from fold/phase state in runtime. | `docs/KUHUL_PHASE_ALGEBRA.md`, `kuhul-grammar-kit/docs/FOLD_ALGEBRA.md`, `src/micronaut/*`, `src/io/jrom.cpp` |
+| GAP-093 | AUTHORITY | Open | Fold Graph / Active Fold Graph are documented, but there is no schema-backed `𝒢_F(h)` / `𝒢_F^Q(h)` runtime contract proving unfold reveals structure without topology mutation. | `docs/FOLD_GRAPH.md`, `src/main.cpp`, `src/world/field_dag.cpp`, `src/io/request_router.cpp` |
 
 ---
 
@@ -380,6 +381,11 @@ Invariant: **Executor implements contract; contract does not implement executor.
   - Files: `data/schema/fold-runtime-coordinate.schema.json`, `src/io/jrom.*`, `src/micronaut/*`, `src/inference/*`, conformance fixtures
   - Work: persist runtime observations as `(F_h, φ, T, s, σ, X_t)` with explicit separators between fold identity, phase, track, folded/unfolded state, learning/binding state, and mutable execution state. Burner observations use `τ=(F_h, φ, T, s, Q, input, operation, output, evidence)` and remain proposal evidence until Ch'en/Xul.
   - Validate: folding at non-Xul phases does not imply commit; Xul-only topology mutation still holds; learning state cannot alter `F_h`; replay can distinguish fold state, phase state, and learned binding state.
+
+- [ ] **T3.18 / GAP-093 — Schema-back Fold Graph and Active Fold Graph contracts.**
+  - Files: `data/schema/fold-graph.schema.json`, `data/grammar/fold-graph.contracts.json`, `data/conformance/fold_graph.json`, `tools/check_fold_graph.py`, runtime router/FieldDag surfaces
+  - Work: define `𝒢_F(h,τ,Q)` and `𝒢_F^Q(h)` records with source fold/book, projection `τ`, query gate, active mask, node/edge/incidence payload, and `semantic_authority:false`. Prove Yax derives Active Fold Graph without mutating persistent topology.
+  - Validate: unfold reveals only existing `B_τ` structure; query gating is masked/ephemeral; Sek consumes Active Fold Graph only; Fold contracts working graph without topology delta; Xul-only commit rule remains enforced.
 
 ### Phase 4 — Semantic Attention, GPU Geometry, and Lorentz Execution Hardening
 **Goal:** GPU geometry becomes a verified execution surface, not an advisory black box.

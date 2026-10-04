@@ -88,6 +88,23 @@ XCFE owns the route; `@ui` is non-normative. The grammar is
 `data/grammar/fold-kernel.contracts.json`, and validation is performed by
 `tools/check_fold_kernel.py`.
 
+## Fold Graph
+
+A **Fold Graph** `𝒢_F(h)` is the typed relational graph exposed by unfolding an
+addressable Fold/Book. It is the operational neighborhood graph, not a synonym
+for Fold Space or persistent global topology:
+
+```
+Unfold(h, τ) = { e | B_τ[h, e] ≠ 0 }
+𝒢_F(h, τ, Q) = query-conditioned graph exposed by unfolding Fold h
+```
+
+Yax derives the **Active Fold Graph** `𝒢_F^Q(h)` from `𝒢_F(h)` using the query
+gate. Sek operates on the Active Fold Graph; Fold contracts it back into a
+bounded unit. Unfold reveals existing structure and does not create semantic
+relationships. Fold does not destroy the graph. Only the verified/authorized
+Xul path may persist a topology delta. See `docs/FOLD_GRAPH.md`.
+
 ## Fold Space
 
 **F_K = K'UHUL Fold Space** is the navigable semantic state space formed by Fold topology, semantic tracks, K'UHUL phase position, fold/unfold extent, optional learning competence, and mutable runtime state.
