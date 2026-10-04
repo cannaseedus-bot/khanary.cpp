@@ -113,6 +113,20 @@ The grammar is `data/grammar/fold-kernel.ebnf`, the semantic contract is
 `data/grammar/fold-kernel.contracts.json`, and the conformance gate is
 `tools/check_fold_kernel.py`.
 
+## Fold Lattice product graph
+
+The **Fold Lattice** is the product-graph slice that keeps semantic phase and learning competence orthogonal while preserving the full runtime coordinate:
+
+```
+K_t = (F_h, phi, T, s, sigma, X_t)
+K = (theta, sigma)
+G_fold_lattice = G_phase □ G_competence
+```
+
+`F_h` is the fold/hypergraph structure, `T` is the active semantic track, `s` is folded/unfolded navigation state, and `X_t` is mutable runtime state. `theta` identifies the phase-local semantic position. `sigma` identifies the lifecycle competence for that phase. This is the phase-granular learning surface: an execution cycle can run Pop/Wo/Ch'en/Xul locally, dual-run Yax for observation, and route Sek through a teacher callback while the rest of the cycle remains local.
+
+The lattice stores callback and substrate guidance, plus bounded metrics such as support rate, exception rate, contract pass rate, teacher distance, and policy agreement. Those metrics recommend competence movement; XCFE Policy authorizes state/route movement. Fold != Xul: fold/unfold changes `s`, while Xul is the commit phase. The lattice never bypasses Xul/XCFE veto rules, and the hard boundary remains: Sek proposes, Ch'en proves, XCFE authorizes, Xul commits. The grammar is `data/grammar/fold-lattice.ebnf`, the contract is `data/grammar/fold-lattice.contracts.json`, and the conformance gate is `tools/check_fold_lattice.py`.
+
 ## XCFE Policy grammar
 
 An **XCFE Policy** is the control grammar used by autonomous Fold Kernel records. A policy is data, and XCFE is the evaluator. The policy induces:

@@ -112,7 +112,8 @@
     "A2": "evidence.confidence = XCFEPolicy(evidence)",
     "A3": "state = XCFE(previous_state,event,evidence,policy)",
     "P1": "phase in phase_cycle implies fold in compatible_folds(phase)",
-    "P2": "semantic in semantic_tags(phase)"
+    "P2": "semantic in semantic_tags(phase)",
+    "L0": "Fold Kernel coordinate K = (@phase, @state) is a Fold Lattice cell projection"
   },
   "confidence_policy": {
     "@type": "khanary.xcfe_policy_confidence.v1",
@@ -146,5 +147,6 @@
       "meaning": "@policy and XCFE route authorize autonomous selection"
     }
   ],
-  "policy_contract": "data/grammar/xcfe-policy.contracts.json"
+  "policy_contract": "data/grammar/xcfe-policy.contracts.json",
+  "lattice_contract": "data/grammar/fold-lattice.contracts.json"
 }

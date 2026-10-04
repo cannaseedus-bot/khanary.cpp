@@ -88,6 +88,20 @@ XCFE owns the route; `@ui` is non-normative. The grammar is
 `data/grammar/fold-kernel.contracts.json`, and validation is performed by
 `tools/check_fold_kernel.py`.
 
+## Fold Lattice
+
+The **Fold Lattice** is the product-graph slice that separates semantic position from evolutionary competence while preserving the full runtime coordinate:
+
+```
+K_t = (F_h, phi, T, s, sigma, X_t)
+K = (theta, sigma)
+G_fold_lattice = G_phase □ G_competence
+```
+
+`F_h` is the fold/hypergraph structure, `T` is the active track, `s` is the folded/unfolded navigation state, and `X_t` is mutable runtime state. `theta` is the K'UHUL phase axis: `Pop`, `Wo`, `Yax`, `Sek`, `Ch'en`, `Xul`. `sigma` is the competence axis: `unbound`, `observed`, `learned`, `bound`, `validated`, `autonomous`. This makes learning phase-granular: Pop can become autonomous while Sek still calls a teacher callback.
+
+The lattice is advisory, not authoritative. Metrics recommend competence movement; XCFE Policy authorizes state/route movement. `@route_hint` is only a hint; XCFE remains route authority. **Fold != Xul**: `@fold_state` changes bounded/expanded navigation, while Xul remains the commit phase. The proof boundary stays hard: Sek proposes, Ch'en proves, XCFE authorizes, Xul commits. The grammar is `data/grammar/fold-lattice.ebnf`, the contract is `data/grammar/fold-lattice.contracts.json`, fixtures live in `data/conformance/fold_lattice.json`, and validation is performed by `tools/check_fold_lattice.py`.
+
 ## XCFE Policy
 
 An **XCFE Policy** is the declarative control object for Fold Kernel lifecycle movement. A policy is data; XCFE is the evaluator. The policy declares evidence inputs, a total confidence expression, thresholds, routes, and optional guards. It does not execute folds, store state, or create semantic truth.
