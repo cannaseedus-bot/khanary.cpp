@@ -6,6 +6,8 @@
   "public_scheme": "https",
   "public_port": 443,
   "public_endpoint": "https://api.kuhul.dev:443",
+  "launcher": "KHANARY.bat",
+  "ports_registry": "data/ports.json",
   "local_gateway": "tools/khanary_completion_api.py",
   "local_default_url": "http://127.0.0.1:17892",
   "local_default_port": 17892,

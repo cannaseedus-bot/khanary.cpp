@@ -4,6 +4,13 @@
   "chat_mu": 17889,
   "tool_mu": 17890,
   "completion": 17892,
+  "public_api": {
+    "base_url": "https://api.kuhul.dev",
+    "port": 443,
+    "protocol": "https",
+    "role": "public KHANARY API edge over the local completion/KQL mesh runtime",
+    "authority": "transport/routing only; not semantic authority"
+  },
   "mcp": 17891,
   "rpc": 8787,
   "policy": {
@@ -35,6 +42,12 @@
       "port_ref": "completion",
       "protocol": "openai-compatible-completion",
       "role": "single completion facade over chat/tool lanes"
+    },
+    "api": {
+      "port_ref": "completion",
+      "public_ref": "public_api",
+      "protocol": "https+openai-compatible",
+      "role": "public text/code/image/learning/RPC facade"
     },
     "mcp": {
       "port_ref": "mcp",

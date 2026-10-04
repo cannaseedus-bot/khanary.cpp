@@ -336,9 +336,11 @@ appends both scripts before `</body>`, and copies `khanary-registry.json` to the
   "chat_mu": 17889,
   "tool_mu": 17890,
   "completion": 17892,
+  "public_api": { "base_url": "https://api.kuhul.dev", "port": 443 },
   "mcp": 8764,
   "rpc": 8787,
   "abstract_ports": {
+    "api": { "port_ref": "completion", "public_ref": "public_api" },
     "chat": { "port_ref": "chat_mu" },
     "tool": { "port_ref": "tool_mu" },
     "tensor": { "port_ref": "rpc" },
@@ -357,7 +359,8 @@ Consumers should keep using the legacy top-level keys when they only need the ra
 but micronaut-aware code should bind through `known_micronauts[*].abstract_port` and
 `abstract_ports[*].port_ref`. Do not allocate one concrete port per micronaut; the known
 micronauts share abstract lanes such as `chat`, `tool`, `tensor`, `memory`, `control`,
-`completion`, `mcp`, and `rpc`.
+`completion`, `api`, `mcp`, and `rpc`. `api` is the public HTTPS edge projection over
+the local completion/KQL mesh runtime; it is routing metadata, not semantic authority.
 
 ## Bot Command Center (`bot.py`)
 

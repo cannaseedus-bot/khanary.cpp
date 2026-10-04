@@ -137,6 +137,8 @@
     "doc:docs/API_GATEWAY.md",
     "fixture:data/conformance/api_gateway.json",
     "checker:tools/check_api_gateway.py",
+    "launcher:KHANARY.bat",
+    "ports:data/ports.json",
     "public:https://api.kuhul.dev:443",
     "local:tools/khanary_completion_api.py@17892",
     "surface:text_completions:/v1/chat/completions",

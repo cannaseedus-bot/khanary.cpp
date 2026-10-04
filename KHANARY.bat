@@ -43,6 +43,8 @@ if not defined KHANARY_TOOL_MU_PORT set "KHANARY_TOOL_MU_PORT=17890"
 if not defined KHANARY_CHAT_MU_MODEL if exist "%USERPROFILE%\.lmstudio\models\lmstudio-community\LFM2.5-1.2B-Instruct-GGUF\LFM2.5-1.2B-Instruct-Q8_0.gguf" set "KHANARY_CHAT_MU_MODEL=%USERPROFILE%\.lmstudio\models\lmstudio-community\LFM2.5-1.2B-Instruct-GGUF\LFM2.5-1.2B-Instruct-Q8_0.gguf"
 if not defined KHANARY_TOOL_MU_MODEL if exist "%USERPROFILE%\.lmstudio\models\lmstudio-community\gemma-3-1B-it-QAT-GGUF\gemma-3-1B-it-QAT-Q4_0.gguf" set "KHANARY_TOOL_MU_MODEL=%USERPROFILE%\.lmstudio\models\lmstudio-community\gemma-3-1B-it-QAT-GGUF\gemma-3-1B-it-QAT-Q4_0.gguf"
 if not defined KHANARY_COMPLETION_API_PORT set "KHANARY_COMPLETION_API_PORT=17892"
+if not defined KHANARY_PUBLIC_API_BASE_URL set "KHANARY_PUBLIC_API_BASE_URL=https://api.kuhul.dev"
+if not defined KHANARY_PUBLIC_API_PORT set "KHANARY_PUBLIC_API_PORT=443"
 rem MCP server: llama-server --hf-repo + --ui-mcp-proxy
 rem Set KHANARY_MCP_HF_REPO to a HuggingFace repo (e.g. Qwen/Qwen2.5-1.5B-Instruct-GGUF)
 rem Leave empty to skip the MCP server.
@@ -347,6 +349,7 @@ if not defined RESOLVED_COMPLETION_PORT set "RESOLVED_COMPLETION_PORT=%KHANARY_C
   echo   "chat_mu": %RESOLVED_CHAT_MU_PORT%,
   echo   "tool_mu": %RESOLVED_TOOL_MU_PORT%,
   echo   "completion": %RESOLVED_COMPLETION_PORT%,
+  echo   "public_api": {"base_url": "%KHANARY_PUBLIC_API_BASE_URL%", "port": %KHANARY_PUBLIC_API_PORT%, "protocol": "https", "role": "public KHANARY API edge over the local completion/KQL mesh runtime", "authority": "transport/routing only; not semantic authority"},
   echo   "mcp":     %RESOLVED_MCP_PORT%,
   echo   "rpc":     8787,
   echo   "policy": {
@@ -367,6 +370,7 @@ if not defined RESOLVED_COMPLETION_PORT set "RESOLVED_COMPLETION_PORT=%KHANARY_C
   echo     "chat": {"port_ref": "chat_mu", "protocol": "openai-compatible-chat", "role": "general conversational micronaut lane"},
   echo     "tool": {"port_ref": "tool_mu", "protocol": "openai-compatible-chat", "role": "tool/action micronaut lane"},
   echo     "completion": {"port_ref": "completion", "protocol": "openai-compatible-completion", "role": "single completion facade over chat/tool lanes"},
+  echo     "api": {"port_ref": "completion", "public_ref": "public_api", "protocol": "https+openai-compatible", "role": "public text/code/image/learning/RPC facade"},
   echo     "mcp": {"port_ref": "mcp", "protocol": "mcp/http", "role": "tool gateway and mesh-control surface"},
   echo     "rpc": {"port_ref": "rpc", "protocol": "json-rpc/http", "role": "native KHANARY runtime API"},
   echo     "tensor": {"port_ref": "rpc", "protocol": "json-rpc/http", "role": "tensor/vector/KQL query operations"},
@@ -423,7 +427,7 @@ endlocal & exit /b 1
 
 :start_completion_api
 if "%DRY_RUN%"=="1" (
-    echo [dry-run] KHANARY completion API ^(port=%KHANARY_COMPLETION_API_PORT%, rpc=8787, chat=%RESOLVED_CHAT_MU_PORT%, tool=%RESOLVED_TOOL_MU_PORT%^)
+    echo [dry-run] KHANARY completion API ^(port=%KHANARY_COMPLETION_API_PORT%, rpc=8787, chat=%RESOLVED_CHAT_MU_PORT%, tool=%RESOLVED_TOOL_MU_PORT%, public=%KHANARY_PUBLIC_API_BASE_URL%:%KHANARY_PUBLIC_API_PORT%^)
     exit /b 0
 )
 if not exist "%COMPLETION_API_SCRIPT%" (
@@ -436,14 +440,14 @@ if not defined RESOLVED_COMPLETION_PORT set "RESOLVED_COMPLETION_PORT=%KHANARY_C
 
 call :completion_api_ready %KHANARY_COMPLETION_API_PORT%
 if not errorlevel 1 (
-    echo [completion-api] Already running at http://127.0.0.1:%KHANARY_COMPLETION_API_PORT%
+    echo [completion-api] Already running at http://127.0.0.1:%KHANARY_COMPLETION_API_PORT% ^(public edge %KHANARY_PUBLIC_API_BASE_URL%:%KHANARY_PUBLIC_API_PORT%^)
     exit /b 0
 )
 
 where py.exe >nul 2>nul
 if not errorlevel 1 (
-    echo [completion-api] Starting gateway on port %KHANARY_COMPLETION_API_PORT%...
-    "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath 'py.exe' -ArgumentList @('-3','%COMPLETION_API_SCRIPT%','--port','%KHANARY_COMPLETION_API_PORT%','--rpc-port','8787','--chat-port','%RESOLVED_CHAT_MU_PORT%','--tool-port','%RESOLVED_TOOL_MU_PORT%') -WorkingDirectory '%REPO_ROOT%' -WindowStyle Hidden"
+    echo [completion-api] Starting gateway on port %KHANARY_COMPLETION_API_PORT% ^(public edge %KHANARY_PUBLIC_API_BASE_URL%:%KHANARY_PUBLIC_API_PORT%^)...
+    "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath 'py.exe' -ArgumentList @('-3','%COMPLETION_API_SCRIPT%','--port','%KHANARY_COMPLETION_API_PORT%','--rpc-port','8787','--chat-port','%RESOLVED_CHAT_MU_PORT%','--tool-port','%RESOLVED_TOOL_MU_PORT%','--public-base-url','%KHANARY_PUBLIC_API_BASE_URL%','--public-port','%KHANARY_PUBLIC_API_PORT%') -WorkingDirectory '%REPO_ROOT%' -WindowStyle Hidden"
     if errorlevel 1 exit /b 1
     call :wait_completion_api 20
     if errorlevel 1 (
@@ -454,8 +458,8 @@ if not errorlevel 1 (
 
 where python.exe >nul 2>nul
 if not errorlevel 1 (
-    echo [completion-api] Starting gateway on port %KHANARY_COMPLETION_API_PORT%...
-    "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath 'python.exe' -ArgumentList @('%COMPLETION_API_SCRIPT%','--port','%KHANARY_COMPLETION_API_PORT%','--rpc-port','8787','--chat-port','%RESOLVED_CHAT_MU_PORT%','--tool-port','%RESOLVED_TOOL_MU_PORT%') -WorkingDirectory '%REPO_ROOT%' -WindowStyle Hidden"
+    echo [completion-api] Starting gateway on port %KHANARY_COMPLETION_API_PORT% ^(public edge %KHANARY_PUBLIC_API_BASE_URL%:%KHANARY_PUBLIC_API_PORT%^)...
+    "%SHELL_EXE%" -NoProfile -Command "Start-Process -FilePath 'python.exe' -ArgumentList @('%COMPLETION_API_SCRIPT%','--port','%KHANARY_COMPLETION_API_PORT%','--rpc-port','8787','--chat-port','%RESOLVED_CHAT_MU_PORT%','--tool-port','%RESOLVED_TOOL_MU_PORT%','--public-base-url','%KHANARY_PUBLIC_API_BASE_URL%','--public-port','%KHANARY_PUBLIC_API_PORT%') -WorkingDirectory '%REPO_ROOT%' -WindowStyle Hidden"
     if errorlevel 1 exit /b 1
     call :wait_completion_api 20
     if errorlevel 1 (

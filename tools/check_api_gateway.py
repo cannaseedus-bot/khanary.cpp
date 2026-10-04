@@ -18,6 +18,8 @@ SPEC = ROOT / "docs/KHANARY-CPP-SPEC.md"
 CMAKE = ROOT / "CMakeLists.txt"
 MANIFEST = ROOT / "data/manifest/schema.manifest.json"
 GATEWAY = ROOT / "tools/khanary_completion_api.py"
+LAUNCHER = ROOT / "KHANARY.bat"
+PORTS = ROOT / "data/ports.json"
 
 REQUIRED_ENDPOINTS = {
     ("GET", "/"),
@@ -82,6 +84,15 @@ GATEWAY_TOKENS = [
     "Ch'en/XCFE/Xul",
 ]
 
+LAUNCHER_TOKENS = [
+    "KHANARY_PUBLIC_API_BASE_URL=https://api.kuhul.dev",
+    "KHANARY_PUBLIC_API_PORT=443",
+    "--public-base-url",
+    "--public-port",
+    "public_api",
+    "public edge",
+]
+
 
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8-sig") if path.exists() else ""
@@ -129,6 +140,10 @@ def check_contract_root(contracts: dict[str, Any]) -> str:
         return "PUBLIC_PORT_NOT_443"
     if contracts.get("public_endpoint") != "https://api.kuhul.dev:443":
         return "PUBLIC_ENDPOINT_INVALID"
+    if contracts.get("launcher") != "KHANARY.bat":
+        return "LAUNCHER_INVALID"
+    if contracts.get("ports_registry") != "data/ports.json":
+        return "PORTS_REGISTRY_INVALID"
     if contracts.get("local_gateway") != "tools/khanary_completion_api.py":
         return "LOCAL_GATEWAY_INVALID"
     if contracts.get("local_default_port") != 17892:
@@ -224,6 +239,8 @@ def main() -> int:
         manifest = load_json(MANIFEST) if MANIFEST.exists() else {}
         docs = "\n".join(read(path) for path in (DOC, GLOSSARY, KQL_DOC, SPEC))
         gateway_src = read(GATEWAY)
+        launcher_src = read(LAUNCHER)
+        ports = load_json(PORTS) if PORTS.exists() else {}
         spec = read(SPEC)
         cmake = read(CMAKE)
 
@@ -231,6 +248,8 @@ def main() -> int:
         check("fixtures_file_present", FIXTURES.exists())
         check("docs_file_present", DOC.exists())
         check("gateway_file_present", GATEWAY.exists())
+        check("launcher_file_present", LAUNCHER.exists())
+        check("ports_file_present", PORTS.exists())
         check("contract_root_valid", check_contract_root(contracts) == "")
         check("contract_public_port_443", contracts.get("public_port") == 443)
         check("contract_public_endpoint_443", contracts.get("public_endpoint") == "https://api.kuhul.dev:443")
@@ -255,6 +274,16 @@ def main() -> int:
             check(f"docs/has/{token}", token in docs)
         for token in GATEWAY_TOKENS:
             check(f"gateway/has/{token}", token in gateway_src)
+        for token in LAUNCHER_TOKENS:
+            check(f"launcher/has/{token}", token in launcher_src)
+
+        public_api = ports.get("public_api") if is_object(ports) else {}
+        abstract_api = ports.get("abstract_ports", {}).get("api") if is_object(ports.get("abstract_ports")) else {}
+        check("ports_public_api_base", is_object(public_api) and public_api.get("base_url") == "https://api.kuhul.dev")
+        check("ports_public_api_port", is_object(public_api) and public_api.get("port") == 443)
+        check("ports_public_api_non_authority", is_object(public_api) and "not semantic authority" in str(public_api.get("authority", "")))
+        check("ports_abstract_api_points_to_completion", is_object(abstract_api) and abstract_api.get("port_ref") == "completion")
+        check("ports_abstract_api_public_ref", is_object(abstract_api) and abstract_api.get("public_ref") == "public_api")
 
         check("spec_lists_contract", "api-gateway.contracts.json" in spec)
         check("spec_lists_fixture", "api_gateway.json" in spec)
@@ -262,6 +291,8 @@ def main() -> int:
         check("cmake_registers_test", "KHANARY_API_GATEWAY_TEST" in cmake)
         check("manifest_lists_contract", any("api-gateway.contracts.json" in item for item in manifest.get("grammar:api_gateway_contract", [])))
         check("manifest_lists_checker", any("check_api_gateway.py" in item for item in manifest.get("grammar:api_gateway_contract", [])))
+        check("manifest_lists_launcher", any("KHANARY.bat" in item for item in manifest.get("grammar:api_gateway_contract", [])))
+        check("manifest_lists_ports", any("data/ports.json" in item for item in manifest.get("grammar:api_gateway_contract", [])))
 
         try:
             py_compile.compile(str(GATEWAY), doraise=True)

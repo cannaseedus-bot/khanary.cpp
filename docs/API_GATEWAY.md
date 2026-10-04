@@ -74,6 +74,12 @@ orchestrator, as long as the public contract remains `https://api.kuhul.dev:443`
 and the authority fields remain false until the Ch'en/XCFE/Xul path authorizes a
 separate commit.
 
+`KHANARY.bat` passes the public edge metadata into the gateway with
+`--public-base-url` and `--public-port`, defaulting to `https://api.kuhul.dev`
+and `443`. It also writes the same `public_api` projection into
+`data/ports.json` so abstract-port consumers can see that `api` is the public
+edge over the local `completion` surface, not a separate semantic authority.
+
 The machine-readable contract is
 `data/grammar/api-gateway.contracts.json`, conformance fixtures are
 `data/conformance/api_gateway.json`, and validation is performed by
