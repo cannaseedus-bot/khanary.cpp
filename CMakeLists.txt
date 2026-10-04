@@ -321,6 +321,10 @@ if(Python3_Interpreter_FOUND)
     # Pi(Evidence, State, Event) into the next state and route.
     add_test(NAME KHANARY_XCFE_POLICY_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_xcfe_policy.py")
+    # Fold Space navigation: full runtime positions over fold handle, phase,
+    # track, fold/unfold extent, optional competence, and mutable state.
+    add_test(NAME KHANARY_FOLD_SPACE_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_fold_space.py")
     # Fold Lattice product graph: phase theta and competence sigma stay
     # orthogonal, with metrics recommending movement but XCFE retaining authority.
     add_test(NAME KHANARY_FOLD_LATTICE_TEST

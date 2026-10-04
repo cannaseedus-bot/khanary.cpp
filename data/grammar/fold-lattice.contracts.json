@@ -13,7 +13,8 @@
     "slice_coordinate": "K = (theta, sigma) is the phase/competence slice of K_t, not the full runtime identity.",
     "fold_boundary": "Fold != Xul; fold_state folded/unfolded is independent of the C6 phase pointer.",
     "phase_operator_boundary": "Fold phases are C6 operations applied over a Fold, not six kinds of Fold and not the Fold learning states.",
-    "proof_boundary": "Sek proposes, Ch'en proves, XCFE authorizes, Xul commits."
+    "proof_boundary": "Sek proposes, Ch'en proves, XCFE authorizes, Xul commits.",
+    "fold_space_boundary": "Fold Lattice is the K = (theta, sigma) phase/competence slice of Fold Space F_K, not the full navigable position."
   },
   "theta_axis": [
     "Pop",
@@ -207,7 +208,8 @@
     "L10": "route_hint is advisory; XCFE remains route authority",
     "L11": "fold_state is independent of phase; Fold != Xul",
     "L12": "Sek proposes, Ch'en proves, XCFE authorizes, Xul commits",
-    "L13": "K = (theta, sigma) is a slice of K_t = (F_h, phi, T, s, sigma, X_t)"
+    "L13": "K = (theta, sigma) is a slice of K_t = (F_h, phi, T, s, sigma, X_t)",
+    "L14": "Fold Lattice K = (theta, sigma) is a projection of Fold Space p_t = (h, phi, T, s, sigma, X_t)"
   },
   "fold_states": [
     "folded",
@@ -220,5 +222,6 @@
     ],
     "authority": "runtime_state_not_semantic_topology",
     "mutable": true
-  }
+  },
+  "fold_space_contract": "data/grammar/fold-space.contracts.json"
 }

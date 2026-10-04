@@ -113,9 +113,29 @@ The grammar is `data/grammar/fold-kernel.ebnf`, the semantic contract is
 `data/grammar/fold-kernel.contracts.json`, and the conformance gate is
 `tools/check_fold_kernel.py`.
 
+## Fold Space navigation
+
+**F_K = K'UHUL Fold Space** is the umbrella navigation space over semantic folds. A runtime position is:
+
+```
+p_t = (h, phi, T, s, X_t)
+p_t = (h, phi, T, s, sigma, X_t)
+```
+
+`h` identifies the Fold/handle, `phi` is the C6 phase coordinate, `T` is the semantic track, `s` is folded/unfolded extent, `sigma` is the optional learning competence coordinate, and `X_t` is mutable runtime state. Horizontal movement changes semantic track while holding phase. Vertical movement advances phase while retaining track. Radial movement toggles fold/unfold without requiring phase or track movement.
+
+```
+Book(h) == N(h)
+Unfold(h,tau) = { e | B_tau[h,e] != 0 }
+Handle -> Unfold -> Neighborhood -> Attention -> Fold
+LOCATE -> UNFOLD -> NAVIGATE -> OPERATE -> VERIFY -> FOLD -> XUL
+```
+
+C6 is the authoritative execution coordinate; S1 is a projection for geometric visualization or shader-friendly layout. Distance is typed: `semantic`, `phase`, `track`, and `behavior` projections do not collapse into one universal metric. Fold Lattice is the K = (theta, sigma) slice of Fold Space. The grammar is `data/grammar/fold-space.ebnf`, the contract is `data/grammar/fold-space.contracts.json`, and the conformance gate is `tools/check_fold_space.py`.
+
 ## Fold Lattice product graph
 
-The **Fold Lattice** is the product-graph slice that keeps semantic phase and learning competence orthogonal while preserving the full runtime coordinate:
+The **Fold Lattice** is the product-graph slice inside Fold Space that keeps semantic phase and learning competence orthogonal while preserving the full runtime coordinate:
 
 ```
 K_t = (F_h, phi, T, s, sigma, X_t)

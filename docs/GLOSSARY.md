@@ -88,9 +88,30 @@ XCFE owns the route; `@ui` is non-normative. The grammar is
 `data/grammar/fold-kernel.contracts.json`, and validation is performed by
 `tools/check_fold_kernel.py`.
 
+## Fold Space
+
+**F_K = K'UHUL Fold Space** is the navigable semantic state space formed by Fold topology, semantic tracks, K'UHUL phase position, fold/unfold extent, optional learning competence, and mutable runtime state.
+
+```
+p_t = (h, phi, T, s, X_t)
+p_t = (h, phi, T, s, sigma, X_t)
+```
+
+`h` is the semantic Fold handle, `phi` is the C6 phase, `T` is the active semantic track, `s` is `folded` or `unfolded`, `sigma` is the optional N-Gram Burner competence coordinate, and `X_t` is mutable runtime state. Horizontal movement changes semantic track while holding phase. Vertical movement advances phase while retaining track. Radial movement toggles fold/unfold and changes how much of the neighborhood is exposed.
+
+```
+Horizontal = Delta T
+Vertical   = Delta phi
+Radial     = Delta s
+Book(h) == N(h)
+LOCATE -> UNFOLD -> NAVIGATE -> OPERATE -> VERIFY -> FOLD -> XUL
+```
+
+C6 is the authoritative execution coordinate; S1 is a projection for geometry/HLSL/SVG visualization. Distance is typed rather than universal: semantic, phase, track, and behavior metrics answer different questions. Fold Lattice is the K = (theta, sigma) slice of Fold Space, not the full position. The grammar is `data/grammar/fold-space.ebnf`, the contract is `data/grammar/fold-space.contracts.json`, fixtures live in `data/conformance/fold_space.json`, and validation is performed by `tools/check_fold_space.py`.
+
 ## Fold Lattice
 
-The **Fold Lattice** is the product-graph slice that separates semantic position from evolutionary competence while preserving the full runtime coordinate:
+The **Fold Lattice** is the product-graph slice inside Fold Space that separates phase position from evolutionary competence while preserving the full runtime coordinate:
 
 ```
 K_t = (F_h, phi, T, s, sigma, X_t)
@@ -100,7 +121,7 @@ G_fold_lattice = G_phase □ G_competence
 
 `F_h` is the fold/hypergraph structure, `T` is the active track, `s` is the folded/unfolded navigation state, and `X_t` is mutable runtime state. `theta` is the K'UHUL phase axis: `Pop`, `Wo`, `Yax`, `Sek`, `Ch'en`, `Xul`. `sigma` is the competence axis: `unbound`, `observed`, `learned`, `bound`, `validated`, `autonomous`. This makes learning phase-granular: Pop can become autonomous while Sek still calls a teacher callback.
 
-The lattice is advisory, not authoritative. Metrics recommend competence movement; XCFE Policy authorizes state/route movement. `@route_hint` is only a hint; XCFE remains route authority. **Fold != Xul**: `@fold_state` changes bounded/expanded navigation, while Xul remains the commit phase. The proof boundary stays hard: Sek proposes, Ch'en proves, XCFE authorizes, Xul commits. The grammar is `data/grammar/fold-lattice.ebnf`, the contract is `data/grammar/fold-lattice.contracts.json`, fixtures live in `data/conformance/fold_lattice.json`, and validation is performed by `tools/check_fold_lattice.py`.
+The lattice is advisory, not authoritative; Fold Space owns the larger navigation vocabulary. Metrics recommend competence movement; XCFE Policy authorizes state/route movement. `@route_hint` is only a hint; XCFE remains route authority. **Fold != Xul**: `@fold_state` changes bounded/expanded navigation, while Xul remains the commit phase. The proof boundary stays hard: Sek proposes, Ch'en proves, XCFE authorizes, Xul commits. The grammar is `data/grammar/fold-lattice.ebnf`, the contract is `data/grammar/fold-lattice.contracts.json`, fixtures live in `data/conformance/fold_lattice.json`, and validation is performed by `tools/check_fold_lattice.py`.
 
 ## XCFE Policy
 

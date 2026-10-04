@@ -15,7 +15,13 @@
        sigma ∈ {unbound, observed, learned, bound, validated, autonomous}
        X_t = mutable runtime state
 
-   Fold Lattice != Fold Kernel != XCFE Policy != Execution.
+   Fold Lattice is a projection of Fold Space F_K, which uses runtime
+   positions p_t = (h, phi, T, s, sigma, X_t).
+
+   Fold Lattice != Fold Kernel != XCFE Policy != Execution remains true
+   for the lattice projection boundary.
+
+   Fold Lattice != Fold Space != Fold Kernel != XCFE Policy != Execution.
    Fold != Xul: fold_state changes bounded/expanded navigation state; Xul is
    the commit/collapse phase. The lattice records where a phase-specific kernel
    stands and which callback or substrate should be used when sigma has not
@@ -153,6 +159,7 @@ L10 ::= route_hint is advisory; XCFE remains route authority ;
 L11 ::= fold_state is independent of phase; Fold != Xul ;
 L12 ::= Sek proposes, Ch'en proves, XCFE authorizes, Xul commits ;
 L13 ::= K = (theta, sigma) is a slice of K_t = (F_h, phi, T, s, sigma, X_t) ;
+L14 ::= Fold Lattice K = (theta, sigma) is a projection of Fold Space p_t = (h, phi, T, s, sigma, X_t) ;
 
 TransitionMetric ::= "recommend" "(" SigmaAxis "->" SigmaAxis ")" "iff" MetricPredicate ;
 TypeJudgment     ::= "⊢" FoldLatticeADT ":" "FoldLattice" ;
