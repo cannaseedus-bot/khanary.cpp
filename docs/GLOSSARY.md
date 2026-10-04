@@ -102,8 +102,10 @@ Unfold(h, τ) = { e | B_τ[h, e] ≠ 0 }
 Yax derives the **Active Fold Graph** `𝒢_F^Q(h)` from `𝒢_F(h)` using the query
 gate. Sek operates on the Active Fold Graph; Fold contracts it back into a
 bounded unit. Unfold reveals existing structure and does not create semantic
-relationships. Fold does not destroy the graph. Only the verified/authorized
-Xul path may persist a topology delta. See `docs/FOLD_GRAPH.md`.
+relationships. Fold does not destroy the graph; it is a topology-preserving
+contraction with recoverable local structure, so `Unfold(Fold(𝒢_F)) ≃ 𝒢_F`
+under the Fold contract. Only the verified/authorized Xul path may persist a
+topology delta. See `docs/FOLD_GRAPH.md`.
 
 ## Fold Space
 

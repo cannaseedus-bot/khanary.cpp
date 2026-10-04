@@ -384,8 +384,8 @@ Invariant: **Executor implements contract; contract does not implement executor.
 
 - [ ] **T3.18 / GAP-093 — Schema-back Fold Graph and Active Fold Graph contracts.**
   - Files: `data/schema/fold-graph.schema.json`, `data/grammar/fold-graph.contracts.json`, `data/conformance/fold_graph.json`, `tools/check_fold_graph.py`, runtime router/FieldDag surfaces
-  - Work: define `𝒢_F(h,τ,Q)` and `𝒢_F^Q(h)` records with source fold/book, projection `τ`, query gate, active mask, node/edge/incidence payload, and `semantic_authority:false`. Prove Yax derives Active Fold Graph without mutating persistent topology.
-  - Validate: unfold reveals only existing `B_τ` structure; query gating is masked/ephemeral; Sek consumes Active Fold Graph only; Fold contracts working graph without topology delta; Xul-only commit rule remains enforced.
+  - Work: define `𝒢_F(h,τ,Q)` and `𝒢_F^Q(h)` records with source fold/book, projection `τ`, query gate, active mask, node/edge/incidence payload, local preimage/recovery metadata, and `semantic_authority:false`. Prove Yax derives Active Fold Graph without mutating persistent topology.
+  - Validate: unfold reveals only existing `B_τ` structure; `Unfold(Fold(𝒢_F)) ≃ 𝒢_F` under the declared equivalence contract; query gating is masked/ephemeral; local fold validity plus boundary compatibility composes; Sek consumes Active Fold Graph only; Xul-only commit rule remains enforced.
 
 ### Phase 4 — Semantic Attention, GPU Geometry, and Lorentz Execution Hardening
 **Goal:** GPU geometry becomes a verified execution surface, not an advisory black box.
