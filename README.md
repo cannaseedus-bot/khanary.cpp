@@ -21,6 +21,13 @@ The canonical runtime output is `.\bin\KHANARY.exe`. Build directories such as
 toolchain/test trees; launcher scripts prefer `bin\KHANARY.exe` and keep old build
 paths only as compatibility fallbacks.
 
+The Apps host lane lives under `src\host` and stays separate from MCP. Use
+`src\host` for app shells, user sessions, JSON/JROM app envelopes, KQL/GAS
+bridges, and Atomic DOM (`atomic_dom`) widgets such as `atomic_dom_widgets`.
+Atomic DOM declares ASX Blocks through the Atomic CSS key grammar in
+`data\manifest\css.manifest.json`. Keep MCP as the model/tool protocol in
+`src\io\mcp_server.cpp`. See [Apps host layer](docs/HOST_LAYER.md).
+
 ## Validate
 
 The conformance runner builds an isolated `build/conformance` tree and runs all

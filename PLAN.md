@@ -120,6 +120,7 @@ Invariant: **Executor implements contract; contract does not implement executor.
 | GAP-033 | OPERABILITY | Open | Contributor capability state (`disabled`, `unavailable`, `failed`, `used`) is not advertised as a first-class readiness/response contract. | `tools/khanary_completion_api.py`, `KHANARY.bat` |
 | GAP-034 | OPERABILITY | Open | `bot.py` still presents separate advisor/chat profiles as primary, competing with the single completion gateway. | `bot.py`, `openai.yaml`, `README.md` |
 | GAP-035 | AUTHORITY / EXPOSURE | Contracted | Public `api.kuhul.dev:443` reachability needs a schema-backed edge contract proving text/code/image/learning/RPC surfaces are projections and cannot bypass Ch'en/XCFE/Xul. | `docs/API_GATEWAY.md`, `data/grammar/api-gateway.contracts.json`, `tools/check_api_gateway.py`, `tools/khanary_completion_api.py` |
+| GAP-036 | AUTHORITY / OPERABILITY | Contracted | `src/host` must be the Apps host lane for Atomic DOM widgets, TypeScript-µ playgrounds, and K'UHUL-µ playgrounds, while MCP remains a separate model/tool protocol lane. Atomic DOM declares ASX Blocks through the Atomic CSS key grammar in `data/manifest/css.manifest.json`. Playground help requests route through ADVISOR-µ to DESIGN-µ or ENGINEER-µ, with Gemma/Qwen as backend bindings, without granting Apps, Atomic DOM, or MCP semantic/commit authority. | `docs/HOST_LAYER.md`, `src/host/README.md`, `data/grammar/app-host.contracts.json`, `data/conformance/app_host.json`, `tools/check_app_host.py`, `PLAN.md` |
 | GAP-040 | AUTHORITY | Open | Semantic attention dispatches from prompt archive rows without a parser/policy/XCFE eligibility gate. | `src/main.cpp`, `src/inference/semantic_attention.cpp` |
 | GAP-041 | AUTHORITY | Open | GPU shader hard gates exist, but host packing forces `policy_ok`, `capable`, and `xcfe_ok` to `1.0f`. | `src/gpu/gram_gpu_scorer.cpp`, `data/shaders/attention.hlsl` |
 | GAP-042 | OPERABILITY | Open | GPU failure and “no results” both collapse to `{}` at the `InferenceEngine` caller. | `src/inference/inference_engine.cpp`, `src/gpu/gram_gpu_scorer.cpp` |
@@ -299,6 +300,16 @@ Invariant: **Executor implements contract; contract does not implement executor.
   - Files: `docs/API_GATEWAY.md`, `data/grammar/api-gateway.contracts.json`, `data/conformance/api_gateway.json`, `tools/check_api_gateway.py`, `tools/khanary_completion_api.py`
   - Work: define `https://api.kuhul.dev:443` as the public edge, keep `127.0.0.1:17892` as the local projection, expose text completion/code modification/image generation/learning event/allowlisted RPC surfaces, and mark learning as `learning_commenced` evidence rather than topology mutation.
   - Validate: `KHANARY_API_GATEWAY_TEST` proves public port 443, endpoint coverage, non-authority boundaries, learning status, session scope, and RPC allowlisting.
+
+- [x] **T2.17 / GAP-036 — Contract the Apps host lane separately from MCP.**
+  - Files: `docs/HOST_LAYER.md`, `src/host/README.md`, `data/grammar/app-host.contracts.json`, `data/conformance/app_host.json`, `tools/check_app_host.py`, `CMakeLists.txt`
+  - Work: reserve `src/host` for Apps/playground surfaces, use Atomic DOM (`atomic_dom`) as the Apps widget substrate, bind Atomic DOM to ASX Blocks through the Atomic CSS key grammar manifest (`data/manifest/css.manifest.json`), and keep MCP in `src/io/mcp_server.cpp` as the model/tool protocol lane. The contract explicitly rejects Apps=MCP, MCP-owned app sessions, raw MCP exposure through Apps, non-Atomic-DOM widget substrates, missing ASX Block declarations, authority claims, topology mutation, and app-host executable output outside `bin/`.
+  - Validate: `KHANARY_APP_HOST_TEST` proves Apps, Atomic DOM widgets, the CSS key-grammar manifest, and MCP remain distinct non-authority lanes with Ch'en/XCFE/Xul as the shared verification/commit boundary.
+
+- [ ] **T2.18 / GAP-036 — Implement TypeScript-µ and K'UHUL-µ playground routing in the Apps host.**
+  - Files: `src/host/*`, `tools/khanary_completion_api.py`, `data/tracks/*.json`, `data/manifest/*.json`, `openai.yaml`
+  - Work: add app-host routes for Atomic DOM playground widgets backing `TYPESCRIPT-µ` and `KUHUL-µ` sessions. A playground can request help by emitting an ADVISOR-µ envelope: `playground -> ADVISOR-µ -> DESIGN-µ | ENGINEER-µ -> Gemma/Qwen backend binding -> playground`. The helper result is advisory evidence only; the playground must route any executable change through the normal JSON-RPC/KQL/Ch'en/XCFE/Xul path.
+  - Validate: app-host fixtures show Atomic DOM TypeScript-µ and K'UHUL-µ widgets requesting Design-µ/Engineer-µ assistance through ADVISOR-µ, with `semantic_authority:false`, `topology_mutation:false`, `commit_authorized:false`, and no MCP session ownership.
 
 ### Phase 3 — Semantic Authority, JROM, and Micronaut Contract Closure
 **Goal:** projections can bias routing, but only Ch’en verifies and only Xul commits.

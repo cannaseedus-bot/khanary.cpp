@@ -319,6 +319,10 @@ if(Python3_Interpreter_FOUND)
     # the local gateway remains a projection and cannot bypass Ch'en/XCFE/Xul.
     add_test(NAME KHANARY_API_GATEWAY_TEST
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_api_gateway.py")
+    # Apps host lane: src/host owns user-facing app/playground surfaces while
+    # MCP remains a separate model/tool protocol lane.
+    add_test(NAME KHANARY_APP_HOST_TEST
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_app_host.py")
     add_test(NAME KHANARY_GEOMETRY_ASSET_TEST COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_geometry_model.py")
     # Control-flow grammar: the EBNF control contract must agree with the
     # runtime-emitted control_flow_row artifact (and the Python mirror).
