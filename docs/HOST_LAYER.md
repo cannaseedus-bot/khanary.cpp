@@ -4,15 +4,25 @@
 WebView/WebUI hosts, JSON/JROM app routes, user-session bridges, and installable
 application surfaces should live.
 
-Atomic DOM (`atomic_dom`) is the Apps widget substrate. It declares ASX Blocks
+Atomic DOM (`atomic_dom`) is the Apps widget substrate. Its purpose is to
+remove redundancy. It declares ASX Blocks
 through the Atomic CSS key grammar in `data/manifest/css.manifest.json`. That
 manifest anchors `⟁KEYGRAMMAR`, `⟁SYNTAXUNITKINDS`, `Block`, `Component`,
 `⟁WIDGET`, `⟁WIDGETCARD`, and `⟁HTMLBIND`, so Apps widgets are constrained
-key-grammar projections rather than ad-hoc DOM fragments. TypeScript-µ,
-K'UHUL-µ playgrounds, install buttons, status panels, and future app widgets
-should render through Atomic DOM records such as `atomic_dom_widgets` before a
-native/WebView shell projects them to HTML or platform UI. Atomic DOM is a UI
-projection substrate; it is not semantic authority and it is not the MCP
+key-grammar projections rather than ad-hoc DOM fragments. Its job is to remove
+redundancy while keeping user-specific options easy to change: branding,
+runtime config, `api_token_secret_ref` slots, color switcher controls, and
+palette defaults chosen from provided palettes so users do not have to hand-pick
+colors. API tokens are represented as secret references, not stored values.
+
+`AtomicDOM.js` is the Apps-side callable helper for that surface. It is callable
+like a small React-style creator (`h`, `block`, `widget`, `theme`) and an
+AJAX-style request-envelope helper (`request`). Those calls return Atomic DOM
+records and key grammar tokens; they do not execute K'UHUL or commit state.
+TypeScript-µ, K'UHUL-µ playgrounds, install buttons, status panels, and future
+app widgets should render through Atomic DOM records such as `atomic_dom_widgets`
+before a native/WebView shell projects them to HTML or platform UI. Atomic DOM
+is a UI projection substrate; it is not semantic authority and it is not the MCP
 protocol.
 
 MCP stays separate. MCP is the model/tool protocol lane, backed by
@@ -45,7 +55,9 @@ itself.
 The Apps host may:
 
 - serve app-facing HTML/WebView/native shells;
-- render user-facing widgets through Atomic DOM;
+- render user-facing widgets through Atomic DOM and `AtomicDOM.js`;
+- expose easy user option slots for branding, runtime config, palette choice,
+  color switcher state, and `api_token_secret_ref`;
 - keep UI state, app route state, and `app_user_sessions`;
 - broker user-scoped cloud/application data such as GAS, Drive, Sheets, or KQL
   tables after the user signs in, represented by `user_scoped_kql_tables` and

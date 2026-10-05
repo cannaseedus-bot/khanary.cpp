@@ -14,6 +14,7 @@ FIXTURES = ROOT / "data/conformance/app_host.json"
 DOC = ROOT / "docs/HOST_LAYER.md"
 README = ROOT / "README.md"
 HOST_README = ROOT / "src/host/README.md"
+ATOMIC_DOM_JS = ROOT / "src/host/AtomicDOM.js"
 CMAKE = ROOT / "CMakeLists.txt"
 CSS_MANIFEST = ROOT / "data/manifest/css.manifest.json"
 
@@ -30,6 +31,12 @@ DOC_TOKENS = [
     "atomic_dom_widgets",
     "ASX Blocks",
     "Atomic CSS key grammar",
+    "AtomicDOM.js",
+    "remove redundancy",
+    "branding",
+    "api_token_secret_ref",
+    "color switcher",
+    "palette",
     "data/manifest/css.manifest.json",
     "semantic_authority:true",
     "bin/",
@@ -122,6 +129,12 @@ def check_contract(contract: dict[str, Any]) -> str:
         return "APP_ATOMIC_DOM_AUTHORIZES_COMMIT"
     if not {"asx_blocks", "atomic_css_key_grammar"}.issubset(as_set(atomic_dom.get("declares"))):
         return "APP_ATOMIC_DOM_DECLARATION_INVALID"
+    if not {
+        "remove_redundant_ui_declarations",
+        "provide_user_specific_option_slots",
+        "project_key_grammar_tokens_to_widgets",
+    }.issubset(as_set(atomic_dom.get("purpose"))):
+        return "APP_ATOMIC_DOM_PURPOSE_INVALID"
     if atomic_dom.get("css_key_grammar_manifest") != "data/manifest/css.manifest.json":
         return "APP_ATOMIC_CSS_MANIFEST_INVALID"
     if atomic_dom.get("key_grammar_anchor") != "⟁KEYGRAMMAR":
@@ -132,6 +145,38 @@ def check_contract(contract: dict[str, Any]) -> str:
         return "APP_ASX_BLOCK_KIND_MISSING"
     if not {"⟁WIDGET", "⟁WIDGETCARD", "⟁HTMLBIND"}.issubset(as_set(atomic_dom.get("required_widget_keys"))):
         return "APP_ATOMIC_WIDGET_KEY_MISSING"
+    callable_api = atomic_dom.get("callable_api")
+    if not is_object(callable_api):
+        return "APP_ATOMIC_DOM_API_INVALID"
+    if callable_api.get("file") != "src/host/AtomicDOM.js":
+        return "APP_ATOMIC_DOM_API_INVALID"
+    if not {"react_like_create", "ajax_like_call"}.issubset(as_set(callable_api.get("style"))):
+        return "APP_ATOMIC_DOM_API_INVALID"
+    if not {"atomic_dom_record", "key_grammar_tokens"}.issubset(as_set(callable_api.get("returns"))):
+        return "APP_ATOMIC_DOM_API_INVALID"
+    if not {
+        "key_grammar_tokens",
+        "asx_block_tokens",
+        "atomic_css_tokens",
+        "theme_palette_options",
+        "branding_slots",
+        "user_config_bindings",
+    }.issubset(as_set(atomic_dom.get("provides"))):
+        return "APP_ATOMIC_DOM_PROVIDES_INVALID"
+    if not {
+        "branding",
+        "api_token_secret_ref",
+        "runtime_config",
+        "color_switcher",
+        "palette_choice",
+    }.issubset(as_set(atomic_dom.get("user_option_slots"))):
+        return "APP_ATOMIC_DOM_OPTION_SLOTS_INVALID"
+    if atomic_dom.get("stores_secret_values") is not False:
+        return "APP_ATOMIC_DOM_STORES_SECRETS"
+    if atomic_dom.get("chooses_palette_defaults") is not True:
+        return "APP_ATOMIC_DOM_PALETTE_DEFAULTS_MISSING"
+    if atomic_dom.get("allowed_palette_source") != "data/manifest/css.manifest.json":
+        return "APP_ATOMIC_DOM_PALETTE_SOURCE_INVALID"
 
     host_protocols = as_set(host.get("protocols"))
     mcp_protocols = as_set(mcp.get("protocols"))
@@ -182,7 +227,7 @@ def check_contract(contract: dict[str, Any]) -> str:
     invariants = contract.get("invariants")
     if not is_object(invariants):
         return "INVARIANTS_MISSING"
-    for key in [f"APP{i}" for i in range(1, 9)]:
+    for key in [f"APP{i}" for i in range(1, 10)]:
         if key not in invariants:
             return "INVARIANT_MISSING"
 
@@ -223,6 +268,38 @@ def check_css_manifest(manifest: dict[str, Any]) -> str:
     return ""
 
 
+def check_atomic_dom_js(source: str) -> str:
+    required = [
+        "AtomicDOM.js",
+        "CSS_KEY_GRAMMAR_MANIFEST",
+        "data/manifest/css.manifest.json",
+        "KEY_GRAMMAR_TOKENS",
+        "ASX_BLOCK_TOKENS",
+        "ATOMIC_CSS_TOKENS",
+        "DEFAULT_PALETTES",
+        "USER_OPTION_SLOTS",
+        "api_token_secret_ref",
+        "stores_secret_values: false",
+        "function block",
+        "function widget",
+        "function theme",
+        "function request",
+        "react_like_create",
+        "ajax_like_call",
+        "semantic_authority: false",
+        "topology_mutation: false",
+        "commit_authorized: false",
+        "Ch'en/XCFE/Xul",
+        "⟁KEYGRAMMAR",
+        "⟁WIDGET",
+        "⟁HTMLBIND",
+    ]
+    for token in required:
+        if token not in source:
+            return "ATOMIC_DOM_JS_TOKEN_MISSING"
+    return ""
+
+
 def main() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -240,6 +317,8 @@ def main() -> int:
         check("fixtures_file_present", FIXTURES.exists())
         check("css_manifest_file_present", CSS_MANIFEST.exists())
         check("css_manifest_valid", check_css_manifest(css_manifest) == "")
+        check("atomic_dom_js_present", ATOMIC_DOM_JS.exists())
+        check("atomic_dom_js_valid", check_atomic_dom_js(read(ATOMIC_DOM_JS)) == "")
         check("docs_file_present", DOC.exists())
         check("host_readme_present", HOST_README.exists())
         check("contract_root_valid", check_contract(contract) == "")
@@ -248,7 +327,7 @@ def main() -> int:
             check(f"docs/has/{token}", token in docs)
 
         fixture_cases = fixtures.get("cases", []) if is_object(fixtures) else []
-        check("fixtures_have_cases", len(fixture_cases) >= 11)
+        check("fixtures_have_cases", len(fixture_cases) >= 14)
         pass_seen = 0
         fail_seen = 0
         for row in fixture_cases:
@@ -267,7 +346,7 @@ def main() -> int:
             if row.get("expect") == "FAIL":
                 check(f"fixture/{case_id}/error", error == row.get("error"))
         check("fixtures_include_valid_case", pass_seen >= 1)
-        check("fixtures_include_negative_cases", fail_seen >= 10)
+        check("fixtures_include_negative_cases", fail_seen >= 13)
     except Exception as exc:
         cases.append(("exception/" + str(exc), False))
 

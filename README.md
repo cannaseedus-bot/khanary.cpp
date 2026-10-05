@@ -25,8 +25,11 @@ The Apps host lane lives under `src\host` and stays separate from MCP. Use
 `src\host` for app shells, user sessions, JSON/JROM app envelopes, KQL/GAS
 bridges, and Atomic DOM (`atomic_dom`) widgets such as `atomic_dom_widgets`.
 Atomic DOM declares ASX Blocks through the Atomic CSS key grammar in
-`data\manifest\css.manifest.json`. Keep MCP as the model/tool protocol in
-`src\io\mcp_server.cpp`. See [Apps host layer](docs/HOST_LAYER.md).
+`data\manifest\css.manifest.json`; `src\host\AtomicDOM.js` is the callable
+helper that removes redundancy and exposes branding, config,
+`api_token_secret_ref`, color switcher, and palette options through reusable key
+grammar records. Keep MCP as the model/tool protocol in `src\io\mcp_server.cpp`.
+See [Apps host layer](docs/HOST_LAYER.md).
 
 ## Validate
 

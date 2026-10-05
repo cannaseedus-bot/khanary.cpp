@@ -112,6 +112,46 @@
       },
       "expect": "FAIL",
       "error": "APP_ATOMIC_CSS_MANIFEST_INVALID"
+    },
+    {
+      "id": "reject_atomic_dom_missing_redundancy_purpose",
+      "contract_patch": {
+        "host_layer": {
+          "atomic_dom": {
+            "purpose": [
+              "project_key_grammar_tokens_to_widgets"
+            ]
+          }
+        }
+      },
+      "expect": "FAIL",
+      "error": "APP_ATOMIC_DOM_PURPOSE_INVALID"
+    },
+    {
+      "id": "reject_atomic_dom_missing_callable_api",
+      "contract_patch": {
+        "host_layer": {
+          "atomic_dom": {
+            "callable_api": {
+              "file": "src/host/OtherDOM.js"
+            }
+          }
+        }
+      },
+      "expect": "FAIL",
+      "error": "APP_ATOMIC_DOM_API_INVALID"
+    },
+    {
+      "id": "reject_atomic_dom_secret_storage",
+      "contract_patch": {
+        "host_layer": {
+          "atomic_dom": {
+            "stores_secret_values": true
+          }
+        }
+      },
+      "expect": "FAIL",
+      "error": "APP_ATOMIC_DOM_STORES_SECRETS"
     }
   ]
 }

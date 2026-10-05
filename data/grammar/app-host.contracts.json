@@ -18,6 +18,11 @@
       "kuhul_mu_playground"
     ],
     "atomic_dom": {
+      "purpose": [
+        "remove_redundant_ui_declarations",
+        "provide_user_specific_option_slots",
+        "project_key_grammar_tokens_to_widgets"
+      ],
       "declares": [
         "asx_blocks",
         "atomic_css_key_grammar"
@@ -34,6 +39,35 @@
         "⟁WIDGETCARD",
         "⟁HTMLBIND"
       ],
+      "callable_api": {
+        "file": "src/host/AtomicDOM.js",
+        "style": [
+          "react_like_create",
+          "ajax_like_call"
+        ],
+        "returns": [
+          "atomic_dom_record",
+          "key_grammar_tokens"
+        ]
+      },
+      "provides": [
+        "key_grammar_tokens",
+        "asx_block_tokens",
+        "atomic_css_tokens",
+        "theme_palette_options",
+        "branding_slots",
+        "user_config_bindings"
+      ],
+      "user_option_slots": [
+        "branding",
+        "api_token_secret_ref",
+        "runtime_config",
+        "color_switcher",
+        "palette_choice"
+      ],
+      "stores_secret_values": false,
+      "chooses_palette_defaults": true,
+      "allowed_palette_source": "data/manifest/css.manifest.json",
       "semantic_authority": false,
       "topology_mutation": false,
       "commit_authorized": false
@@ -120,6 +154,7 @@
     "APP5": "Persistent topology commits still require Ch'en/XCFE/Xul.",
     "APP6": "Optional app-host executables must emit to bin/.",
     "APP7": "Atomic DOM is the Apps widget substrate and remains a UI projection with no semantic or commit authority.",
-    "APP8": "Atomic DOM declares ASX Blocks through the Atomic CSS key grammar manifest at data/manifest/css.manifest.json."
+    "APP8": "Atomic DOM declares ASX Blocks through the Atomic CSS key grammar manifest at data/manifest/css.manifest.json.",
+    "APP9": "AtomicDOM.js removes UI redundancy and exposes user-specific option slots such as branding, secret references, config, and palette choices without storing secret values or becoming authority."
   }
 }
