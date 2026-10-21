@@ -55,6 +55,16 @@ private:
     bool gemm_cs_ready_ = false;
     bool init_gemm_shader();
 
+    // D3D11 QKV attention compute shader state
+    // GPU path: non-causal self-attention, seq_len ≤ kAttnMaxSeq, alpha=1/sqrt(d_head).
+    // CPU fallback used when shader not compiled or seq_len exceeds the cap.
+    // GPU parity run pending — no D3D11 device in test environment.
+    ComPtr<ID3D11ComputeShader> attn_cs_;
+    ComPtr<ID3D11Buffer>         attn_cbuf_; // 16-byte cbuffer: {seq_len, d_model, scale, pad}
+    bool attn_cs_ready_ = false;
+    bool init_attn_shader();
+    static constexpr uint32_t kAttnMaxSeq = 512;
+
 #ifdef KHANARY_HAS_OPENCL
     // OpenCL bridge (dynamically loaded from OpenCL.dll ICD)
     // Activated when KHANARY_HAS_OPENCL is defined at build time.

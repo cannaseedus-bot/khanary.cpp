@@ -70,3 +70,6 @@ data/factory_keys.json
 *.vectors.safetensors
 *.vectors.labels.json
 data/merged/merged.arpa
+# data/merged/merged.field.sdds is checked in (87.8 MB FP16, under GitHub 100 MB limit)
+
+*.gml

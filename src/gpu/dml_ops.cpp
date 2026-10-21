@@ -39,6 +39,46 @@ static const char* k_gemm_tiled_hlsl =
     "}\n";
 
 // ----------------------------------------------------------------
+// HLSL attention — QKV self-attention (non-causal, matches CPU fallback).
+// Dispatch(seq_len, 1, 1), one group per output row.
+// seq_len cap: ATTN_MAX_SEQ (must match kAttnMaxSeq in dml_ops.h).
+// GPU parity run pending — no D3D11 device in test environment.
+// ----------------------------------------------------------------
+static const char* k_attn_hlsl =
+    "cbuffer AttnCB : register(b0) {\n"
+    "    uint  g_seq;    uint  g_dmodel;\n"
+    "    float g_scale;  float g_pad;\n"
+    "};\n"
+    "StructuredBuffer<float>   gQ   : register(t0);\n"
+    "StructuredBuffer<float>   gK   : register(t1);\n"
+    "StructuredBuffer<float>   gV   : register(t2);\n"
+    "RWStructuredBuffer<float> gOut : register(u0);\n"
+    "#define ATTN_MAX_SEQ 512\n"
+    "[numthreads(1, 1, 1)]\n"
+    "void CSAttn(uint3 gid : SV_GroupID) {\n"
+    "    uint i = gid.x;\n"
+    "    if (i >= g_seq) return;\n"
+    "    float sc[ATTN_MAX_SEQ];\n"
+    "    for (uint j = 0; j < g_seq; ++j) {\n"
+    "        float dot = 0.0f;\n"
+    "        for (uint d = 0; d < g_dmodel; ++d)\n"
+    "            dot += gQ[i * g_dmodel + d] * gK[j * g_dmodel + d];\n"
+    "        sc[j] = dot * g_scale;\n"
+    "    }\n"
+    "    float mx = sc[0];\n"
+    "    for (uint j = 1; j < g_seq; ++j) if (sc[j] > mx) mx = sc[j];\n"
+    "    float sm = 0.0f;\n"
+    "    for (uint j = 0; j < g_seq; ++j) { sc[j] = exp(sc[j] - mx); sm += sc[j]; }\n"
+    "    if (sm > 0.0f) for (uint j = 0; j < g_seq; ++j) sc[j] /= sm;\n"
+    "    for (uint d = 0; d < g_dmodel; ++d) {\n"
+    "        float v = 0.0f;\n"
+    "        for (uint j = 0; j < g_seq; ++j)\n"
+    "            v += sc[j] * gV[j * g_dmodel + d];\n"
+    "        gOut[i * g_dmodel + d] = v;\n"
+    "    }\n"
+    "}\n";
+
+// ----------------------------------------------------------------
 // Construction
 // ----------------------------------------------------------------
 
@@ -53,7 +93,8 @@ float DMLOps::semantic_attention_gate(float static_weight, float confidence, flo
 }
 
 bool DMLOps::init() {
-    init_gemm_shader(); // non-fatal — falls back to CPU on failure
+    init_gemm_shader();  // non-fatal — falls back to CPU on failure
+    init_attn_shader();  // non-fatal — falls back to CPU on failure
     return true;
 }
 
@@ -96,6 +137,44 @@ bool DMLOps::init_gemm_shader() {
 }
 
 // ----------------------------------------------------------------
+// init_attn_shader — compile k_attn_hlsl and create cbuffer
+// ----------------------------------------------------------------
+
+bool DMLOps::init_attn_shader() {
+    if (!dev_.is_valid()) return false;
+    ID3D11Device* d = dev_.GetDevice();
+    if (!d) return false;
+
+    ComPtr<ID3DBlob> blob, err_blob;
+    HRESULT hr = D3DCompile(
+        k_attn_hlsl,
+        strlen(k_attn_hlsl),
+        "attn_causal",
+        nullptr, nullptr,
+        "CSAttn", "cs_5_0",
+        D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+        &blob, &err_blob);
+
+    if (FAILED(hr)) return false;
+
+    hr = d->CreateComputeShader(
+        blob->GetBufferPointer(), blob->GetBufferSize(),
+        nullptr, &attn_cs_);
+    if (FAILED(hr)) return false;
+
+    // Constant buffer: { uint seq_len, uint d_model, float scale, float pad } = 16 bytes
+    D3D11_BUFFER_DESC cbd = {};
+    cbd.ByteWidth  = 16;
+    cbd.Usage      = D3D11_USAGE_DEFAULT;
+    cbd.BindFlags  = D3D11_BIND_CONSTANT_BUFFER;
+    hr = d->CreateBuffer(&cbd, nullptr, &attn_cbuf_);
+    if (FAILED(hr)) return false;
+
+    attn_cs_ready_ = true;
+    return true;
+}
+
+// ----------------------------------------------------------------
 // gemm — GPU tiled dispatch with CPU fallback
 // ----------------------------------------------------------------
 
@@ -108,6 +187,12 @@ bool DMLOps::gemm(TensorBuffer* A, TensorBuffer* B, TensorBuffer* C,
     // GPU path: alpha=1, beta=0 only (kernel always writes acc, not alpha*acc + beta*C)
     if (gemm_cs_ready_ && alpha == 1.0f && beta == 0.0f) {
         ID3D11DeviceContext* ctx = dev_.GetContext();
+        if (!ctx) return false;
+
+        // GAP-044: the whole submit sequence is one atomic dispatch under the
+        // cross-subsystem immediate-context lock (engine GEMM may run on RPC
+        // threads concurrently with the attention scorer and SVG compute).
+        const D3D11Device::ContextLock context_lock(dev_);
 
         UINT params[4] = { static_cast<UINT>(M),
                            static_cast<UINT>(K),
@@ -158,7 +243,7 @@ bool DMLOps::gemm(TensorBuffer* A, TensorBuffer* B, TensorBuffer* C,
 }
 
 // ----------------------------------------------------------------
-// softmax / reduce_sum / attention — unchanged CPU implementations
+// softmax / reduce_sum — CPU implementations
 // ----------------------------------------------------------------
 
 bool DMLOps::softmax(TensorBuffer* src, TensorBuffer* dst, uint32_t count) {
@@ -192,9 +277,44 @@ bool DMLOps::attention(
     uint32_t seq_len, uint32_t d_head, uint32_t n_heads)
 {
     if (!Q || !K_buf || !V || !out) return false;
-    uint32_t d_model = d_head * n_heads;
-    float scale = 1.0f / std::sqrt(static_cast<float>(d_head));
+    const uint32_t d_model = d_head * n_heads;
+    const float    scale   = 1.0f / std::sqrt(static_cast<float>(d_head));
 
+    // GPU path: causal attention CS — seq_len must fit inside ATTN_MAX_SEQ.
+    if (attn_cs_ready_ && seq_len <= kAttnMaxSeq) {
+        ID3D11DeviceContext* ctx = dev_.GetContext();
+        if (ctx) {
+            const D3D11Device::ContextLock context_lock(dev_);
+
+            struct { uint32_t seq; uint32_t dmodel; float sc; float pad; } cb;
+            cb.seq    = seq_len;
+            cb.dmodel = d_model;
+            cb.sc     = scale;
+            cb.pad    = 0.0f;
+            ctx->UpdateSubresource(attn_cbuf_.Get(), 0, nullptr, &cb, 0, 0);
+
+            ctx->CSSetShader(attn_cs_.Get(), nullptr, 0);
+            ctx->CSSetConstantBuffers(0, 1, attn_cbuf_.GetAddressOf());
+
+            ID3D11ShaderResourceView* srvs[3] = { Q->srv(), K_buf->srv(), V->srv() };
+            ctx->CSSetShaderResources(0, 3, srvs);
+
+            ID3D11UnorderedAccessView* uav = out->uav();
+            ctx->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+
+            ctx->Dispatch(seq_len, 1u, 1u);
+
+            ID3D11ShaderResourceView*  null_srvs[3] = { nullptr, nullptr, nullptr };
+            ID3D11UnorderedAccessView* null_uav = nullptr;
+            ctx->CSSetShaderResources(0, 3, null_srvs);
+            ctx->CSSetUnorderedAccessViews(0, 1, &null_uav, nullptr);
+            ctx->CSSetShader(nullptr, nullptr, 0);
+
+            return true;
+        }
+    }
+
+    // CPU fallback — used when shader not compiled or seq_len > kAttnMaxSeq.
     std::vector<float> hQ(static_cast<size_t>(seq_len) * d_model);
     std::vector<float> hK(static_cast<size_t>(seq_len) * d_model);
     std::vector<float> hV(static_cast<size_t>(seq_len) * d_model);

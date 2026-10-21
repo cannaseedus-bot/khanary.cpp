@@ -105,7 +105,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | File | Purpose |
 |---|---|
 | `src/gpu/d3d11_device.cpp/h` | DXGI adapter enum, D3D11 device + context, HD 4600 quirks |
-| `src/gpu/dml_ops.cpp/h` | DirectML: GEMM, Conv, Attention, Softmax, Reduce |
+| `src/gpu/dml_ops.cpp/h` | GEMM (D3D11 tiled CS, validated 27.3 GFLOPS on HD 4600), Attention (D3D11 non-causal CS, GPU parity pending), Softmax, Reduce; CPU fallback for each |
 | `src/gpu/tensor_buffer.cpp/h` | R32_UINT/R32_FLOAT buffer alloc, staging, upload/readback |
 | `src/gpu/compute_dispatch.cpp/h` | CS dispatch, barrier management, UAV binding |
 | `src/gpu/dds_loader.cpp/h` | DDS shard streaming: SDDS magic, INT8 tensor records, CRC |
@@ -184,6 +184,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 |---|---|
 | `tools/arpa_to_safetensors.py` | Converts `tools/mx2lm.arpa` → SafeTensors three-layer field (153 MB); Pop/Wo/Yax corpus probability nodes + ARPA conditional edge weights |
 | `tools/arpa_to_gml_overlay.py` | Same conversion to GML format for `FieldDag::load_gml()` native C++ path (1.66 GB) |
+| `tools/safetensors_to_sdds.py` | Converts `data/merged/merged.vectors.safetensors` → SDDS v2 shard (`data/merged/merged.field.sdds`, 87.8 MB, checked in); FP16 quantization for positions/weights/edges; INT32 node_phase, edge_src, edge_tgt; parseable by `DDSLoader::load()` / `read_tensor_by_name()` |
 | `tools/field_query.py` | XQuery-style REPL and CLI over `data/mx2lm.vectors.safetensors`; `Pop::seed / Wo::*[@cond > 0.3] / Yax::*` syntax; CSR adjacency for O(1) traversal |
 | `tools/query_vectors.py` | Demo query script |
 | `tools/question_to_fold.py` | Question-to-Fold compiler; translates NL question to `kh.question-fold/1` record (XCFE intent class, field path, WCR ranking policy); `--run` mode executes path through `field_query` |
@@ -235,6 +236,11 @@ data/
 
   alice/
     mp0.aiml … mp9.aiml       — ALICE AIML corpus
+
+  merged/                     — generated merge artifacts
+    merged.arpa               — merged ARPA LM (gitignored, regenerate with arpa_merge.py)
+    merged.vectors.safetensors — 4.2M-node SafeTensors field (gitignored, regenerate with arpa_to_safetensors.py)
+    merged.field.sdds         — SDDS v2 shard, 87.8 MB FP16 (checked in, under GitHub 100 MB limit)
 
   weights/                    — user-supplied .scxqdds / .gguf shards (not shipped)
 ```
