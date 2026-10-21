@@ -65,3 +65,8 @@ data/factory_keys.json
 
 # Log files
 *.log
+
+# Generated vector fields (regenerate with arpa_to_safetensors.py / arpa_merge.py)
+*.vectors.safetensors
+*.vectors.labels.json
+data/merged/merged.arpa
