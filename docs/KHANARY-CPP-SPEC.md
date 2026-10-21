@@ -185,6 +185,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `tools/arpa_to_safetensors.py` | Converts `tools/mx2lm.arpa` → SafeTensors three-layer field (153 MB); Pop/Wo/Yax corpus probability nodes + ARPA conditional edge weights |
 | `tools/arpa_to_gml_overlay.py` | Same conversion to GML format for `FieldDag::load_gml()` native C++ path (1.66 GB) |
 | `tools/safetensors_to_sdds.py` | Converts `data/merged/merged.vectors.safetensors` → SDDS v2 shard (`data/merged/merged.field.sdds`, 87.8 MB, checked in); FP16 quantization for positions/weights/edges; INT32 node_phase, edge_src, edge_tgt; parseable by `DDSLoader::load()` / `read_tensor_by_name()` |
+| `tools/scrape.py` | Local code corpus scraper; walks drives collecting bigrams from `.kuhul .klsl .khl .kxml .json .py .js .ts .cpp .h .hlsl .cs .css .html` files; `--split` writes per-expert `codegen-{domain}.jsonl`; `--domains <preset>` filters (presets: `kuhul` `cpp` `web` `dotnet` `all`); `--paths` limits scan to specific directories (use for JSON to avoid drive-wide noise) |
 | `tools/field_query.py` | XQuery-style REPL and CLI over `data/mx2lm.vectors.safetensors`; `Pop::seed / Wo::*[@cond > 0.3] / Yax::*` syntax; CSR adjacency for O(1) traversal |
 | `tools/query_vectors.py` | Demo query script |
 | `tools/question_to_fold.py` | Question-to-Fold compiler; translates NL question to `kh.question-fold/1` record (XCFE intent class, field path, WCR ranking policy); `--run` mode executes path through `field_query` |
@@ -236,6 +237,13 @@ data/
 
   alice/
     mp0.aiml … mp9.aiml       — ALICE AIML corpus
+
+  gram/                       — CODEGEN expert corpora (checked in; regenerate with tools/scrape.py --split)
+    codegen-kuhul.jsonl       — CODEGEN-KUHUL-µ: K'UHUL phase/fold/XCFE op bigrams (58.5 MB)
+    codegen-khl.jsonl         — CODEGEN-KHL-µ: KHL host-lang bigrams (20.4 MB)
+    codegen-json.jsonl        — CODEGEN-JSON-µ: project manifests/contracts/schemas (9.4 MB, project-scoped)
+    codegen-klsl.jsonl        — CODEGEN-KLSL-µ: KLSL compiler/shader bigrams (1.9 MB)
+    codegen-kxml.jsonl        — CODEGEN-KUHUL-µ: KXML binary tape bigrams (0.9 MB)
 
   merged/                     — generated merge artifacts
     merged.arpa               — merged ARPA LM (gitignored, regenerate with arpa_merge.py)

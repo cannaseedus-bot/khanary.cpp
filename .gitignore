@@ -51,8 +51,16 @@ artifacts/
 
 # Large training datasets and dataset-derived local artifacts (download/regenerate separately)
 data/*.jsonl
-data/gram/
 data/journal/
+
+# CODEGEN expert corpora (checked in — regenerate with tools/scrape.py --split)
+# Unignored individually below; data/gram/ catch-all still excludes everything else.
+data/gram/
+!data/gram/codegen-kuhul.jsonl
+!data/gram/codegen-khl.jsonl
+!data/gram/codegen-klsl.jsonl
+!data/gram/codegen-kxml.jsonl
+!data/gram/codegen-json.jsonl
 data/templates/
 data/ingest/
 data/grammar/dataset*.key-grammar.candidates.jsonl

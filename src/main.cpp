@@ -8,6 +8,7 @@
 #include "kuhul/xcfe_executor.h"
 #include "kuhul/gram_store.h"
 #include "kuhul/phase_driver_lock.h"
+#include "kuhul/semantic_accumulator.h"
 #include "kuhul/kuhul_vm.h"
 #include "gpu/d3d11_device.h"
 #include "gpu/dml_ops.h"
@@ -15,6 +16,7 @@
 #include "gpu/dds_loader.h"
 #include "gpu/hot_swap.h"
 #include "gpu/svg_compute_runtime.h"
+#include "gpu/fold_score_dispatch.h"
 #include "inference/tokenizer.h"
 #include "inference/inference_engine.h"
 #include "inference/semantic_attention.h"
@@ -23,12 +25,14 @@
 #include "micronaut/track_loader.h"
 #include "micronaut/aiml_engine.h"
 #include "micronaut/mx2lm-ngram.h"
+#include "micronaut/micronaut_coder.h"
 #include "micronaut/micronaut_transpiler.h"
 #include "micronaut/factory.h"
 #include "micronaut/greeting_style.h"
 #include "micronaut/control_flow.h"
 #include "micronaut/relation_isa.h"
 #include "micronaut/sandbox_inspector.h"
+#include "micronaut/neighborhood_selector.h"
 #include "world/world_state.h"
 #include "world/field_dag.h"
 #include "memory/perception.h"
@@ -36,6 +40,7 @@
 #include "memory/semantic_graph.h"
 #include "memory/scoring.h"
 #include "io/json_rpc_server.h"
+#include "io/chat_completion.h"
 #include "io/mcp_server.h"
 #include "io/code_parser.h"
 #include "io/jrom.h"
@@ -48,6 +53,10 @@
 #include "util/canonical_hash.h"
 #include "world/gyroscope.h"
 #include "world/vector_projection.h"
+#include "llm/llama_infer.h"
+#include "llm/model_swapper.h"
+#include "io/semantic_driver.h"
+#include "io/aiml_meta.h"
 
 #include <iostream>
 #include <string>
@@ -55,7 +64,16 @@
 #include <atomic>
 #include <thread>
 #include <filesystem>
+#include <cstring>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #include <algorithm>
+#include <numeric>
 #include <array>
 #include <cctype>
 #include <chrono>
@@ -7861,9 +7879,11 @@ static util::JsonPtr mx2lm_ngram_payload(
 struct AppConfig {
     uint16_t    port_mcp  = PORT_MCP;
     uint16_t    port_rpc  = PORT_JSON_RPC;
+    uint16_t    port_chat = 17889;  // OpenAI-compat sidecar (tiny-llama); 0 = disabled
     std::string data_dir  = "data";
     std::string weights_dir;
     std::string gguf_model;
+    std::string advisor_model;
     std::string dds_kson;
     std::string dds_manifest;
     std::string dds_shards;
@@ -7885,6 +7905,7 @@ static void print_help() {
     std::cout << "KHANARY.exe\n"
               << "  --port-mcp <n>        MCP server port (default: 8764)\n"
               << "  --port-rpc <n>        JSON-RPC server port (default: 8787)\n"
+              << "  --chat-port <n>       OpenAI-compat sidecar port for /v1/chat/completions (default: 17889, 0=disabled)\n"
               << "  --data-dir <path>     Data directory (default: ./data)\n"
               << "  --weights-dir <path>  SCXQDDS weight shards directory\n"
               << "  --gguf-model <path>   GGUF file preloaded into system RAM\n"
@@ -7963,6 +7984,15 @@ static ArgParseStatus parse_args(
                 return ArgParseStatus::Error;
             continue;
         }
+        if (arg == "--chat-port") {
+            auto raw = next(arg);
+            if (!raw) { err = "--chat-port requires a port number"; return ArgParseStatus::Error; }
+            try {
+                const unsigned long v = std::stoul(*raw);
+                cfg.port_chat = (v > 65535) ? 0 : static_cast<uint16_t>(v);
+            } catch (...) { err = "--chat-port expects a number"; return ArgParseStatus::Error; }
+            continue;
+        }
         if (arg == "--data-dir") {
             auto raw = next(arg);
             if (!raw || raw->empty()) {
@@ -7988,6 +8018,15 @@ static ArgParseStatus parse_args(
                 return ArgParseStatus::Error;
             }
             cfg.gguf_model = *raw;
+            continue;
+        }
+        if (arg == "--advisor-model") {
+            auto raw = next(arg);
+            if (!raw || raw->empty()) {
+                if (raw) err = "--advisor-model expects a non-empty path";
+                return ArgParseStatus::Error;
+            }
+            cfg.advisor_model = *raw;
             continue;
         }
         if (arg == "--dds-kson") {
@@ -8083,13 +8122,16 @@ int main(int argc, char* argv[]) {
             std::cerr << "ERROR: --gguf-model path does not exist: " << cfg.gguf_model << "\n";
             return 2;
         }
-        std::string gguf_err;
-        if (!preload_file_to_ram(cfg.gguf_model, &gguf_ram_blob, &gguf_err)) {
-            std::cerr << "ERROR: GGUF RAM preload failed: " << gguf_err << "\n";
-            return 2;
+        if (!cfg.dds_kson.empty()) {
+            // DDS identity alignment requires the full model resident in RAM.
+            std::string gguf_err;
+            if (!preload_file_to_ram(cfg.gguf_model, &gguf_ram_blob, &gguf_err)) {
+                std::cerr << "ERROR: GGUF RAM preload failed: " << gguf_err << "\n";
+                return 2;
+            }
+            std::cout << "  GGUF-RAM:" << " "
+                      << (gguf_ram_blob.size() / (1024 * 1024)) << " MiB resident\n";
         }
-        std::cout << "  GGUF-RAM:" << " "
-                  << (gguf_ram_blob.size() / (1024 * 1024)) << " MiB resident\n";
     }
 
     const std::string gguf_model_tag = normalize_model_tag(cfg.gguf_model);
@@ -8159,6 +8201,38 @@ int main(int argc, char* argv[]) {
     kuhul::KuhulVM       vm(phase_engine, fold_engine, xcfe, gram_store);
     kuhul::PhaseDriverLock phase_driver_lock;
 
+    // Pop phase: bulk-load per-expert CODEGEN corpora.
+    // Generate K'UHUL+KHL+KLSL+KXML: py -3 tools\scrape.py --domains kuhul --split
+    // Generate JSON (project-scoped): py -3 tools\scrape.py --domains json --paths "E:\models\_khanary_inspect\KHANARY.CPP" --split
+    // Generate all experts:           py -3 tools\scrape.py --split
+    {
+        struct ExpertCorpus { const char* file; const char* prefix; };
+        static constexpr ExpertCorpus kExperts[] = {
+            { "codegen-kuhul.jsonl",   "kuhul"   },  // CODEGEN-KUHUL-µ: K'UHUL phase/fold/XCFE ops
+            { "codegen-klsl.jsonl",    "klsl"    },  // CODEGEN-KLSL-µ:  KLSL compiler/shader lang
+            { "codegen-khl.jsonl",     "khl"     },  // CODEGEN-KHL-µ:   KHL host-lang constructs
+            { "codegen-json.jsonl",    "json"    },  // CODEGEN-JSON-µ:  manifests, contracts, schemas
+            { "codegen-cpp.jsonl",     "cpp"     },  // CODEGEN-CPP-µ:   C++ / HLSL GPU code
+            { "codegen-h.jsonl",       "cpp"     },  // C++ headers share the cpp expert
+            { "codegen-hlsl.jsonl",    "cpp"     },  // HLSL shaders share the cpp expert
+            { "codegen-py.jsonl",      "py"      },  // CODEGEN-PY-µ:    Python tools/scripts
+            { "codegen-js.jsonl",      "js"      },  // CODEGEN-JS-µ:    JavaScript
+            { "codegen-ts.jsonl",      "js"      },  // TypeScript shares the js expert
+            { "codegen-cs.jsonl",      "cs"      },  // CODEGEN-CSHARP-µ: C# / .NET
+            { "codegen-css.jsonl",     "css"     },  // CODEGEN-CSS-µ:   CSS stylesheets
+            { "codegen-html.jsonl",    "html"    },  // CODEGEN-HTML-µ:  HTML markup
+            { "codegen-htm.jsonl",     "html"    },  // .htm shares html expert
+        };
+        size_t total_corpus = 0;
+        for (const auto& e : kExperts) {
+            const std::string p = cfg.data_dir + "/gram/" + e.file;
+            const size_t n = gram_store.load_corpus(p, e.prefix);
+            total_corpus += n;
+        }
+        if (total_corpus > 0)
+            std::cout << "  Corpus:  " << total_corpus << " CODEGEN expert bigrams loaded\n";
+    }
+
     {
         std::string runtime_schema_err;
         if (!validate_runtime_schema_stack(cfg.data_dir, &runtime_schema_err)) {
@@ -8183,6 +8257,12 @@ int main(int argc, char* argv[]) {
     int n_tracks = track_loader.load_dir(cfg.data_dir + "/tracks");
     std::cout << "  Tracks:  " << n_tracks << " semantic tracks loaded\n";
 
+    // The coder micronaut joins the control plane as a µ-call parent
+    // (relations-only entry — governs empty, dispatch untouched) and the
+    // µ-call graph becomes governed (admission through declared edges).
+    micronaut::attach_coder_control_plane(mu_reg);
+    std::cout << "  µ-plane: micronaut_coder attached (governed µ-call graph)\n";
+
     micronaut::AIMLEngine aiml;
     set_mx2lm_greeting_bank_path(cfg.data_dir + "/grammar/greeting-bank.json");
     int n_aiml = aiml.load_dir(cfg.data_dir + "/alice");
@@ -8193,6 +8273,24 @@ int main(int argc, char* argv[]) {
                   << aiml.category_count() << " categories)\n";
     if (aiml_state_loaded)
         std::cout << "  AIML:    state restored from " << aiml_state_path << "\n";
+
+    // Phase-local pattern banks — KuhulVM activates the matching bank on each
+    // phase boundary so match() searches only the current phase's categories.
+    const std::string aiml_bank_dir = cfg.data_dir + "/alice/word-problem";
+    aiml.set_phase_bank_dir(aiml_bank_dir);
+    // Augment Yax bank with general question-seed patterns (12 discovery families).
+    // add_phase_bank_file accumulates into the existing bank slot — does not replace.
+    const std::string qseed_yax = cfg.data_dir + "/alice/question-seeds/yax.aiml";
+    if (fs::exists(qseed_yax))
+        aiml.add_phase_bank_file("yax", qseed_yax);
+    vm.set_aiml_engine(&aiml);
+    std::cout << "  AIML:    phase banks wired ("
+              << aiml.phase_bank_count("pop")  << " pop / "
+              << aiml.phase_bank_count("wo")   << " wo / "
+              << aiml.phase_bank_count("yax")  << " yax / "
+              << aiml.phase_bank_count("sek")  << " sek / "
+              << aiml.phase_bank_count("chen") << " chen / "
+              << aiml.phase_bank_count("xul")  << " xul)\n";
 
     // Build graph-native AIML surface from micronaut registry relations.
     aiml.clear_graph();
@@ -8363,7 +8461,8 @@ int main(int argc, char* argv[]) {
             size_t loaded = 0;
             while (std::getline(ag_f, line)) {
                 if (line.empty()) continue;
-                auto obj = util::parse(line);
+                util::JsonPtr obj;
+                try { obj = util::parse(line); } catch (const std::exception&) { continue; }
                 if (!obj) continue;
                 auto text = obj->get_string("text");
                 auto lnum = obj->get_number("label");
@@ -8395,7 +8494,8 @@ int main(int argc, char* argv[]) {
             size_t loaded = 0;
             while (std::getline(sq_f, line)) {
                 if (line.empty()) continue;
-                auto obj = util::parse(line);
+                util::JsonPtr obj;
+                try { obj = util::parse(line); } catch (const std::exception&) { continue; }
                 if (!obj) continue;
                 auto question = obj->get_string("question");
                 auto context  = obj->get_string("context");
@@ -8637,7 +8737,8 @@ int main(int argc, char* argv[]) {
             if (sg_f.is_open()) {
                 std::string sg_text((std::istreambuf_iterator<char>(sg_f)),
                                     std::istreambuf_iterator<char>());
-                auto sg = util::parse(sg_text);
+                util::JsonPtr sg;
+                try { sg = util::parse(sg_text); } catch (const std::exception&) {}
                 const util::JsonValue* mods_v = sg ? sg->get("modules") : nullptr;
                 if (mods_v && mods_v->is_array()) {
                     for (const auto& mod_ptr : mods_v->as_array()) {
@@ -8651,7 +8752,8 @@ int main(int argc, char* argv[]) {
                         if (!sf.is_open()) continue;
                         std::string sf_text((std::istreambuf_iterator<char>(sf)),
                                             std::istreambuf_iterator<char>());
-                        auto schema = util::parse(sf_text);
+                        util::JsonPtr schema;
+                        try { schema = util::parse(sf_text); } catch (const std::exception&) {}
                         if (!schema) continue;
 
                         auto title = schema->get_string("title");
@@ -8789,6 +8891,55 @@ int main(int argc, char* argv[]) {
             std::cout << "  Schemas: " << schema_loaded << " schema entries loaded into key store\n";
     }
     } // !key_store_cache_reuse
+
+    // ── Dataset micronauts ────────────────────────────────────────────────
+    // One micronaut per ingested domain, registered on every startup so
+    // routing works whether keys came from fresh ingest or binary cache.
+    {
+        size_t dataset_mu_added = 0;
+        auto add_dataset_mu = [&](const char* id, const char* desc,
+                                  std::vector<std::string> caps,
+                                  std::unordered_set<std::string> govs) {
+            if (mu_reg.has(id)) return;
+            micronaut::MicronautEntry e;
+            e.id            = id;
+            e.description   = desc;
+            e.primary_phase = kuhul::Phase::Pop;
+            e.category      = "storage";
+            e.confidence    = 0.8f;
+            e.active        = true;
+            e.capabilities  = std::move(caps);
+            e.governs       = std::move(govs);
+            mu_reg.add(std::move(e));
+            ++dataset_mu_added;
+        };
+
+        add_dataset_mu("DICT-µ",   "dictionary definitions and synonyms",
+            {"key_lookup", "word_lookup"},
+            {"word", "definition", "lexicon", "synonym", "vocabulary"});
+        add_dataset_mu("NEWS-µ",   "AGNews articles by topic and headline",
+            {"key_lookup", "news_lookup"},
+            {"news", "article", "headline", "topic", "agn"});
+        add_dataset_mu("QA-µ",     "SQuAD question-answer pairs",
+            {"key_lookup", "qa_lookup"},
+            {"question", "answer", "qa", "reading", "comprehension"});
+        add_dataset_mu("WIKI-µ",   "Wikitext2 encyclopedic passages",
+            {"key_lookup", "passage_lookup"},
+            {"passage", "wiki", "encyclopedia", "knowledge"});
+        add_dataset_mu("THEORY-µ", "structured knowledge paragraphs",
+            {"key_lookup", "knowledge_lookup"},
+            {"knowledge", "theory", "title", "paragraph"});
+        add_dataset_mu("DOCS-µ",   "documentation sections",
+            {"key_lookup", "doc_lookup"},
+            {"documentation", "guide", "reference", "docs"});
+        add_dataset_mu("SCHEMA-µ", "schema types and model manifests",
+            {"key_lookup", "schema_lookup"},
+            {"schema", "type", "definition", "model", "manifest"});
+
+        if (dataset_mu_added > 0)
+            std::cout << "  DatasetMu: " << dataset_mu_added << " dataset micronauts registered\n";
+    }
+
     factory.end_bulk_update();
 
     if (!key_store_cache_reuse || key_store_cache_needs_persist) {
@@ -9045,14 +9196,62 @@ int main(int argc, char* argv[]) {
         std::cerr << "  WARN: Gyroscope init failed: " << ex.what() << "\n";
     }
 
+    // ── Fold Score Dispatch ──────────────────────────────────────────────
+    gpu::FoldScoreDispatch fold_dispatch(device);
+    const bool fold_dispatch_ready = device.is_valid() && fold_dispatch.init();
+    if (fold_dispatch_ready)
+        std::cout << "  Fold:    fold-score dispatch ready\n";
+
+    // ── Persistent MemoryField for fold-score base weights ────────────────
+    // Loaded once at startup; grown incrementally per request; saved on each
+    // winner update so entry.weight persists across restarts.
+    const std::string fold_field_path =
+        cfg.data_dir.empty() ? "fold_field.json"
+                             : cfg.data_dir + "/fold_field.json";
+    micronaut::MemoryField fold_field = micronaut::MemoryField::load(fold_field_path);
+    std::unordered_set<std::string> fold_known_names;
+    for (const auto& e : fold_field.entries())
+        fold_known_names.insert(e.name);
+    std::cout << "  FoldField: " << fold_field.size() << " entries loaded\n";
+
+    const std::string fold_mapping_path =
+        cfg.data_dir.empty() ? "fold_mapping.json"
+                             : cfg.data_dir + "/fold_mapping.json";
+    micronaut::AttentionMapping fold_mapping =
+        micronaut::AttentionMapping::load(fold_mapping_path);
+    std::cout << "  FoldMapping: " << fold_mapping.size() << " rows loaded"
+              << " (v" << fold_mapping.candidate_mapping_version << ")\n";
+
     // ── Servers ───────────────────────────────────────────────────────────
+    micronaut::ToolRegistry tool_reg;  // seeded by MCPServer::register_tools()
     io::MCPServer mcp_server(
         cfg.port_mcp, manifest_reg, vm, mu_reg, factory,
-        sandbox_inspector, confidence, world_state, jrom,
+        sandbox_inspector, tool_reg, confidence, world_state, jrom,
         svg_compute_ready ? &svg_compute : nullptr);
     for (const auto& gp : gml_paths) mcp_server.add_gml(gp);
 
     io::JsonRpcServer rpc_server(cfg.port_rpc);
+
+    // GAP-020/021 wiring (T2.1/T2.2): both servers bind loopback by default;
+    // KHANARY_RPC_BIND=any opts out; KHANARY_RPC_TOKEN enables server-side
+    // bearer auth. A non-loopback bind without a token refuses to start.
+    {
+        char bind_buf[16]{};
+        const DWORD bind_len =
+            ::GetEnvironmentVariableA("KHANARY_RPC_BIND", bind_buf, sizeof(bind_buf));
+        const bool rpc_loopback =
+            !(bind_len > 0 && bind_len < sizeof(bind_buf) &&
+              std::strcmp(bind_buf, "any") == 0);
+        char tok_buf[256]{};
+        const DWORD tok_len =
+            ::GetEnvironmentVariableA("KHANARY_RPC_TOKEN", tok_buf, sizeof(tok_buf));
+        const bool has_token = tok_len > 0 && tok_len < sizeof(tok_buf);
+        rpc_server.set_bind_loopback(rpc_loopback);
+        if (has_token) rpc_server.set_auth_token(tok_buf);
+        mcp_server.set_bind_loopback(rpc_loopback);
+        if (has_token) mcp_server.set_auth_token(tok_buf);
+    }
+
     io::RequestRouter router(mu_reg, scorer, cfg.data_dir);
     // Episode observations (pseudonymous) so H_Ω / A_max are measured, not guessed.
     router.enable_calibration(cfg.data_dir + "/journal/routing-episodes.jsonl");
@@ -9095,6 +9294,130 @@ int main(int argc, char* argv[]) {
         }
         return util::json_object(std::move(action));
     });
+
+    // ── Grammar micronauts ────────────────────────────────────────────────────
+    // Each declaration is parsed from XML, compiled to a MicronautEntry, and
+    // installed as an Execute_µ handler. parse() throws on malformed XML so
+    // errors are caught and logged rather than crashing startup.
+    {
+        size_t grammar_mu_ok = 0;
+        auto reg_grammar = [&](const char* xml) {
+            try {
+                router.register_grammar(io::MicronautGrammarCompiler::parse(xml));
+                ++grammar_mu_ok;
+            } catch (const std::exception& e) {
+                std::cerr << "  GrammarMu: parse error: " << e.what() << '\n';
+            }
+        };
+
+        // REASON-µ: inferential reasoning over a subject (Wo phase, INFER verb)
+        reg_grammar(R"(<micronaut id="REASON-µ">
+  <pattern>* about *{subject} | * explain *{subject} | why *{subject}</pattern>
+  <wildcard name="prefix"/>
+  <template>
+    <function>INFER</function>
+    <input>@subject</input>
+  </template>
+  <phase>Wo</phase>
+  <weights confidence="0.9" relevance="1.0"/>
+</micronaut>)");
+
+        // SENSE-µ: lookup / description query (Pop phase, PERCEIVE verb)
+        reg_grammar(R"(<micronaut id="SENSE-µ">
+  <pattern>what is *{query} | describe *{query} | lookup *{query}</pattern>
+  <template>
+    <function>PERCEIVE</function>
+    <input>@query</input>
+  </template>
+  <phase>Pop</phase>
+  <weights confidence="0.85" relevance="1.0"/>
+</micronaut>)");
+
+        // RELATE-µ: graph neighbourhood traversal (Sek phase, TRAVERSE verb)
+        reg_grammar(R"(<micronaut id="RELATE-µ">
+  <pattern>relate *{node} | neighbors of *{node} | expand *{node}</pattern>
+  <template>
+    <function>TRAVERSE</function>
+    <input>@node</input>
+  </template>
+  <phase>Sek</phase>
+  <weights confidence="0.80" relevance="1.0"/>
+</micronaut>)");
+
+        std::cout << "  GrammarMu: " << grammar_mu_ok << " grammar micronauts registered\n";
+
+        // ── Startup Execute_µ smoke-test (direct — bypasses WCR routing) ─────
+        // These call MicronautGrammarCompiler::execute() directly so the grammar
+        // path is verified regardless of which micronaut wins the routing contest.
+        {
+            // String domain: "tell me about neural networks"
+            //   branch "* about *{subject}" → subject="neural networks"
+            auto reason_decl = io::MicronautGrammarCompiler::parse(
+                R"(<micronaut id="REASON-µ">
+  <pattern>* about *{subject} | * explain *{subject} | why *{subject}</pattern>
+  <wildcard name="prefix"/>
+  <template>
+    <function>INFER</function>
+    <input>@subject</input>
+  </template>
+  <phase>Wo</phase>
+  <weights confidence="0.9" relevance="1.0"/>
+</micronaut>)");
+            io::ExecuteInput ei_str;
+            ei_str.text = "tell me about neural networks";
+            auto res_str = io::MicronautGrammarCompiler::execute(ei_str, reason_decl);
+            std::cout << "  Execute_µ[String]: matched=" << (res_str.matched() ? "yes" : "no")
+                      << " domain="
+                      << (res_str.domain == io::ExecuteResult::Domain::String ? "string" :
+                          res_str.domain == io::ExecuteResult::Domain::None   ? "none" : "other")
+                      << " text=\"" << res_str.text << "\"";
+            if (res_str.captures) {
+                for (const auto& [k, v] : res_str.captures->bindings)
+                    std::cout << " [" << k << "=" << v << "]";
+            }
+            std::cout << '\n';
+
+            // Graph domain: "relate DECISION-µ" → TRAVERSE executor
+            auto relate_decl = io::MicronautGrammarCompiler::parse(
+                R"(<micronaut id="RELATE-µ">
+  <pattern>relate *{node} | neighbors of *{node} | expand *{node}</pattern>
+  <template>
+    <function>TRAVERSE</function>
+    <input>@node</input>
+  </template>
+  <phase>Sek</phase>
+  <weights confidence="0.80" relevance="1.0"/>
+</micronaut>)");
+            // Build fn_registry with the router's built-in TRAVERSE executor
+            // by extracting it from the router via a one-shot registration check.
+            // (Simpler: just re-route through router with a forced micronaut.)
+            // We register a dummy fn so we can confirm domain::Graph fires:
+            io::ExecuteInput ei_gph;
+            ei_gph.text = "relate DECISION-µ";
+            // Use the full router (which has TRAVERSE in fn_registry_) by
+            // routing with a query that exactly matches RELATE-µ's pattern
+            io::RouteRequest req_gph;
+            req_gph.query  = "relate DECISION-µ";
+            req_gph.phase  = kuhul::Phase::Pop;
+            req_gph.lane   = "grammar_smoke_test";
+            auto rr = router.route(req_gph);
+            std::cout << "  RouteTest[Graph]:  selected=" << rr.micronaut_id
+                      << " handler=" << rr.handler_id;
+            if (!rr.dispatch_allowed)
+                std::cout << " blocked=" << rr.dispatch_block_reason;
+            else if (rr.response && rr.response->is_object()) {
+                if (auto d  = rr.response->get_string("domain"))    std::cout << " domain=" << *d;
+                if (auto gr = rr.response->get_string("graph_ref")) std::cout << " ref=" << *gr;
+                const auto* ps = rr.response->get("proposed_state");
+                if (ps && ps->is_object()) {
+                    const auto* nb = ps->get("graph_neighbors");
+                    if (nb && nb->is_array())
+                        std::cout << " neighbors=" << nb->as_array().size();
+                }
+            }
+            std::cout << '\n';
+        }
+    }
 
     // Wire JSON-RPC routes
     rpc_server.register_method("resolve_manifest", [&](const util::JsonPtr& p) {
@@ -9648,7 +9971,13 @@ int main(int argc, char* argv[]) {
                 obj["status"] = util::json_string("memory_recall");
                 obj["count"] = util::json_number((double)memories.size());
                 obj["memories"] = util::json_array(std::move(memories));
-                jrom.log("memory_recall", "{\"mode\":\"explicit\",\"query\":\"" + qtrim_cmd + "\"}");
+                {
+                    util::JsonObject recall_log;
+                    recall_log["mode"]  = util::json_string("explicit");
+                    recall_log["query"] = util::json_string(qtrim_cmd);
+                    jrom.log("memory_recall",
+                             util::stringify(util::json_object(std::move(recall_log))));
+                }
             } else {
                 const std::string memory_key = "memory: " + payload;
                 vm.gram_store().gramWrite(memory_key, payload, "Ch'en");
@@ -9918,13 +10247,22 @@ int main(int argc, char* argv[]) {
             update_last_topic(tc);
             update_last_micronaut("Mx2LM");
             log_micronaut_feedback(mc);
-            // nodes[] → ⟁EVIDENCE: event name gives "semantic"+"graph"+"query" scoring
-            jrom.log("semantic_graph_query", "{\"source\":\"mx2lm\",\"anchor\":\"" + anchor + "\"}");
+            {
+                // nodes[] → ⟁EVIDENCE: event name gives "semantic"+"graph"+"query" scoring
+                util::JsonObject sgq;
+                sgq["source"] = util::json_string("mx2lm");
+                sgq["anchor"] = util::json_string(anchor);
+                jrom.log("semantic_graph_query",
+                         util::stringify(util::json_object(std::move(sgq))));
+            }
             // C_ij commit → ⟁VERIFY: log only when relation confidence was actually updated
-            if (tc.relation_updates > 0)
+            if (tc.relation_updates > 0) {
+                util::JsonObject prov_log;
+                prov_log["confidence_keys"] = util::json_number((double)tc.relation_updates);
+                prov_log["rel_delta"]       = util::json_number(tc.relation_delta);
                 jrom.log("check_provenance_weights",
-                         "{\"confidence_keys\":" + std::to_string(tc.relation_updates) +
-                         ",\"rel_delta\":" + std::to_string(tc.relation_delta) + "}");
+                         util::stringify(util::json_object(std::move(prov_log))));
+            }
             return finalize_key_query_event(mx, "", "Mx2LM", "Ch'en");
         }
 
@@ -9978,11 +10316,20 @@ int main(int argc, char* argv[]) {
                     update_last_topic(tc);
                     update_last_micronaut("Mx2LM");
                     log_micronaut_feedback(mc);
-                    jrom.log("semantic_graph_query", "{\"source\":\"mx2lm\",\"anchor\":\"" + anchor + "\"}");
-                    if (tc.relation_updates > 0)
+                    {
+                        util::JsonObject sgq;
+                        sgq["source"] = util::json_string("mx2lm");
+                        sgq["anchor"] = util::json_string(anchor);
+                        jrom.log("semantic_graph_query",
+                                 util::stringify(util::json_object(std::move(sgq))));
+                    }
+                    if (tc.relation_updates > 0) {
+                        util::JsonObject prov_log;
+                        prov_log["confidence_keys"] = util::json_number((double)tc.relation_updates);
+                        prov_log["rel_delta"]       = util::json_number(tc.relation_delta);
                         jrom.log("check_provenance_weights",
-                                 "{\"confidence_keys\":" + std::to_string(tc.relation_updates) +
-                                 ",\"rel_delta\":" + std::to_string(tc.relation_delta) + "}");
+                                 util::stringify(util::json_object(std::move(prov_log))));
+                    }
                     return finalize_key_query_event(mx, "", "Mx2LM", "Ch'en");
                 }
 
@@ -10521,7 +10868,13 @@ int main(int argc, char* argv[]) {
 
             active_micronaut = delegate_track;
 
-            jrom.log("knowledge_gap",      "{\"track\":\"" + active_micronaut + "\",\"reason\":\"fact_miss\"}");
+            {
+                util::JsonObject gap_log;
+                gap_log["track"]  = util::json_string(active_micronaut);
+                gap_log["reason"] = util::json_string("fact_miss");
+                jrom.log("knowledge_gap",
+                         util::stringify(util::json_object(std::move(gap_log))));
+            }
             {
                 util::JsonObject row;
                 row["classification"] = util::json_string("MISS");
@@ -10556,12 +10909,34 @@ int main(int argc, char* argv[]) {
                     (double)factory_mutation.added_governs.size());
                 jrom.log("factory_mutation", util::stringify(util::json_object(std::move(row))));
             }
-            jrom.log("web_research",        "{\"query\":\"" + qtrim + "\",\"delegate\":\"" + delegate_track + "\",\"retrieval\":\"Librarian\"}");
-            jrom.log("replay_candidate",    "{\"query\":\"" + qtrim + "\",\"method\":\"key_query\",\"trigger_on\":\"web_research_commit\"}");
-            jrom.log("evolve_candidate",    "{\"track\":\"" + delegate_track + "\",\"capability\":\"fact_retrieval::" + (phrase.empty() ? qtrim.substr(0, 32) : phrase) + "\",\"trigger_on\":\"web_research_commit\"}");
-            jrom.log("miss_resolution_learning",
-                     "{\"track\":\"" + active_micronaut +
-                     "\",\"rule\":\"MISS_not_WRONG\",\"confidence_delta\":0.0,\"action\":\"expand_unfold\"}");
+            {
+                util::JsonObject wr_log, rc_log, ev_log;
+                wr_log["query"]     = util::json_string(qtrim);
+                wr_log["delegate"]  = util::json_string(delegate_track);
+                wr_log["retrieval"] = util::json_string("Librarian");
+                jrom.log("web_research",
+                         util::stringify(util::json_object(std::move(wr_log))));
+                rc_log["query"]     = util::json_string(qtrim);
+                rc_log["method"]    = util::json_string("key_query");
+                rc_log["trigger_on"] = util::json_string("web_research_commit");
+                jrom.log("replay_candidate",
+                         util::stringify(util::json_object(std::move(rc_log))));
+                ev_log["track"]      = util::json_string(delegate_track);
+                ev_log["capability"] = util::json_string(
+                    "fact_retrieval::" + (phrase.empty() ? qtrim.substr(0, 32) : phrase));
+                ev_log["trigger_on"] = util::json_string("web_research_commit");
+                jrom.log("evolve_candidate",
+                         util::stringify(util::json_object(std::move(ev_log))));
+            }
+            {
+                util::JsonObject msl_log;
+                msl_log["track"]            = util::json_string(active_micronaut);
+                msl_log["rule"]             = util::json_string("MISS_not_WRONG");
+                msl_log["confidence_delta"] = util::json_number(0.0);
+                msl_log["action"]           = util::json_string("expand_unfold");
+                jrom.log("miss_resolution_learning",
+                         util::stringify(util::json_object(std::move(msl_log))));
+            }
         }
 
         auto out = util::json_object(std::move(obj));
@@ -11443,9 +11818,29 @@ int main(int argc, char* argv[]) {
                 vm.gram_store(), prompt_archive.prompt_key, 64);
             if (candidates.empty()) return;
 
-            auto scores = engine->score_prompt_attention(
+            // GAP-040: validate prompt envelope and candidate eligibility before dispatch.
+            if (prompt_archive.prompt_key.empty() ||
+                prompt_archive.prompt_key.rfind("prompt:", 0) != 0) {
+                attention_obj["dispatch_rejected"] = util::json_bool(true);
+                attention_obj["reject_reason"] = util::json_string("invalid_prompt_key");
+                attention_attempted = true;
+                return;
+            }
+            const bool any_eligible = std::any_of(candidates.begin(), candidates.end(),
+                [](const auto& c) { return c.policy_ok && c.capable && c.xcfe_ok; });
+            if (!any_eligible) {
+                attention_obj["dispatch_rejected"] = util::json_bool(true);
+                attention_obj["reject_reason"] = util::json_string("no_eligible_candidates");
+                attention_attempted = true;
+                return;
+            }
+
+            // GAP-042: GPU failure carries a typed status; it is never
+            // indistinguishable from a legitimately empty candidate set.
+            auto attention = engine->score_prompt_attention(
                 vm.gram_store(), candidates, 0.3f, 0.35f);
             attention_attempted = true;
+            const auto& scores = attention.scores;
 
             size_t admitted_count = 0;
             util::JsonArray top;
@@ -11464,7 +11859,12 @@ int main(int argc, char* argv[]) {
             const auto* boost = engine->lorentz_transition();
             attention_obj["candidate_count"] = util::json_number(static_cast<double>(candidates.size()));
             attention_obj["gpu_ready"] = util::json_bool(engine->semantic_attention_ready());
-            attention_obj["dispatched"] = util::json_bool(!scores.empty());
+            attention_obj["gpu_status"] = util::json_string(
+                gpu::gram_gpu_status_name(attention.status));
+            attention_obj["dispatched"] = util::json_bool(
+                attention.ok() && !scores.empty());
+            if (!attention.ok())
+                attention_obj["gpu_error"] = util::json_string(attention.error);
             attention_obj["admitted_count"] = util::json_number(static_cast<double>(admitted_count));
             attention_obj["lorentz_enabled"] = util::json_bool(boost && boost->enabled);
             attention_obj["top"] = util::json_array(std::move(top));
@@ -11472,6 +11872,182 @@ int main(int argc, char* argv[]) {
             attention_obj["responsibility"] = util::json_string("projection_only_attention_bias");
             jrom.log("semantic_attention",
                      util::stringify(util::json_object(attention_obj)),
+                     "observation");
+        };
+
+        util::JsonObject fold_obj;
+        bool  fold_attempted  = false;
+        float fold_confidence = 1.0f;
+        auto run_fold_selection = [&]() {
+            if (!fold_dispatch_ready) return;
+            if (prompt_archive.prompt_key.empty() ||
+                    prompt_archive.prompt_key.rfind("prompt:", 0) != 0) return;
+
+            // Incrementally populate the persistent field with new GramStore entries.
+            // Entries already in fold_known_names are skipped to avoid duplicates.
+            bool field_grew = false;
+            const std::string fld_prefix = prompt_archive.prompt_key + ":";
+            for (const auto& key : vm.gram_store().keys()) {
+                if (key.rfind(fld_prefix, 0) != 0) continue;
+                if (key.find(":vector:") != std::string::npos) continue;
+                if (fold_known_names.count(key)) continue;
+                const auto gram = vm.gram_store().gramRead(key);
+                if (!gram) continue;
+                fold_field.add(key, gram->value, "", gram->phase, gram->channel);
+                fold_known_names.insert(key);
+                field_grew = true;
+            }
+            if (fold_field.size() == 0) return;
+
+            static micronaut::ElizaOperatorBank s_fold_eliza;
+            static micronaut::CompareGrammar s_fold_compare =
+                micronaut::CompareGrammar::standard();
+            micronaut::NeighborhoodSelector sel(
+                fold_field, vm.gram_store(), s_fold_eliza, s_fold_compare);
+            auto nhood = sel.select(*prompt, prompt_archive.prompt_key, "", 16);
+            if (nhood.empty()) {
+                if (field_grew) fold_field.save(fold_field_path);
+                return;
+            }
+            fold_mapping.reset_batch();
+            const uint64_t pre_map_version = fold_mapping.candidate_mapping_version;
+            auto cands = micronaut::promote_candidates(
+                nhood, prompt_archive.prompt_key, fold_mapping, 0);
+            std::vector<float> wcr_buf(cands.size());
+            for (size_t i = 0; i < cands.size(); ++i)
+                wcr_buf[i] = cands[i].wcr_score;
+            micronaut::segmented_softmax(wcr_buf.data(), wcr_buf.size());
+            micronaut::apply_attention_scores(cands, wcr_buf.data(), wcr_buf.size());
+            const uint32_t total = static_cast<uint32_t>(cands.size());
+            std::vector<float> retention_buf(total, 1.0f);
+            for (const auto& c : cands) {
+                const auto* entry = fold_field.get(c.candidate_id);
+                if (entry && c.attention_offset < total)
+                    retention_buf[c.attention_offset] = entry->weight;
+            }
+            const auto result = fold_dispatch.dispatch_score_only(cands, total, fold_confidence, retention_buf);
+            if (result.ok()) {
+                for (auto& c : cands) {
+                    if (c.attention_offset < result.scores.size())
+                        c.combined = result.scores[c.attention_offset];
+                }
+            }
+            const auto* winner = micronaut::select_best(cands);
+            micronaut::feedback_selection(winner, sel);
+            bool any_loser_learned = false;
+            for (const auto& c : cands) {
+                if (!c.legal) continue;
+                if (winner && c.candidate_id == winner->candidate_id) continue;
+                sel.confirm(c.neighborhood_id, c.intent, c.candidate_id, 0.0f);
+                if (fold_field.learn(c.candidate_id, -0.3f))
+                    any_loser_learned = true;
+            }
+
+            // Package selection into a SemanticAccumulator for the trainer's
+            // provenance chain.  Runs at Phase::Chen (inference-commit); closed
+            // at Phase::Xul to mark the fold done before logging.
+            {
+                kuhul::SemanticAccumulator fold_acc = kuhul::make_accumulator(
+                    prompt_archive.prompt_key,
+                    "",
+                    "fold_score_dispatch",
+                    kuhul::Phase::Chen);
+                fold_acc.semantic.event_key = prompt_archive.prompt_key;
+                fold_acc.semantic.intent    = winner ? winner->intent : "";
+                kuhul::set_field(fold_acc, "prompt_key", prompt_archive.prompt_key);
+                kuhul::set_field(fold_acc, "gpu_status",
+                    gpu::gram_gpu_status_name(result.status));
+
+                kuhul::append_event(fold_acc, kuhul::Phase::Chen, "promote",
+                    "n=" + std::to_string(cands.size()));
+                kuhul::append_event(fold_acc, kuhul::Phase::Chen, "gpu_dispatch",
+                    gpu::gram_gpu_status_name(result.status));
+
+                std::vector<kuhul::CandidateRecord> fold_records;
+                fold_records.reserve(cands.size());
+                for (const auto& c : cands) {
+                    kuhul::CandidateRecord cr;
+                    cr.candidate_id = c.candidate_id;
+                    cr.gram_edge_id = c.gram_edge_id;
+                    cr.combined     = c.combined;
+                    cr.wcr_score    = c.wcr_score;
+                    cr.legal        = c.legal;
+                    fold_records.push_back(std::move(cr));
+                }
+                kuhul::record_candidates(fold_acc, fold_records,
+                    winner ? winner->candidate_id : "");
+                kuhul::append_event(fold_acc, kuhul::Phase::Xul, "select",
+                    winner ? winner->candidate_id : "none");
+                kuhul::close_fold(fold_acc);
+
+                jrom.log("fold_accumulator",
+                    kuhul::serialize_accumulator(fold_acc),
+                    "observation");
+            }
+
+            // Update base weight in the persistent field and flush to disk.
+            bool weight_updated = false;
+            if (winner)
+                weight_updated = fold_field.learn(winner->candidate_id, 1.0f);
+            if (weight_updated || any_loser_learned || field_grew)
+                fold_field.save(fold_field_path);
+
+            // Persist mapping when new candidate IDs were registered this batch.
+            const bool mapping_grew =
+                fold_mapping.candidate_mapping_version != pre_map_version;
+            if (mapping_grew)
+                fold_mapping.save(fold_mapping_path);
+
+            fold_attempted = true;
+            fold_obj["dispatched"]      = util::json_bool(result.ok());
+            fold_obj["candidate_count"] = util::json_number(
+                static_cast<double>(cands.size()));
+            fold_obj["gpu_status"]      = util::json_string(
+                gpu::gram_gpu_status_name(result.status));
+            fold_obj["confidence"]      = util::json_number(
+                static_cast<double>(fold_confidence));
+            if (!result.ok())
+                fold_obj["gpu_error"] = util::json_string(result.error);
+            fold_obj["mapping_rows"] = util::json_number(
+                static_cast<double>(fold_mapping.size()));
+            fold_obj["mapping_version"] = util::json_number(
+                static_cast<double>(fold_mapping.candidate_mapping_version));
+            if (winner) {
+                fold_obj["winner"]         = util::json_string(winner->candidate_id);
+                fold_obj["winner_row"]     = util::json_number(
+                    static_cast<double>(winner->embedding_row));
+                fold_obj["combined"]       = util::json_number(
+                    static_cast<double>(winner->combined));
+                fold_obj["weight_updated"] = util::json_bool(weight_updated);
+            }
+            {
+                std::vector<size_t> idx(cands.size());
+                std::iota(idx.begin(), idx.end(), 0);
+                std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) {
+                    return cands[a].combined > cands[b].combined;
+                });
+                const size_t top_n = std::min<size_t>(8, cands.size());
+                util::JsonArray top;
+                top.reserve(top_n);
+                for (size_t k = 0; k < top_n; ++k) {
+                    const auto& c = cands[idx[k]];
+                    util::JsonObject row;
+                    row["candidate_id"]    = util::json_string(c.candidate_id);
+                    row["combined"]        = util::json_number(static_cast<double>(c.combined));
+                    row["wcr_score"]       = util::json_number(static_cast<double>(c.wcr_score));
+                    row["edge_weight"]     = util::json_number(static_cast<double>(c.edge_weight));
+                    row["attention_score"] = util::json_number(static_cast<double>(c.attention_score));
+                    row["retention"]       = util::json_number(static_cast<double>(
+                        c.attention_offset < retention_buf.size()
+                            ? retention_buf[c.attention_offset] : 1.0f));
+                    row["selected"]        = util::json_bool(
+                        winner && c.candidate_id == winner->candidate_id);
+                    top.push_back(util::json_object(std::move(row)));
+                }
+                fold_obj["top"] = util::json_array(std::move(top));
+            }
+            jrom.log("fold_selection",
+                     util::stringify(util::json_object(fold_obj)),
                      "observation");
         };
 
@@ -11534,7 +12110,12 @@ int main(int argc, char* argv[]) {
                 if (!task_query.empty()) task_query += ' ';
                 task_query += prompt_toks[i];
             }
-            jrom.log("decompose_task", "{\"query\":\"" + task_query + "\"}");
+            {
+                util::JsonObject dt_log;
+                dt_log["query"] = util::json_string(task_query);
+                jrom.log("decompose_task",
+                         util::stringify(util::json_object(std::move(dt_log))));
+            }
 
             // Sliding window: only events since end of previous infer call (O(window) not O(n²))
             std::vector<io::JROMEvent> trace;
@@ -11585,14 +12166,32 @@ int main(int argc, char* argv[]) {
             const auto pre_gr = gyroscope->observe(s_proj, s_prompt, pre_inputs);
             apply_lorentz_transition(pre_gr, "projection_prompt_residual");
             run_semantic_attention();
+            fold_confidence = std::clamp(pre_gr.r / 2.5f, 0.1f, 1.0f)
+                              * (pre_gr.dynamically_stable ? 1.0f : 0.5f);
+            run_fold_selection();
 
             // ── DDS inference conditioned on projection context ────────────
             auto result = engine->run(ctx_prompt, max_tok);
             if (!result.ok || result.text.empty()) {
-                jrom.log("knowledge_gap", "{\"reason\":\"dds_empty\",\"query\":\"" + task_query + "\"}");
-                jrom.log("web_research",  "{\"query\":\"" + task_query + "\",\"delegate\":\"Librarian\"}");
+                {
+                    util::JsonObject kg_log;
+                    kg_log["reason"] = util::json_string("dds_empty");
+                    kg_log["query"]  = util::json_string(task_query);
+                    jrom.log("knowledge_gap",
+                             util::stringify(util::json_object(std::move(kg_log))));
+                }
+                {
+                    util::JsonObject wr_log;
+                    wr_log["query"]    = util::json_string(task_query);
+                    wr_log["delegate"] = util::json_string("Librarian");
+                    jrom.log("web_research",
+                             util::stringify(util::json_object(std::move(wr_log))));
+                }
             } else {
-                jrom.log("verify_result", "{\"ok\":true}");
+                util::JsonObject vr_log;
+                vr_log["ok"] = util::json_bool(true);
+                jrom.log("verify_result",
+                         util::stringify(util::json_object(std::move(vr_log))));
             }
 
             // ── Score completion with natural-language governs vocabulary ──
@@ -11702,6 +12301,8 @@ int main(int argc, char* argv[]) {
             obj["model_presence"] = make_model_presence();
             if (attention_attempted)
                 obj["semantic_attention"] = util::json_object(std::move(attention_obj));
+            if (fold_attempted)
+                obj["fold_selection"] = util::json_object(std::move(fold_obj));
 
             last_infer_end_seq = jrom.last_seq() + 1;
             return finalize_infer_event(std::move(obj), result.text, result.ok, "Ch'en");
@@ -11711,6 +12312,7 @@ int main(int argc, char* argv[]) {
         // pass installed a frame, semantic attention still dispatches through it;
         // otherwise the scorer uses the disabled identity transition.
         run_semantic_attention();
+        run_fold_selection();
         auto result = engine->run(*prompt, max_tok);
         util::JsonObject obj;
         obj["ok"]   = util::json_bool(result.ok);
@@ -11725,7 +12327,278 @@ int main(int argc, char* argv[]) {
         obj["model_presence"] = make_model_presence();
         if (attention_attempted)
             obj["semantic_attention"] = util::json_object(std::move(attention_obj));
+        if (fold_attempted)
+            obj["fold_selection"] = util::json_object(std::move(fold_obj));
         return finalize_infer_event(std::move(obj), result.text, result.ok, "Ch'en");
+    });
+
+    // llm_infer — auto-swapping in-process llama.cpp inference.
+    // Selects model by: (1) micronaut_id param → preferred_model_gguf from track file,
+    // (2) advisor_like content routing → cfg.advisor_model, (3) default → cfg.gguf_model.
+    // Dismounts the previous model when a different path is requested.
+    // Request: {"prompt": "...", "sys": "...", "micronaut_id": "CHAT-µ"} (sys, micronaut_id optional)
+    khanary::llm::ModelSwapper llm_swapper;
+    rpc_server.register_method("llm_infer", [&](const util::JsonPtr& p) {
+        auto prompt_opt = p ? p->get_string("prompt") : std::nullopt;
+        util::JsonObject res;
+        if (!prompt_opt) {
+            res["ok"]    = util::json_bool(false);
+            res["error"] = util::json_string("missing 'prompt' field");
+            return util::json_object(std::move(res));
+        }
+        std::string sys = (p ? p->get_string("sys") : std::nullopt).value_or("");
+        // Auto-inject semantic driver meta when no sys prompt is provided.
+        // Factory-created drivers in drivers/micronauts/semantic/ feed the meta pipeline.
+        if (sys.empty()) {
+            if (auto match = io::find_best_semantic_meta(*prompt_opt, cfg.data_dir)) {
+                sys = match->response;
+            }
+        }
+        const std::string qlow = lower_copy(*prompt_opt);
+
+        auto word_ci = [](const std::string& s, const std::string& w) -> bool {
+            size_t p2 = 0;
+            while ((p2 = s.find(w, p2)) != std::string::npos) {
+                const bool pre  = (p2 == 0) || !std::isalnum((unsigned char)s[p2 - 1]);
+                const bool post = (p2 + w.size() >= s.size()) || !std::isalnum((unsigned char)s[p2 + w.size()]);
+                if (pre && post) return true;
+                p2 += w.size();
+            }
+            return false;
+        };
+
+        // Select model path and template.
+        std::string model_path;
+        std::string model_tmpl;  // "chatml" or "gemma"
+        std::string active_track = "CHAT-µ";
+
+        // Priority 1: micronaut_id param → track's preferred GGUF.
+        const auto mu_id = p ? p->get_string("micronaut_id") : std::nullopt;
+        if (mu_id) {
+            const auto* mu = mu_reg.get(*mu_id);
+            if (mu && !mu->preferred_model_gguf.empty()) {
+                model_path   = mu->preferred_model_gguf;
+                model_tmpl   = mu->preferred_model_template;
+                active_track = mu->id;
+            }
+        }
+
+        // Priority 2: advisor_like content routing → cfg.advisor_model.
+        if (model_path.empty()) {
+            const bool advisor_like =
+                word_ci(qlow, "advise")  || word_ci(qlow, "advisor")  ||
+                word_ci(qlow, "analyze") || word_ci(qlow, "analyse")  ||
+                word_ci(qlow, "reason")  || word_ci(qlow, "reasoning")||
+                word_ci(qlow, "propose") || word_ci(qlow, "proposal") ||
+                word_ci(qlow, "gap")     || word_ci(qlow, "evaluate") ||
+                word_ci(qlow, "compare") || word_ci(qlow, "tradeoff") ||
+                word_ci(qlow, "pros and cons");
+            if (advisor_like && !cfg.advisor_model.empty() && fs::exists(cfg.advisor_model)) {
+                model_path   = cfg.advisor_model;
+                model_tmpl   = "chatml"; // Qwen uses ChatML
+                active_track = "ADVISOR-µ";
+            }
+        }
+
+        // Priority 3: server default --gguf-model.
+        if (model_path.empty() && !cfg.gguf_model.empty() && fs::exists(cfg.gguf_model)) {
+            model_path = cfg.gguf_model;
+            // LFM2.5 (or any ChatML model) declared in the server config gets chatml.
+            // Simple heuristic: if path contains "LFM" or "Qwen" → chatml, else gemma.
+            const auto& mp = model_path;
+            if (mp.find("LFM") != std::string::npos || mp.find("Qwen") != std::string::npos ||
+                mp.find("lfm") != std::string::npos || mp.find("qwen") != std::string::npos)
+                model_tmpl = "chatml";
+        }
+
+        if (model_path.empty()) {
+            res["ok"]    = util::json_bool(false);
+            res["error"] = util::json_string(
+                "no GGUF model configured — start with --gguf-model or set model.gguf in track file");
+            return util::json_object(std::move(res));
+        }
+
+        // Augment sys with AIML/ELIZA pattern context when the active track declares
+        // pattern_source: "aiml" / "eliza" / "aiml+eliza".
+        // Pattern meta is prepended so LFM sees the domain grammar before any
+        // semantic-driver context injected above.
+        {
+            std::string pat_src;
+            if (const auto* mu = mu_reg.get(active_track))
+                pat_src = mu->pattern_source;
+            if (!pat_src.empty()) {
+                const std::string pat = io::load_pattern_meta_for_track(
+                    pat_src, *prompt_opt, cfg.data_dir);
+                if (!pat.empty()) {
+                    sys = sys.empty() ? pat : (pat + "\n---\n" + sys);
+                }
+            }
+        }
+
+        khanary::llm::LlamaConfig llama_cfg;
+        llama_cfg.ctx_size     = 2048;
+        llama_cfg.max_tokens   = 512;
+        llama_cfg.temperature  = (active_track == "ADVISOR-µ") ? 0.3f : 0.7f;
+        llama_cfg.chat_template = (model_tmpl == "chatml")
+            ? khanary::llm::ChatTemplate::ChatML
+            : khanary::llm::ChatTemplate::Gemma;
+
+        if (!llm_swapper.swap_to(model_path, llama_cfg)) {
+            res["ok"]    = util::json_bool(false);
+            res["error"] = util::json_string("model failed to load: " + model_path);
+            return util::json_object(std::move(res));
+        }
+
+        if (active_track == "ADVISOR-µ") {
+                const auto prompt_archive = persist_prompt_submission(
+                    *prompt_opt, prompt_ingest_root, &dictionary_lexicon, &factory, &vm.gram_store());
+                const std::string pek = record_key_grammar_memory_event(
+                    "prompt", "llm_infer", "USER-µ", "Pop",
+                    prompt_archive.prompt_key, "", *prompt_opt, "",
+                    "UNKNOWN", false, &factory, &vm.gram_store(), &jrom);
+                const std::string text = llm_swapper.call_fn()(sys, *prompt_opt);
+                record_key_grammar_memory_event(
+                    "model_response", "llm_infer", "ADVISOR-µ", "Yax",
+                    prompt_archive.prompt_key, pek, text, "",
+                    "UNKNOWN", false, &factory, &vm.gram_store(), &jrom);
+                const auto grams = build_learning_ngrams(text, 24);
+                for (const auto& g : grams) {
+                    vm.gram_store().gramWrite(g,
+                        text.size() > 120 ? text.substr(0, 120) : text,
+                        "Yax", "ADVISOR-µ", "definitions_and_relations");
+                    factory.record_key("response_ngram:" + g, prompt_archive.prompt_key);
+                }
+                {
+                    util::JsonObject rl;
+                    rl["query"]       = util::json_string(*prompt_opt);
+                    rl["method"]      = util::json_string("llm_infer");
+                    rl["track"]       = util::json_string("ADVISOR-µ");
+                    rl["model"]       = util::json_string(gemma_model_name);
+                    rl["ngram_count"] = util::json_number(static_cast<double>(grams.size()));
+                    jrom.log("replay_candidate", util::stringify(util::json_object(std::move(rl))));
+                    util::JsonObject el;
+                    el["track"]       = util::json_string("ADVISOR-µ");
+                    el["model"]       = util::json_string(gemma_model_name);
+                    el["capability"]  = util::json_string("advisory_response_ngrams");
+                    el["trigger_on"]  = util::json_string("infer_commit");
+                    el["ngram_count"] = util::json_number(static_cast<double>(grams.size()));
+                    jrom.log("evolve_candidate", util::stringify(util::json_object(std::move(el))));
+                }
+                util::JsonObject res2;
+                res2["ok"]           = util::json_bool(!text.empty());
+                res2["text"]         = util::json_string(text);
+                res2["track"]        = util::json_string("ADVISOR-µ");
+                res2["prompt_key"]   = util::json_string(prompt_archive.prompt_key);
+                res2["prompt_ngrams"]= util::json_number(static_cast<double>(prompt_archive.prompt_ngram_count));
+                if (text.empty())
+                    res2["error"] = util::json_string("advisor model generated empty response");
+                if (!grams.empty()) {
+                    util::JsonArray arr;
+                    for (const auto& g : grams) arr.push_back(util::json_string(g));
+                    res2["ngrams"] = util::json_array(std::move(arr));
+                }
+                return util::json_object(std::move(res2));
+        }
+
+        const auto prompt_archive = persist_prompt_submission(
+            *prompt_opt, prompt_ingest_root, &dictionary_lexicon, &factory, &vm.gram_store());
+        const std::string prompt_event_key = record_key_grammar_memory_event(
+            "prompt", "llm_infer", "USER-µ", "Pop",
+            prompt_archive.prompt_key, "", *prompt_opt, "",
+            "UNKNOWN", false, &factory, &vm.gram_store(), &jrom);
+
+        const std::string text = llm_swapper.call_fn()(sys, *prompt_opt);
+        res["ok"]            = util::json_bool(!text.empty());
+        res["text"]          = util::json_string(text);
+        res["prompt_key"]    = util::json_string(prompt_archive.prompt_key);
+        res["prompt_ngrams"] = util::json_number(static_cast<double>(prompt_archive.prompt_ngram_count));
+        if (text.empty()) {
+            res["error"] = util::json_string("llama generated empty response");
+            return util::json_object(std::move(res));
+        }
+
+        // After any MEMORY-µ dispatch, flush live gram state to the semantic driver
+        // so the next call picks up fresh memory context.
+        if (active_track == "MEMORY-\xc2\xb5" || active_track == "MEMORY-u")
+            vm.gram_store().flush_memory_driver(cfg.data_dir);
+
+        // Detect code vs chat to route ngrams to the right backend slot.
+        const bool code_like =
+            text.find("```") != std::string::npos ||
+            word_ci(qlow, "code")       || word_ci(qlow, "coding")     ||
+            word_ci(qlow, "function")   || word_ci(qlow, "compile")    ||
+            word_ci(qlow, "syntax")     || word_ci(qlow, "api")        ||
+            word_ci(qlow, "c++")        || word_ci(qlow, "cpp")        ||
+            word_ci(qlow, "javascript") || word_ci(qlow, "typescript") ||
+            word_ci(qlow, "html")       || word_ci(qlow, "css")        ||
+            word_ci(qlow, "python")     || word_ci(qlow, "debug");
+        const std::string response_track = code_like ? "CODEGEN-µ" : "CHAT-µ";
+        const std::string response_phase = code_like ? "Wo"        : "Pop";
+
+        record_key_grammar_memory_event(
+            "model_response", "llm_infer", response_track, "Ch'en",
+            prompt_archive.prompt_key, prompt_event_key, text, "",
+            "UNKNOWN", false, &factory, &vm.gram_store(), &jrom);
+
+        // Write response ngrams directly into gram_store and key store.
+        const auto grams = build_learning_ngrams(text, 24);
+        for (const auto& g : grams) {
+            vm.gram_store().gramWrite(
+                g,
+                text.size() > 120 ? text.substr(0, 120) : text,
+                response_phase, response_track, "definitions_and_relations");
+            factory.record_key("response_ngram:" + g, prompt_archive.prompt_key);
+        }
+
+        // jrom: replay + evolve candidates for track evolution pipeline.
+        {
+            util::JsonObject rl;
+            rl["query"]       = util::json_string(*prompt_opt);
+            rl["method"]      = util::json_string("llm_infer");
+            rl["track"]       = util::json_string(response_track);
+            rl["model"]       = util::json_string(gemma_model_name);
+            rl["ngram_count"] = util::json_number(static_cast<double>(grams.size()));
+            jrom.log("replay_candidate", util::stringify(util::json_object(std::move(rl))));
+
+            util::JsonObject el;
+            el["track"]       = util::json_string(response_track);
+            el["model"]       = util::json_string(gemma_model_name);
+            el["capability"]  = util::json_string(code_like ? "codegen_response_ngrams" : "chat_response_ngrams");
+            el["trigger_on"]  = util::json_string("infer_commit");
+            el["ngram_count"] = util::json_number(static_cast<double>(grams.size()));
+            jrom.log("evolve_candidate", util::stringify(util::json_object(std::move(el))));
+        }
+
+        // Response shape — mirrors infer handler's attach_gemma_learning output.
+        res["track"] = util::json_string(response_track);
+        if (!grams.empty()) {
+            util::JsonArray arr;
+            for (const auto& g : grams) arr.push_back(util::json_string(g));
+            res["ngrams"] = util::json_array(std::move(arr));
+
+            auto make_ngram_slice = [&](size_t n) {
+                util::JsonArray a;
+                for (size_t i = 0; i < std::min(n, grams.size()); ++i)
+                    a.push_back(util::json_string(grams[i]));
+                return a;
+            };
+            util::JsonObject replay;
+            replay["method"]     = util::json_string("llm_infer");
+            replay["query"]      = util::json_string(*prompt_opt);
+            replay["track"]      = util::json_string(response_track);
+            replay["trigger_on"] = util::json_string("infer_commit");
+            replay["ngrams"]     = util::json_array(make_ngram_slice(12));
+            res["replay_candidate"] = util::json_object(std::move(replay));
+
+            util::JsonObject evolve;
+            evolve["track"]      = util::json_string(response_track);
+            evolve["model"]      = util::json_string(gemma_model_name);
+            evolve["capability"] = util::json_string(code_like ? "codegen_response_ngrams" : "chat_response_ngrams");
+            evolve["trigger_on"] = util::json_string("infer_commit");
+            evolve["ngrams"]     = util::json_array(make_ngram_slice(12));
+            res["evolve_candidate"] = util::json_object(std::move(evolve));
+        }
+        return util::json_object(std::move(res));
     });
 
     // dds_probe — minimal forward pass test that only requires dds_ready (no GGUF).
@@ -11756,6 +12629,17 @@ int main(int argc, char* argv[]) {
         return util::json_object(std::move(res));
     });
 
+    // Register /v1/chat/completions on the RPC server port.
+    // key_query is called directly (no network hop); the sidecar (tiny-llama or
+    // compatible) on port_chat handles prompts the semantic engine can't satisfy.
+    io::ChatCompletionHandler chat_handler(
+        [&](const std::string& method, const util::JsonPtr& params) {
+            return rpc_server.call_method(method, params);
+        },
+        cfg.port_chat);
+    rpc_server.register_path("/v1/chat/completions",
+        [&](const std::string& body) { return chat_handler.handle(body); });
+
     // Start servers
     if (!mcp_server.start())
         std::cerr << "WARN: MCP server failed to start on port " << cfg.port_mcp << "\n";
@@ -11766,9 +12650,18 @@ int main(int argc, char* argv[]) {
         std::cerr << "WARN: JSON-RPC server failed to start on port " << cfg.port_rpc << "\n";
     else
         std::cout << "  RPC:     listening on :" << cfg.port_rpc << "\n";
+    if (cfg.port_chat > 0)
+        std::cout << "  CHAT:    sidecar on :" << cfg.port_chat << "\n";
 
-    jrom.log("startup", "{\"ports\":{\"mcp\":" + std::to_string(cfg.port_mcp) +
-             ",\"rpc\":" + std::to_string(cfg.port_rpc) + "}}");
+    {
+        util::JsonObject ports_row;
+        auto ports_obj = util::json_object();
+        ports_obj->mut_object()["mcp"] = util::json_number((double)cfg.port_mcp);
+        ports_obj->mut_object()["rpc"] = util::json_number((double)cfg.port_rpc);
+        ports_row["ports"] = ports_obj;
+        jrom.log("startup",
+                 util::stringify(util::json_object(std::move(ports_row))));
+    }
 
     std::cout << "\nKHANARY ready. Press Ctrl+C to stop.\n";
 

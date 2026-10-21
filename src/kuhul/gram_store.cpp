@@ -2,6 +2,7 @@
 #include "../util/json.h"
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
@@ -106,7 +107,16 @@ void GramStore::gramWriteVector(
 std::optional<std::array<float, 3>> GramStore::gramVector(const std::string& key) const {
     auto g = gramRead(key);
     if (!g || g->value.empty()) return std::nullopt;
-    auto parsed = parse(g->value);
+    // Gram values are free-form text; only rows written by gramWriteVector
+    // carry JSON payloads. Non-JSON values are simply not vector rows, so a
+    // Pop-phase read must not let util::parse throw through (the scorer calls
+    // this for every candidate when no explicit overrides are supplied).
+    JsonPtr parsed;
+    try {
+        parsed = parse(g->value);
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
     if (!parsed || !parsed->is_object()) return std::nullopt;
     const auto x = parsed->get_number("x");
     const auto y = parsed->get_number("y");
@@ -185,6 +195,89 @@ void GramStore::replay(const std::string& path) {
     }
 }
 
+size_t GramStore::load_corpus(const std::string& path, const std::string& key_prefix) {
+    std::ifstream f(path);
+    if (!f) return 0;
+
+    // Map scraper domain strings to GramStore channels.
+    auto domain_to_channel = [](const std::string& domain) -> std::string {
+        if (domain == "kuhul" || domain == "klsl" || domain == "khl")
+            return "xcfe_control_program";
+        if (domain == "json")
+            return "taxonomy_geometry";
+        return "predication_sequence"; // py, js, ts, cpp, default
+    };
+
+    // K'UHUL-syntax tokens start with @, ⟁ (UTF-8 E2 9F 81), or [.
+    // These get surface-alias grams so models can look them up by token.
+    auto is_kuhul_token = [](const std::string& s) {
+        return !s.empty() && (s[0] == '@' || (unsigned char)s[0] == 0xe2 || s[0] == '[');
+    };
+
+    // Hard cap to prevent accidental full-load of the 11M-entry corpus.
+    // The filtered codegen-kuhul.jsonl is expected to be well under this.
+    constexpr size_t kMaxEntries = 500'000;
+
+    std::string line;
+    size_t loaded = 0;
+    std::lock_guard lk(mtx_);
+    while (std::getline(f, line) && loaded < kMaxEntries) {
+        if (line.empty()) continue;
+        try {
+            auto v = parse(line);
+            if (!v || !v->is_object()) continue;
+            const std::string key    = v->get_string("key").value_or("");
+            const std::string text   = v->get_string("text").value_or("");
+            const std::string phase  = v->get_string("phase").value_or("Wo");
+            const std::string domain = v->get_string("domain").value_or("py");
+            const std::string source = v->get_string("source").value_or("");
+            if (key.empty()) continue;
+
+            // Rich JSON value: snippet + domain + source for CODEGEN-µ context.
+            JsonObject val;
+            val["text"]   = json_string(text);
+            val["domain"] = json_string(domain);
+            if (!source.empty()) val["source"] = json_string(source);
+            const std::string value_str = stringify(json_object(std::move(val)));
+
+            const std::string channel   = normalize_channel(domain_to_channel(domain));
+            const std::string authority = normalize_authority("codegen_corpus", channel);
+
+            // Namespace the key when a prefix is supplied so per-expert corpora
+            // don't collide: "cpp:fold_engine_phase", "kuhul:@if_@then", etc.
+            const std::string store_key = key_prefix.empty() ? key : (key_prefix + ":" + key);
+            if (!grams_.count(store_key)) {
+                grams_[store_key] = Gram{store_key, value_str, ++seq_, phase, channel, authority};
+                ++loaded;
+            }
+
+            // For K'UHUL/KLSL/KHL domain entries, write surface-alias grams for
+            // @-ops, ⟁-keys, and [Phase] tokens so models can look up K'UHUL
+            // syntax directly (e.g. "kuhul:codegen:@if" -> bigram context snippet).
+            if ((domain == "kuhul" || domain == "klsl" || domain == "khl") && loaded < kMaxEntries) {
+                const JsonValue* sarr = v->get("surfaces");
+                if (sarr && sarr->is_array()) {
+                    for (const auto& sp : sarr->as_array()) {
+                        if (!sp || !sp->is_string()) continue;
+                        const std::string surf = sp->as_string();
+                        if (surf == key || !is_kuhul_token(surf)) continue;
+                        const std::string alias_base = "codegen:" + surf;
+                        const std::string alias = key_prefix.empty()
+                            ? alias_base : (key_prefix + ":" + alias_base);
+                        if (!grams_.count(alias)) {
+                            grams_[alias] = Gram{alias, value_str, ++seq_, phase, channel, authority};
+                            ++loaded;
+                        }
+                    }
+                }
+            }
+        } catch (...) {
+            continue;
+        }
+    }
+    return loaded;
+}
+
 bool GramStore::has(const std::string& key) const {
     std::lock_guard lk(mtx_);
     return grams_.count(key) > 0;
@@ -211,6 +304,105 @@ std::vector<std::string> GramStore::keys() const {
     out.reserve(grams_.size());
     for (const auto& [k, _] : grams_) out.push_back(k);
     return out;
+}
+
+void GramStore::flush_memory_driver(const std::string& data_dir) const {
+    namespace fs = std::filesystem;
+
+    // Collect mem:* and memory:event:* grams, sorted by seq (oldest first).
+    std::vector<const Gram*> entries;
+    {
+        std::lock_guard lk(mtx_);
+        for (const auto& [k, g] : grams_) {
+            if (k.rfind("mem:", 0) == 0 || k.rfind("memory:event:", 0) == 0)
+                entries.push_back(&g);
+        }
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const Gram* a, const Gram* b) { return a->seq < b->seq; });
+
+    // Build the response text.
+    std::ostringstream body;
+    body << "MEMORY-\xc2\xb5 operation vocabulary:\n"
+         << "  op=save   phase=Xul  — gramWrite to mem:{category}:{key}\n"
+         << "  op=recall phase=Pop  — gramRead from mem:{category}:{key}\n"
+         << "  op=list   phase=Pop  — enumerate keys by category\n"
+         << "  op=forget phase=Xul  — clear key\n"
+         << "  categories: preference | session | note | micronaut_data\n"
+         << "  event keys: memory:event:{kind}:{epoch}-{seq}\n\n";
+
+    if (entries.empty()) {
+        body << "No entries in gram store yet.\n";
+    } else {
+        body << "Current gram store entries (" << entries.size() << "):\n";
+        // Emit at most 30 entries to keep the driver compact.
+        const size_t limit = std::min(entries.size(), size_t{30});
+        for (size_t i = entries.size() > limit ? entries.size() - limit : 0;
+             i < entries.size(); ++i) {
+            const Gram* g = entries[i];
+            body << "  [" << g->phase << "] " << g->key << " = ";
+            // Truncate long values.
+            if (g->value.size() > 80)
+                body << g->value.substr(0, 80) << "…";
+            else
+                body << g->value;
+            body << "\n";
+        }
+    }
+
+    // Write driver JSON.
+    const fs::path dir = fs::path(data_dir) / "drivers" / "micronauts" / "semantic";
+    if (!fs::exists(dir)) {
+        try { fs::create_directories(dir); } catch (...) { return; }
+    }
+    const fs::path out_path = dir / "memory-state.json";
+
+    // Read existing to preserve metadata fields (loadCount, etc.) if present.
+    std::string load_count_str = "0";
+    {
+        std::ifstream in(out_path);
+        if (in) {
+            std::ostringstream ss; ss << in.rdbuf();
+            try {
+                auto root = util::parse(ss.str());
+                if (root && root->is_object())
+                    if (auto lc = root->get_string("loadCount"))
+                        load_count_str = *lc;
+            } catch (...) {}
+        }
+    }
+
+    // Escape body for JSON string.
+    std::string resp = body.str();
+    std::string escaped;
+    escaped.reserve(resp.size() + 32);
+    for (unsigned char c : resp) {
+        if      (c == '"')  escaped += "\\\"";
+        else if (c == '\\') escaped += "\\\\";
+        else if (c == '\n') escaped += "\\n";
+        else if (c == '\r') escaped += "\\r";
+        else if (c == '\t') escaped += "\\t";
+        else                escaped += static_cast<char>(c);
+    }
+
+    std::ofstream f(out_path, std::ios::trunc);
+    if (!f) return;
+    f << "{\n"
+      << "  \"id\": \"memory-state\",\n"
+      << "  \"subject\": \"MEMORY-\\u00b5 live gram store snapshot\",\n"
+      << "  \"capability\": \"memory\",\n"
+      << "  \"fold\": \"Pop\",\n"
+      << "  \"loadCount\": " << load_count_str << ",\n"
+      << "  \"response\": \"" << escaped << "\",\n"
+      << "  \"related\": [\"user-state\"],\n"
+      << "  \"sources\": [],\n"
+      << "  \"tags\": {\n"
+      << "    \"source\": \"gram_store_flush\",\n"
+      << "    \"keywords\": \"memory gram store recall save preference session note\"\n"
+      << "  },\n"
+      << "  \"executeCount\": 0,\n"
+      << "  \"contributionCount\": 0\n"
+      << "}\n";
 }
 
 } // namespace khanary::kuhul

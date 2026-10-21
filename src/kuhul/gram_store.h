@@ -53,6 +53,14 @@ public:
     // Replay a previously saved journal into this store
     void replay(const std::string& path);
 
+    // Load a scraper-generated code corpus (key/text/phase/domain JSONL format
+    // produced by tools/scrape.py). Skips keys already in the store so live
+    // runtime entries always win. Does not append to the journal.
+    // key_prefix: if non-empty, all keys are stored as "{key_prefix}:{key}" so
+    //   per-expert corpora don't collide (e.g. "cpp", "kuhul", "py").
+    // Returns the number of entries loaded.
+    size_t load_corpus(const std::string& path, const std::string& key_prefix = "");
+
     bool has(const std::string& key) const;
     size_t size() const;
     size_t replay_error_count() const;
@@ -60,6 +68,12 @@ public:
 
     // List all gram keys
     std::vector<std::string> keys() const;
+
+    // Write a live snapshot of mem:* and memory:event:* entries to
+    // data_dir/drivers/micronauts/semantic/memory-state.json so that
+    // find_best_semantic_meta() and load_pattern_meta_for_track() can inject
+    // current memory state as LFM sys context for MEMORY-µ dispatch.
+    void flush_memory_driver(const std::string& data_dir) const;
 
 private:
     mutable std::mutex mtx_;
