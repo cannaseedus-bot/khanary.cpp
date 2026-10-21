@@ -132,6 +132,11 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/micronaut/track_loader.cpp/h` | Load micronaut.semantic-tracks.v1 JSON; bind folds |
 | `src/micronaut/gravity_field.cpp/h` | Gravity well scoring: established_nodes / distance² |
 | `src/micronaut/factory.cpp/h` | Create/evolve/delete micronauts; confidence_floor gate |
+| `data/micronaut/micronaut.program.v0.1.json` | Global Micronaut Program: query -> Ana -> Match -> WCR -> Cata -> callable continuations -> Learn |
+| `data/grammar/micronaut-program.runtime-grammar.ebnf` | Formal grammar for Micronaut Program, pattern-bound continuations, callable edges, and Xul-gated promotion |
+| `tools/check_micronaut_program.py` | Validates Micronaut Program authority boundary, route contracts, registry, domain fields, fixtures, and manifests |
+| `data/grammar/ngram-key-grammar.contracts.json` | N-gram key grammar: Aho-Corasick recognition emits overlapping key addresses while K'UHUL owns semantic interpretation |
+| `tools/check_ngram_key_grammar.py` | Validates n-gram key grammar boundary, HOF/phase separation, learned-fold laws, fixtures, and manifest wiring |
 
 ### Cognitive Memory (Three-Store)
 | File | Purpose |
@@ -173,6 +178,16 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `tools/meshnet_gas_control_plane.url.json` | Deployment metadata for the GAS endpoint; records that anonymous probes are expected to receive Google Accounts sign-in HTML before Apps Script JSON endpoints run |
 | `tools/meshnet_gas_landing.html` | Static landing/install page that links users to the GAS control plane without requiring a hosted app backend |
 | `tools/meshnet_static_api_model.example.json` | Example provider manifest for `static_api_model.contribute.v1`; mesh-published API models are provider/routing evidence, not semantic authority |
+
+### MX2LM Vector Field
+| File | Purpose |
+|---|---|
+| `tools/arpa_to_safetensors.py` | Converts `tools/mx2lm.arpa` → SafeTensors three-layer field (153 MB); Pop/Wo/Yax corpus probability nodes + ARPA conditional edge weights |
+| `tools/arpa_to_gml_overlay.py` | Same conversion to GML format for `FieldDag::load_gml()` native C++ path (1.66 GB) |
+| `tools/field_query.py` | XQuery-style REPL and CLI over `data/mx2lm.vectors.safetensors`; `Pop::seed / Wo::*[@cond > 0.3] / Yax::*` syntax; CSR adjacency for O(1) traversal |
+| `tools/query_vectors.py` | Demo query script |
+| `tools/question_to_fold.py` | Question-to-Fold compiler; translates NL question to `kh.question-fold/1` record (XCFE intent class, field path, WCR ranking policy); `--run` mode executes path through `field_query` |
+| `docs/VECTOR_FIELD.md` | Full documentation: tensor schema, three-layer structure, regeneration, query syntax, compiled question record, WCR integration |
 
 ### Utilities
 | File | Purpose |
