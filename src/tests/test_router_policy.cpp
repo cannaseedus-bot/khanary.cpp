@@ -12,12 +12,14 @@
 #include "../util/json.h"
 #include "conformance.h"
 
+#include "../kuhul/state_algebra.h"
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <numbers>
 #include <optional>
 #include <string>
 
@@ -1009,6 +1011,114 @@ bool test_tool_gram_channel_biases_tool_track() {
     return true;
 }
 
+// GAP-096: a registry mutation without an explicit sync_index() must not route
+// from a stale expert index — route() auto-resyncs; explicit sync stays valid.
+bool test_mou_router_stale_index_guard() {
+    micronaut::MicronautRegistry reg;
+    memory::ConfidenceStore confidence;
+
+    reg.add(make_mou_entry("A-u", kuhul::Phase::Sek, 1.0f, 0.0f, 0.0f));
+    reg.add(make_mou_entry("B-u", kuhul::Phase::Sek, 0.0f, 1.0f, 0.0f));
+    confidence.set("A-u", 0.8f);
+    confidence.set("B-u", 0.7f);
+
+    micronaut::MouRouter router(reg, confidence);
+    router.sync_index();
+    router.sync_bias();
+
+    auto contains = [](const std::vector<micronaut::MouAlloc>& allocs,
+                       const std::string& id) {
+        for (const auto& a : allocs)
+            if (a.id == id) return true;
+        return false;
+    };
+
+    auto baseline = router.route(kuhul::Phase::Sek, {"route", "probe"}, 4);
+    if (!expect_true("stale guard baseline nonempty", !baseline.empty())) return false;
+    if (!expect_true("stale guard baseline has no C", !contains(baseline, "C-u"))) return false;
+
+    // Add without explicit sync: route() must auto-resync before dispatch.
+    const uint64_t v_before = reg.mutation_version();
+    reg.add(make_mou_entry("C-u", kuhul::Phase::Sek, 0.0f, 0.0f, 1.0f));
+    if (!expect_true("registry version advances on add",
+                     reg.mutation_version() > v_before)) return false;
+    confidence.set("C-u", 0.9f);
+    auto after_add = router.route(kuhul::Phase::Sek, {"route", "probe"}, 4);
+    if (!expect_true("route auto-syncs new expert", contains(after_add, "C-u"))) return false;
+
+    // Remove without explicit sync: likewise never routes the removed expert.
+    if (!expect_true("remove succeeds", reg.remove("C-u", 0.5f))) return false;
+    auto after_remove = router.route(kuhul::Phase::Sek, {"route", "probe"}, 4);
+    if (!expect_true("route drops removed expert", !contains(after_remove, "C-u"))) return false;
+
+    // Explicit sync still restores a consistent index.
+    router.sync_index();
+    auto explicit_sync = router.route(kuhul::Phase::Sek, {"route", "probe"}, 4);
+    if (!expect_true("explicit sync route nonempty", !explicit_sync.empty())) return false;
+    return true;
+}
+
+// Parity test: ga_phase_arc_scalar must equal cos(Δθ) for the winning track's
+// primary_phase relative to the request phase. This is the C6→Cl(2,0) cross-check
+// declared in the algebra-isa contracts (GA_PRODUCT, phase_policy:"none").
+bool test_ga_telemetry_arc_weight_parity() {
+    memory::PerceptionStore perception;
+    memory::ConfidenceStore confidence;
+    memory::SemanticGraph graph;
+    memory::MicronautScorer scorer(perception, confidence, graph);
+    micronaut::MicronautRegistry reg;
+
+    // Register a single track at Phase::Yax (index 2).
+    micronaut::MicronautEntry yax_entry;
+    yax_entry.id = "YAX-u";
+    yax_entry.description = "yax-phase test track";
+    yax_entry.primary_phase = kuhul::Phase::Yax;
+    yax_entry.category = "cognitive";
+    yax_entry.capabilities = {"expand"};
+    yax_entry.governs = {"expand", "grow", "yax"};
+    yax_entry.static_weight = 1.0f;
+    yax_entry.health = 1.0f;
+    yax_entry.confidence = 0.9f;
+    yax_entry.no_eval = true;
+    yax_entry.active = true;
+    reg.add(yax_entry);
+
+    io::RequestRouter router(reg, scorer, "data");
+    router.set_authorizer([](const io::RouteRequest&, const std::string&) { return true; });
+    router.register_handler("YAX-u", [](const std::string&, const io::RouteRequest&) {
+        return util::json_string("yax");
+    });
+
+    // Route from Pop (phase 0) → track at Yax (phase 2): Δθ = 2 * π/3
+    io::RouteRequest req;
+    req.query = "expand grow yax";
+    req.phase = kuhul::Phase::Pop;
+    req.lane = "ga_parity_test";
+
+    const auto result = router.route(req);
+
+    // GA must not affect routing.
+    if (!expect_true("ga_parity: dispatch_allowed stays correct", result.dispatch_allowed)) return false;
+    if (!expect_eq("ga_parity: winning track is yax", result.micronaut_id, "YAX-u")) return false;
+    if (!expect_true("ga_parity: dispatched_phase is Yax",
+                     result.dispatched_phase == kuhul::Phase::Yax)) return false;
+
+    // Core parity: ga_phase_arc_scalar == cos(Δθ) == cos(2π/3) == -0.5
+    const double delta = (2 - 0) * (std::numbers::pi / 3.0);
+    const float expected_scalar   = static_cast<float>(std::cos(delta));   // -0.5
+    const float expected_bivector = static_cast<float>(-std::sin(delta));  // -√3/2 ≈ -0.866
+    constexpr float kTol = 1e-5f;
+    if (!expect_true("ga_parity: arc_scalar == cos(2π/3)",
+                     std::fabs(result.ga_phase_arc_scalar - expected_scalar) < kTol)) return false;
+    if (!expect_true("ga_parity: arc_bivector == -sin(2π/3)",
+                     std::fabs(result.ga_phase_arc_bivector - expected_bivector) < kTol)) return false;
+
+    // orient is zero when both Q and K xy-components are zero (default zero vectors).
+    if (!expect_true("ga_parity: orient_xy is finite",
+                     std::isfinite(result.ga_orient_xy_query_key))) return false;
+    return true;
+}
+
 } // namespace
 
 int main() {
@@ -1029,6 +1139,8 @@ int main() {
         suite.check("mou_router_phase_fallback_unfiltered", test_mou_router_phase_fallback_unfiltered());
         suite.check("mou_router_sync_bias_refresh", test_mou_router_sync_bias_refresh());
         suite.check("mou_router_dispatch_variance_contract", test_mou_router_dispatch_variance_contract());
+        suite.check("mou_router_stale_index_guard", test_mou_router_stale_index_guard());
+        suite.check("ga_telemetry_arc_weight_parity", test_ga_telemetry_arc_weight_parity());
         suite.check("scheme_uri_routes_to_declared_micronaut", test_scheme_uri_routes_to_declared_micronaut());
         suite.check("scheme_uri_verb_filtering", test_scheme_uri_verb_filtering());
         suite.check("scheme_uri_scopes_explicit_decision_field", test_scheme_uri_scopes_explicit_decision_field());
@@ -1295,5 +1407,5 @@ int main() {
             std::filesystem::remove(in_path, ignored);
             std::filesystem::remove(out_path, ignored);
         }
-    }, 80);
+    }, 82);
 }

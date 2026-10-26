@@ -1,7 +1,9 @@
 #include "request_router.h"
+#include "../kuhul/state_algebra.h"
 #include <filesystem>
 #include <fstream>
 #include "../util/json.h"
+#include "../util/lexicon.h"
 #include <sstream>
 #include <cctype>
 #include <algorithm>
@@ -240,21 +242,13 @@ static std::string canonical_lexeme(const std::string& token) {
 }
 
 std::vector<std::string> tokenize_distributional_text(const std::string& text) {
-    std::vector<std::string> out;
-    std::string cur;
-    cur.reserve(32);
-    for (unsigned char uc : text) {
-        if (std::isalnum(uc)) {
-            cur.push_back(static_cast<char>(std::tolower(uc)));
-        } else {
-            if (!cur.empty()) {
-                out.push_back(cur);
-                cur.clear();
-            }
-        }
-    }
-    if (!cur.empty()) out.push_back(cur);
-    return out;
+    // Lexical authority moved into the grammar: the "alnum_plain" @profile
+    // (word_plain class) declared in data/grammar/cpp.code-grammar.ebnf,
+    // mirrored in the compiled-in core table (src/util/lexicon.cpp). The two
+    // same-named copies in request_router.cpp / code_parser.cpp had already
+    // drifted (underscore handling); the shared profile table makes that
+    // choice visible and named instead of hidden.
+    return lexicon::core_tokenize(text, "alnum_plain");
 }
 
 struct MicronautUriCall {
@@ -843,6 +837,53 @@ static EligibilityCheck evaluate_eligibility(
     return out;
 }
 
+// Convert Execute_µ result to JsonPtr response. Returns nullptr on Domain::None
+// (no pattern match) so the handler chain falls through to the next handler.
+static util::JsonPtr grammar_result_to_json(const ExecuteResult& r, const std::string& id) {
+    if (r.domain == ExecuteResult::Domain::None)
+        return nullptr;
+
+    util::JsonObject obj;
+    obj["@kind"]        = util::json_string("khanary.grammar.execute.v1");
+    obj["micronaut_id"] = util::json_string(id);
+    obj["matched"]      = util::json_bool(r.matched());
+
+    switch (r.domain) {
+    case ExecuteResult::Domain::String:
+        obj["domain"] = util::json_string("string");
+        obj["text"]   = util::json_string(r.text);
+        break;
+    case ExecuteResult::Domain::Graph:
+        obj["domain"]    = util::json_string("graph");
+        obj["graph_ref"] = util::json_string(r.text);
+        break;
+    case ExecuteResult::Domain::Vector:
+        obj["domain"] = util::json_string("vector");
+        obj["text"]   = util::json_string(r.text);
+        break;
+    case ExecuteResult::Domain::Error:
+        obj["domain"] = util::json_string("error");
+        obj["error"]  = util::json_string(r.error);
+        break;
+    default: break;
+    }
+
+    if (r.captures) {
+        util::JsonObject caps;
+        for (const auto& [k, v] : r.captures->bindings)
+            caps[k] = util::json_string(v);
+        obj["captures"] = util::json_object(std::move(caps));
+    }
+
+    if (!r.next_address.micronaut_id.empty())
+        obj["next_address"] = util::json_string(r.next_address.micronaut_id);
+
+    if (r.proposed_state)
+        obj["proposed_state"] = r.proposed_state;
+
+    return util::json_object(std::move(obj));
+}
+
 } // namespace
 
 RequestRouter::RequestRouter(
@@ -858,6 +899,131 @@ RequestRouter::RequestRouter(
     phase_miss_dispatch_weights_.fill(1.0f);
     load_phase_driver_weights(data_dir);
     load_track_gram_pools(data_dir);
+
+    // ── Built-in Graph domain executor ─────────────────────────────────────────
+    // Registered for TRAVERSE / RELATE / EXPAND / NEIGHBOR verbs.
+    // Resolves the input_capture binding as a node id and walks the relational
+    // graph via mu_reg_.relational_dispatch().
+    GrammarFn graph_exec = [this](const ExecuteInput& input,
+                                   const MatchCaptures& caps,
+                                   const MicronautGrammarDecl& decl) -> ExecuteResult {
+        ExecuteResult r;
+        r.captures = caps;
+
+        std::string node_id;
+        if (!decl.input_capture.empty()) {
+            auto it = caps.bindings.find(decl.input_capture);
+            node_id = (it != caps.bindings.end()) ? it->second : input.text;
+        } else {
+            node_id = input.text;
+        }
+
+        util::JsonArray neighbors_arr;
+        for (const char* verb : {"@delegates_to", "@is_a", "@supports", "@relates_to"}) {
+            for (const auto& n : mu_reg_.relational_dispatch(node_id, verb)) {
+                util::JsonObject nb;
+                nb["id"]   = util::json_string(n);
+                nb["verb"] = util::json_string(verb);
+                neighbors_arr.push_back(util::json_object(std::move(nb)));
+            }
+        }
+
+        r.domain = ExecuteResult::Domain::Graph;
+        r.text   = node_id;
+
+        util::JsonObject state;
+        state["source_node"]     = util::json_string(node_id);
+        state["graph_neighbors"] = util::json_array(std::move(neighbors_arr));
+        r.proposed_state = util::json_object(std::move(state));
+
+        return r;
+    };
+    for (const char* verb : {"TRAVERSE", "RELATE", "EXPAND", "NEIGHBOR"})
+        fn_registry_[verb] = graph_exec;
+
+    // ── Built-in Vector domain executor ────────────────────────────────────────
+    // Registered for RANK / SCORE / WCR / WEIGHT verbs.
+    // Tokenizes the input_capture binding and runs dispatch_blend() for WCR ranking.
+    GrammarFn vector_exec = [this](const ExecuteInput& input,
+                                    const MatchCaptures& caps,
+                                    const MicronautGrammarDecl& decl) -> ExecuteResult {
+        ExecuteResult r;
+        r.captures = caps;
+
+        std::string query;
+        if (!decl.input_capture.empty()) {
+            auto it = caps.bindings.find(decl.input_capture);
+            query = (it != caps.bindings.end()) ? it->second : input.text;
+        } else {
+            query = input.text;
+        }
+
+        const auto tokens = tokenize_query(query);
+        const auto blend  = mu_reg_.dispatch_blend(kuhul::Phase::Pop, tokens, 0.05f, 4);
+
+        util::JsonArray ranked;
+        for (const auto& [id, wt] : blend) {
+            util::JsonObject row;
+            row["id"]     = util::json_string(id);
+            row["weight"] = util::json_number(static_cast<double>(wt));
+            ranked.push_back(util::json_object(std::move(row)));
+        }
+
+        r.domain = ExecuteResult::Domain::Vector;
+        r.text   = blend.empty() ? "" : blend[0].first;
+
+        if (!blend.empty())
+            r.next_address.micronaut_id = blend[0].first;
+
+        util::JsonObject state;
+        state["query"]  = util::json_string(query);
+        state["ranked"] = util::json_array(std::move(ranked));
+        r.proposed_state = util::json_object(std::move(state));
+
+        return r;
+    };
+    for (const char* verb : {"RANK", "SCORE", "WCR", "WEIGHT"})
+        fn_registry_[verb] = vector_exec;
+}
+
+void RequestRouter::register_grammar_fn(const std::string& verb, GrammarFn fn) {
+    fn_registry_[verb] = std::move(fn);
+}
+
+void RequestRouter::register_grammar(
+    const MicronautGrammarDecl& decl,
+    const std::unordered_map<std::string, GrammarFn>& fn_overrides)
+{
+    // Compile → MicronautEntry; idempotent (guard with has)
+    auto entry = MicronautGrammarCompiler::compile(decl);
+    if (!mu_reg_.has(decl.id))
+        mu_reg_.add(std::move(entry));
+
+    grammar_registry_[decl.id]      = decl;
+    grammar_fn_overrides_[decl.id]  = fn_overrides;
+
+    // Install a ResponseFn that dispatches through Execute_µ.
+    // fn_registry_ and grammar_fn_overrides_ are merged at call time so that
+    // register_grammar_fn() calls made after registration take effect.
+    handlers_[decl.id] = [this, id = decl.id](const std::string&,
+                                               const RouteRequest& req) -> util::JsonPtr {
+        auto git = grammar_registry_.find(id);
+        if (git == grammar_registry_.end()) return nullptr;
+        const auto& d = git->second;
+
+        // Merge: global fn_registry_ as base, per-grammar overrides on top
+        auto merged = fn_registry_;
+        if (auto oit = grammar_fn_overrides_.find(id); oit != grammar_fn_overrides_.end())
+            for (const auto& [verb, fn] : oit->second)
+                merged[verb] = fn;
+
+        ExecuteInput ei;
+        ei.text  = req.query;
+        ei.state = req.payload;
+
+        auto res = MicronautGrammarCompiler::execute(ei, d, merged);
+        return grammar_result_to_json(res, id);
+    };
 }
 
 void RequestRouter::register_handler(const std::string& id, ResponseFn fn) {
@@ -1772,6 +1938,7 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
              sc.total > result.semantic_score + kEps)) {
             picked = true;
             result.micronaut_id = track_id;
+            result.dispatched_phase = entry->primary_phase;
             result.score = total;
             result.fold_weight = fold_w;
             result.phase_driver_weight = driver_w;
@@ -1827,6 +1994,7 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
         result.micronaut_id = scorer_.best(ids, 0.0f);
         if (!result.micronaut_id.empty()) {
             if (const auto* entry = mu_reg_.get(result.micronaut_id)) {
+                result.dispatched_phase = entry->primary_phase;
                 auto sc = scorer_.score(result.micronaut_id);
                 const float static_w = std::clamp(entry->static_weight, 0.0f, 1.0f);
                 const float fold_w = track_phase_fold_weight(*entry);
@@ -1980,6 +2148,23 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
     result.ambiguity_outcome =
         ambiguity_outcome_label(result.dispatch_block_reason, result.eligible_count);
 
+    // ── GA phase-arc telemetry (Cl(2,0), measurement only — no routing authority) ──
+    // Strictly post-decision: reads already-finalized result fields, never feeds back.
+    // ga_phase_arc_scalar == arc_weight(req.phase→dispatched_phase) is the parity check.
+    {
+        using khanary::kuhul::statealgebra::cl20_phase_product;
+        using khanary::kuhul::statealgebra::cl20_vector;
+        using khanary::kuhul::statealgebra::cl20_outer_b;
+        const int from_ph = static_cast<int>(req.phase);
+        const int to_ph   = static_cast<int>(result.dispatched_phase);
+        const auto arc    = cl20_phase_product(from_ph, to_ph);
+        result.ga_phase_arc_scalar   = static_cast<float>(arc.s);
+        result.ga_phase_arc_bivector = static_cast<float>(arc.b);
+        const auto qv = cl20_vector(result.query_vector_x, result.query_vector_y);
+        const auto kv = cl20_vector(result.key_vector_x,   result.key_vector_y);
+        result.ga_orient_xy_query_key = static_cast<float>(cl20_outer_b(qv, kv));
+    }
+
     // ── Episode observation (append-only, best effort) ──────────────────────
     // Persisted so H_Ω and A_max can be measured rather than guessed. The id is
     // pseudonymous (keyed digest, no raw query), logging failures never affect
@@ -2008,6 +2193,9 @@ RouteResult RequestRouter::route(const RouteRequest& req) {
         row["entropy_authoritative"] = util::json_bool(false);
         row["h_omega"] = util::json_number(kOmegaEntropyThreshold);
         row["a_max"] = util::json_number(static_cast<double>(kAmbiguityMaxAttempts));
+        row["ga_phase_arc_scalar"]    = util::json_number(result.ga_phase_arc_scalar);
+        row["ga_phase_arc_bivector"]  = util::json_number(result.ga_phase_arc_bivector);
+        row["ga_orient_xy_query_key"] = util::json_number(result.ga_orient_xy_query_key);
         try {
             std::lock_guard<std::mutex> lock(calibration_mutex_);
             const std::filesystem::path path(calibration_path_);

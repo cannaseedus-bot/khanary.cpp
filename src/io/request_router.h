@@ -15,6 +15,7 @@
 #include <mutex>
 #include <random>
 #include "../util/sha256.h"
+#include "micronaut_grammar.h"
 
 namespace khanary::io {
 
@@ -260,6 +261,11 @@ struct RouteResult {
     float         key_vector_x;   // selected K.x
     float         key_vector_y;   // selected K.y
     float         key_vector_z;   // selected K.z
+    // Cl(2,0) GA phase-arc measurement: scalar = arc_weight cross-check, bivector = -sin(Δθ).
+    // Telemetry only — phase_policy:"none", these fields must never feed routing decisions.
+    float         ga_phase_arc_scalar = 0.0f;    // cl20_phase_product(req.phase→dispatched_phase).s
+    float         ga_phase_arc_bivector = 0.0f;  // cl20_phase_product(req.phase→dispatched_phase).b
+    float         ga_orient_xy_query_key = 0.0f; // cl20_outer_b(Q_xy, K_xy): +CCW/-CW orientation
     // LBS bone weights: top-k tracks with normalized weights (Σw_k = 1.0).
     // blend[0] is the primary bone; blend[1..] are secondary influences.
     std::vector<std::pair<std::string, float>> blend;
@@ -295,6 +301,19 @@ public:
     // embedders write nothing unless they opt in; failures never affect routing.
     void enable_calibration(const std::string& path) { calibration_path_ = path; }
 
+    // Register a grammar-compiled micronaut as an Execute_µ dispatch path.
+    // Compiles the decl → MicronautEntry (idempotent), stores the decl, and
+    // installs a ResponseFn that calls MicronautGrammarCompiler::execute().
+    // fn_overrides supplement (and override) the router-global fn_registry_.
+    void register_grammar(
+        const MicronautGrammarDecl& decl,
+        const std::unordered_map<std::string, GrammarFn>& fn_overrides = {});
+
+    // Add or replace a verb handler in the router-global grammar fn registry.
+    // Takes effect for all grammars registered after this call AND for all
+    // previously registered grammars (overrides are merged at call time).
+    void register_grammar_fn(const std::string& verb, GrammarFn fn);
+
 private:
     micronaut::MicronautRegistry& mu_reg_;
     memory::MicronautScorer&      scorer_;
@@ -312,6 +331,11 @@ private:
     std::unordered_map<std::string, uint32_t> ambiguity_attempts_;
     std::string calibration_path_;   // empty = observation sink disabled
     std::mutex  calibration_mutex_;
+
+    // Grammar Execute_µ registry
+    std::unordered_map<std::string, MicronautGrammarDecl>                     grammar_registry_;
+    std::unordered_map<std::string, std::unordered_map<std::string, GrammarFn>> grammar_fn_overrides_;
+    std::unordered_map<std::string, GrammarFn>                                fn_registry_;
 
     std::vector<std::string> tokenize_query(const std::string& query) const;
     float phase_driver_weight(kuhul::Phase phase) const;
