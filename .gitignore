@@ -53,7 +53,7 @@ artifacts/
 data/*.jsonl
 data/journal/
 
-# CODEGEN expert corpora (checked in — regenerate with tools/scrape.py --split)
+# CODEGEN expert corpora (checked in — regenerate with tools/scrape.py --split --recent --max-per-domain 100000)
 # Unignored individually below; data/gram/ catch-all still excludes everything else.
 data/gram/
 !data/gram/codegen-kuhul.jsonl
@@ -61,12 +61,21 @@ data/gram/
 !data/gram/codegen-klsl.jsonl
 !data/gram/codegen-kxml.jsonl
 !data/gram/codegen-json.jsonl
+!data/gram/codegen-cpp.jsonl
+!data/gram/codegen-h.jsonl
+!data/gram/codegen-hlsl.jsonl
+!data/gram/codegen-py.jsonl
+!data/gram/codegen-html.jsonl
+!data/gram/codegen-js.jsonl
+!data/gram/codegen-ts.jsonl
+!data/gram/codegen-cs.jsonl
+!data/gram/codegen-css.jsonl
 data/templates/
 data/ingest/
 data/grammar/dataset*.key-grammar.candidates.jsonl
 data/grammar/english-dictionary.lexicon.key-grammar.jsonl
 
-# Factory key cache
+# Factory key cache (quarantined to E:\models\LM-SDDS.v1.0)
 data/factory_keys.bin
 data/factory_keys.cachemeta.json
 data/factory_keys.json
@@ -74,10 +83,11 @@ data/factory_keys.json
 # Log files
 *.log
 
-# Generated vector fields (regenerate with arpa_to_safetensors.py / arpa_merge.py)
+# Generated vector fields (quarantined to E:\models\LM-SDDS.v1.0 — regenerate with arpa_to_safetensors.py / arpa_merge.py)
 *.vectors.safetensors
 *.vectors.labels.json
 data/merged/merged.arpa
-# data/merged/merged.field.sdds is checked in (87.8 MB FP16, under GitHub 100 MB limit)
+data/merged/merged.field.sdds
+data/merged/merged.vectors.meta.json
 
 *.gml
