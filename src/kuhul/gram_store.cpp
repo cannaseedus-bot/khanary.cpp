@@ -74,10 +74,25 @@ void GramStore::gramWrite(
     const std::string& channel,
     const std::string& authority)
 {
+    gramWriteProvenance(key, value, phase, channel, authority,
+                        "system_corpus", "global", "evidence_only");
+}
+
+void GramStore::gramWriteProvenance(
+    const std::string& key,
+    const std::string& value,
+    const std::string& phase,
+    const std::string& channel,
+    const std::string& authority,
+    const std::string& source_class,
+    const std::string& scope_id,
+    const std::string& learning_state)
+{
     std::lock_guard lk(mtx_);
     const std::string norm_channel = normalize_channel(channel);
     const std::string norm_authority = normalize_authority(authority, norm_channel);
-    Gram g{key, value, ++seq_, phase, norm_channel, norm_authority};
+    Gram g{key, value, ++seq_, phase, norm_channel, norm_authority,
+           source_class, scope_id, learning_state};
     grams_[key] = g;
     if (journal_.is_open()) {
         append_journal(g);
@@ -149,6 +164,9 @@ void GramStore::append_journal(const Gram& g) {
     obj["phase"] = json_string(g.phase);
     obj["channel"] = json_string(g.channel);
     obj["authority"] = json_string(g.authority);
+    obj["source_class"] = json_string(g.source_class);
+    obj["scope_id"] = json_string(g.scope_id);
+    obj["learning_state"] = json_string(g.learning_state);
     journal_ << stringify(json_object(std::move(obj))) << '\n';
 }
 
@@ -181,6 +199,9 @@ void GramStore::replay(const std::string& path) {
             g.phase = v->get_string("phase").value_or("Xul");
             g.channel = normalize_channel(v->get_string("channel").value_or("general"));
             g.authority = normalize_authority(v->get_string("authority").value_or(""), g.channel);
+            g.source_class = v->get_string("source_class").value_or("system_corpus");
+            g.scope_id = v->get_string("scope_id").value_or("global");
+            g.learning_state = v->get_string("learning_state").value_or("evidence_only");
             if (g.key.empty()) {
                 register_replay_error_unlocked("journal record missing key at line " + std::to_string(line_no));
                 continue;

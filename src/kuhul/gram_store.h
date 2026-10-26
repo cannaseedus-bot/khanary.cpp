@@ -17,6 +17,9 @@ struct Gram {
     std::string phase;      // which phase wrote this gram
     std::string channel;    // semantic channel (e.g. similarity/control/predication)
     std::string authority;  // semantics authority for this gram
+    std::string source_class = "system_corpus";
+    std::string scope_id = "global";
+    std::string learning_state = "evidence_only";
 };
 
 // GramStore: Pop=gramRead, Xul=gramWrite, K'ayab'→Kumk'u=gramCheckpoint
@@ -37,6 +40,12 @@ public:
         const std::string& phase = "Xul",
         const std::string& channel = "general",
         const std::string& authority = "definitions_and_relations");
+
+    void gramWriteProvenance(
+        const std::string& key, const std::string& value,
+        const std::string& phase, const std::string& channel,
+        const std::string& authority, const std::string& source_class,
+        const std::string& scope_id, const std::string& learning_state);
 
     // Convenience surface for vector metadata records.
     void gramWriteVector(

@@ -53,6 +53,7 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `src/kuhul/kuhul_vm.cpp/h` | Bracket program executor: [Pop]/[Wo]/[Yax]/[Sek]/[Ch'en]/[Xul] |
 | `src/kuhul/xcfe_executor.cpp/h` | @if/@then/@else, @for, @from, @as, @cause, @direct, @op, @fn, phase-gate enforcement (the op library receives a recursive evaluator) |
 | `src/kuhul/gram_store.cpp/h` | KXML gram nodes; Pop=gramRead, Xul=gramWrite, checkpoint; append log at `data/journal/gram-events.jsonl`; prompts/model responses/plans are key-grammar memory events |
+| `src/host/kxml_lowering.cpp/h` | Trusted XCFE Node Graph → projection-only KXML JSON lowering; enforces admission, projection safety, class/operator matrix, canonical authority phase, stdlib CALL allow-list, and commit/transition rejection before CBOR encoding |
 
 ### Grammar Contracts
 | File | Purpose |
@@ -88,6 +89,11 @@ Toolchain: MSVC 2022+, C++20, CMake 3.28+, Windows SDK 10.0.26100, DirectML 1.15
 | `tools/check_fold_kernel.py` | Conformance checker for Fold Kernel lifecycle records; verifies state-dependent field growth, XCFE confidence derivation, and binding-registry compatibility |
 | `tools/check_fold_lattice.py` | Conformance checker for Fold Lattice product-graph records; validates θ×σ coordinates, callback/substrate rules, metric bounds, and transition recommendations |
 | `tools/check_xcfe_policy.py` | Conformance checker for XCFE Policy records; validates total expression parsing, policy invariants, guard typing, and lifecycle transition output |
+| `data/grammar/SraiOperators.mml` | MML contract for the SRAI operator dispatch surface: OperatorChain, BindingFrame, per-operator phase/executor/role declarations, W_effective invariant, and 7 authority invariants |
+| `data/grammar/srai-operators.contracts.json` | Machine-readable SRAI operator binding registry: 9 operators (SCORE/RANK/COLLAPSE/VERIFY/TRAIN/COMPARE/RECALL/PROJECT/QUESTION), pipeline order, weight invariant, and pipeline convenience patterns |
+| `data/alice/khanary-distilled.aiml` | AIML SRAI operator dispatch surface: user-facing patterns redirect via `<srai>` to `XCFE <OP> *` handlers; C++ aiml_engine intercepts those and routes to xcfe_executor.cpp with typed [XCFE:OP] dispatch frames; TRAIN guarded (requires verified_outcome); pipeline convenience patterns |
+| `data/conformance/srai_operators.json` | Positive/negative SRAI operator fixtures covering operator frame validation, TRAIN guard enforcement, pipeline sequencing, and W_effective invariant |
+| `tools/check_srai_operators.py` | Conformance checker for SRAI operator records; validates binding frame fields, effect set membership, TRAIN guard law, W_learned-only update invariant, and pipeline ordering |
 | `docs/SEMANTIC_FOLDS.md` | Declares that K'UHUL semantic folds are algebraic/catamorphic folds; KLSL/KXC/KHLC folds are backend/compiler lowering folds unless explicitly bound to the semantic contract |
 | `docs/API_GATEWAY.md` | Public API gateway contract for `api.kuhul.dev:443`, local `17892` development, user-scoped KQL/MeshNet routing, text/code/image/learning/RPC surfaces, and Ch'en/XCFE/Xul authority boundary |
 
@@ -238,12 +244,21 @@ data/
   alice/
     mp0.aiml … mp9.aiml       — ALICE AIML corpus
 
-  gram/                       — CODEGEN expert corpora (checked in; regenerate with tools/scrape.py --split)
+  gram/                       — CODEGEN expert corpora (checked in; regenerate with tools/scrape.py --split --recent --max-per-domain 100000)
     codegen-kuhul.jsonl       — CODEGEN-KUHUL-µ: K'UHUL phase/fold/XCFE op bigrams (58.5 MB)
     codegen-khl.jsonl         — CODEGEN-KHL-µ: KHL host-lang bigrams (20.4 MB)
-    codegen-json.jsonl        — CODEGEN-JSON-µ: project manifests/contracts/schemas (9.4 MB, project-scoped)
+    codegen-json.jsonl        — CODEGEN-JSON-µ: project manifests/contracts/schemas (12.2 MB, project-scoped)
     codegen-klsl.jsonl        — CODEGEN-KLSL-µ: KLSL compiler/shader bigrams (1.9 MB)
     codegen-kxml.jsonl        — CODEGEN-KUHUL-µ: KXML binary tape bigrams (0.9 MB)
+    codegen-cpp.jsonl         — CODEGEN-CPP-µ: C++ source bigrams (22.0 MB, project-scoped)
+    codegen-h.jsonl           — CODEGEN-CPP-µ: C++ header bigrams (20.4 MB, project-scoped)
+    codegen-hlsl.jsonl        — CODEGEN-CPP-µ: HLSL shader bigrams (2.3 MB, project-scoped)
+    codegen-py.jsonl          — CODEGEN-PY-µ: Python tooling bigrams (17.7 MB, project-scoped)
+    codegen-html.jsonl        — CODEGEN-HTML-µ: HTML template bigrams (9.5 MB, project-scoped)
+    codegen-js.jsonl          — CODEGEN-JS-µ: JavaScript bigrams (1.6 MB, project-scoped)
+    codegen-cs.jsonl          — CODEGEN-CSHARP-µ: C# bigrams (0.5 MB, project-scoped)
+    codegen-ts.jsonl          — CODEGEN-JS-µ: TypeScript bigrams (project-scoped)
+    codegen-css.jsonl         — CODEGEN-CSS-µ: CSS bigrams (project-scoped)
 
   merged/                     — generated merge artifacts
     merged.arpa               — merged ARPA LM (gitignored, regenerate with arpa_merge.py)

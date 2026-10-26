@@ -24,6 +24,7 @@
 #include "micronaut/micronaut_registry.h"
 #include "micronaut/track_loader.h"
 #include "micronaut/aiml_engine.h"
+#include "micronaut/question_engine.h"
 #include "micronaut/mx2lm-ngram.h"
 #include "micronaut/micronaut_coder.h"
 #include "micronaut/micronaut_transpiler.h"
@@ -1053,6 +1054,7 @@ static PromptGramChannelCounts record_prompt_gram_channels(
                       const char* unit,
                       const char* corpus,
                       size_t* count_out) {
+        (void)corpus; // Provenance now comes from the source/scope metadata below.
         if (count_out) *count_out = freq.size();
         const auto top_rows = top_ranked_grams(freq, cap_per_class);
         for (size_t i = 0; i < top_rows.size(); ++i) {
@@ -1061,22 +1063,26 @@ static PromptGramChannelCounts record_prompt_gram_channels(
             const std::string ordinal = std::to_string(i + 1);
 
             if (factory) {
-                const std::string prefix = "gram:" + gram_class + ":";
+                const std::string prompt_namespace = "source:user_prompt:" + scope_key + ":";
+                const std::string prefix = prompt_namespace + "gram:" + gram_class + ":";
                 factory->record_key(prefix + gram, scope_key);
-                factory->record_key("assoc:" + gram_class + ":" + gram, scope_key);
+                factory->record_key(prompt_namespace + "assoc:" + gram_class + ":" + gram, scope_key);
                 if (gram_class == "tool_gram") {
-                    factory->record_key("route_hint:tool_gram:" + gram, "TOOL-µ");
-                    factory->record_key("route_hint:track:" + gram, "TOOL-µ");
+                    factory->record_key(prompt_namespace + "route_hint:tool_gram:" + gram, "TOOL-µ");
+                    factory->record_key(prompt_namespace + "route_hint:track:" + gram, "TOOL-µ");
                 }
             }
 
             if (gram_store) {
-                gram_store->gramWrite(
+                gram_store->gramWriteProvenance(
                     scope_key + ":" + gram_class + ":" + ordinal,
                     gram_class + "|" + std::to_string(count) + "|" + gram,
                     phase,
                     unit,
-                    corpus);
+                    "statistical_evidence",
+                    "user_prompt",
+                    "conversation:" + scope_key,
+                    "approval_gated");
             }
         }
     };
@@ -2624,6 +2630,15 @@ static std::string record_key_grammar_memory_event(
     const std::string event_key = next_memory_event_key(event_kind);
     const std::string phase = default_memory_event_phase(event_kind, phase_hint);
     const std::string epistemic_state = normalize_epistemic_state(epistemic_state_raw);
+    std::string source_class = event_kind == "prompt" ? "user_prompt" : "model_response";
+    std::string learning_state = event_kind == "prompt" ? "approval_gated" : "evidence_only";
+    std::string source_lower = source;
+    std::transform(source_lower.begin(), source_lower.end(), source_lower.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (source_lower.find("web") != std::string::npos || source_lower.find("research") != std::string::npos) {
+        source_class = "web_research";
+        learning_state = "evidence_only";
+    }
 
     util::JsonObject event;
     event["schema"] = util::json_string("key.grammar.memory_event.v1");
@@ -2633,6 +2648,9 @@ static std::string record_key_grammar_memory_event(
     event["track"] = util::json_string(track.empty() ? "Mx2LM" : track);
     event["phase"] = util::json_string(phase);
     event["memory_scope"] = util::json_string("event_journal");
+    event["source_class"] = util::json_string(source_class);
+    event["scope_id"] = util::json_string(prompt_key.empty() ? "conversation:unlinked" : "conversation:" + prompt_key);
+    event["learning_state"] = util::json_string(learning_state);
     event["fact_authority"] = util::json_bool(false);
     event["commit_state"] = util::json_string("journaled_not_fact");
     event["epistemic_state"] = util::json_string(epistemic_state);
@@ -2644,12 +2662,15 @@ static std::string record_key_grammar_memory_event(
 
     const std::string event_payload = util::stringify(util::json_object(event));
     if (gram_store) {
-        gram_store->gramWrite(
+        gram_store->gramWriteProvenance(
             event_key,
             event_payload,
             phase,
             "memory_event",
-            "definitions_and_relations");
+            "statistical_evidence",
+            source_class,
+            prompt_key.empty() ? "conversation:unlinked" : "conversation:" + prompt_key,
+            learning_state);
     }
     if (factory) {
         factory->record_key(event_key, event_payload);
@@ -9503,6 +9524,188 @@ int main(int argc, char* argv[]) {
         return util::json_object(std::move(obj));
     });
 
+    // Bounded dialogue endpoint: both daemons exchange Question Engine proposals.
+    // QuestionEngine::run is read-only here; feedback()/GramStore writes are never called.
+    rpc_server.register_method("daemon_dialogue", [&](const util::JsonPtr& p) {
+        auto error_reply = [](const std::string& message) {
+            util::JsonObject error;
+            error["protocol"] = util::json_string("daemon-dialogue/1");
+            error["error"] = util::json_string(message);
+            error["dispatch_requested"] = util::json_bool(false);
+            error["execution_authorized"] = util::json_bool(false);
+            error["learning_committed"] = util::json_bool(false);
+            return util::json_object(std::move(error));
+        };
+        if (!p) return error_reply("missing dialogue message");
+        const auto protocol = p->get_string("protocol");
+        const auto sender = p->get_string("sender");
+        const auto recipient = p->get_string("recipient");
+        const auto conversation = p->get_string("conversation_id");
+        const auto turn = p->get_string("turn_id");
+        const auto phase = p->get_string("phase");
+        const auto prompt = p->get_string("prompt");
+        const auto utterance = p->get_string("utterance");
+        const auto evidence_scope = p->get_string("evidence_scope");
+        const auto gram_policy = p->get_string("prompt_gram_policy");
+        const auto budget = p->get_number("remaining_budget");
+        const auto* incoming = p->get("questions");
+        if (protocol != "daemon-dialogue/1" || sender != "neural-grammar-core" || recipient != "khanary"
+            || !conversation || conversation->empty() || conversation->size() > 64
+            || !turn || turn->size() > 64 || phase != "Wo"
+            || !prompt || prompt->empty() || prompt->size() > 4096
+            || !utterance || utterance->size() > 1200
+            || evidence_scope != "user_prompt"
+            || gram_policy != "approval_required_for_pattern_or_template_promotion"
+            || !incoming || !incoming->is_array() || incoming->as_array().size() > 4
+            || !budget || *budget < 0 || *budget > 1
+            || p->get_bool("dispatch_requested").value_or(true))
+            return error_reply("invalid or over-budget dialogue request");
+
+        std::vector<std::pair<std::string, std::string>> incoming_questions;
+        for (const auto& item : incoming->as_array()) {
+            if (!item || !item->is_object()) return error_reply("question must be an object");
+            const auto qid = item->get_string("question_id");
+            const auto origin = item->get_string("origin");
+            const auto target = item->get_string("target");
+            const auto text = item->get_string("text");
+            if (!qid || qid->empty() || qid->size() > 64
+                || origin != "neural-grammar-core" || target != "khanary"
+                || !text || text->empty() || text->size() > 512
+                || item->get_string("phase") != "Yax"
+                || item->get_string("status") != "proposed"
+                || !item->get_bool("requires_answer").value_or(false))
+                return error_reply("invalid question proposal");
+            incoming_questions.emplace_back(*qid, *text);
+        }
+
+        util::JsonObject route_params;
+        route_params["query"] = util::json_string(*prompt);
+        auto route = rpc_server.call_method("fold_query", util::json_object(std::move(route_params)));
+        if (!route || route->is_null()) return error_reply("route analysis unavailable");
+        const auto micronaut = route->get_string("micronaut").value_or("");
+        const auto handler = route->get_string("handler").value_or("");
+        const auto confidence = route->get_number("confidence_score").value_or(0.0);
+        const auto score = route->get_number("score").value_or(0.0);
+        const auto capability_miss = route->get_bool("capability_miss").value_or(false);
+
+        std::vector<std::string> generated_questions;
+        struct GraphQuestionMeta { std::string id; std::string text; float score; float information_gain; };
+        std::vector<GraphQuestionMeta> graph_question_nodes;
+        bool question_engine_ran = false;
+        if (fold_dispatch_ready) {
+            try {
+                static micronaut::ElizaOperatorBank dialogue_eliza;
+                static micronaut::CompareGrammar dialogue_compare = micronaut::CompareGrammar::standard();
+                micronaut::QuestionEngine question_engine(fold_field, vm.gram_store(), dialogue_eliza,
+                    dialogue_compare, fold_dispatch);
+                const auto question_result = question_engine.run(*prompt, "daemon-dialogue:" + *conversation);
+                generated_questions = question_result.next_questions;
+                for (const auto& node : question_result.question_graph.nodes())
+                    if (!node.parent_id.empty() && !node.source_pattern.empty())
+                        graph_question_nodes.push_back({node.id, node.source_pattern, node.score, node.information_gain});
+                question_engine_ran = true;
+            } catch (const std::exception&) {
+                // Route analysis remains available; an unavailable question fold is reported below.
+            }
+        }
+        const bool question_engine_produced = question_engine_ran && !generated_questions.empty();
+        {
+            std::unordered_set<std::string> unique_questions;
+            std::vector<std::string> deduplicated;
+            deduplicated.reserve(generated_questions.size());
+            for (auto& question : generated_questions)
+                if (!question.empty() && unique_questions.insert(question).second)
+                    deduplicated.push_back(std::move(question));
+            generated_questions = std::move(deduplicated);
+        }
+        if (generated_questions.size() > 3) generated_questions.resize(3);
+
+        const bool route_unresolved = capability_miss || micronaut.empty() || handler.empty();
+        const std::string fallback_question = route_unresolved
+            ? "What outcome are you looking for, or which part should I focus on?"
+            : confidence < 0.25
+                ? "Can you clarify the intended outcome so we can distinguish this route from alternatives?"
+                : "Does that interpretation match what you want, or should I examine another intent?";
+        if (generated_questions.empty()) generated_questions.push_back(fallback_question);
+        const auto parent_question_id = incoming_questions.empty() ? std::string{} : incoming_questions.front().first;
+
+        util::JsonArray generated_records;
+        for (std::size_t i = 0; i < generated_questions.size(); ++i) {
+            const auto& text = generated_questions[i];
+            const auto graph_node = std::find_if(graph_question_nodes.begin(), graph_question_nodes.end(),
+                [&](const auto& node) { return node.text == text; });
+            const std::string node_id = graph_node == graph_question_nodes.end()
+                ? "route_gap_" + std::to_string(i) : graph_node->id;
+            const std::string question_id = "q_khanary_" + *conversation + "_" + node_id;
+            util::JsonObject record;
+            record["question_id"] = util::json_string(question_id);
+            record["origin"] = util::json_string("khanary");
+            record["target"] = util::json_string("neural-grammar-core");
+            record["intent_gap"] = util::json_string(route_unresolved ? "capability_resolution" : "question_engine_gap");
+            record["phase"] = util::json_string("Yax");
+            record["parent_question_id"] = parent_question_id.empty() ? util::json_null() : util::json_string(parent_question_id);
+            record["graph_ref"] = util::json_string("question-graph://" + *conversation + "/" + node_id);
+            record["text"] = util::json_string(text.substr(0, 512));
+            record["score"] = util::json_number(graph_node == graph_question_nodes.end() ? confidence : graph_node->score);
+            record["information_gain"] = util::json_number(graph_node == graph_question_nodes.end() ? 0.0 : graph_node->information_gain);
+            record["provenance"] = util::json_array(json_string_array(std::vector<std::string>{
+                question_engine_produced ? "KHANARY.QuestionEngine" : "KHANARY.fold_query", "QuestionGraph:" + node_id
+            }));
+            record["requires_answer"] = util::json_bool(true);
+            record["status"] = util::json_string("proposed");
+            generated_records.push_back(util::json_object(std::move(record)));
+        }
+
+        util::JsonArray dispositions;
+        for (const auto& [qid, question_text] : incoming_questions) {
+            util::JsonObject disposition;
+            disposition["question_id"] = util::json_string(qid);
+            disposition["status"] = util::json_string("unresolved");
+            disposition["response"] = util::json_string("I received this question. My route analysis supplies an intent candidate, not enough semantic evidence to answer it: " + question_text);
+            disposition["evidence_refs"] = util::json_array(json_string_array(std::vector<std::string>{"KHANARY.fold_query"}));
+            dispositions.push_back(util::json_object(std::move(disposition)));
+        }
+
+        const std::string utterance_text = route_unresolved
+            ? "I could not resolve a clear capability from this prompt. I generated a follow-up question and have not dispatched or learned from it."
+            : "I read the prompt as a candidate for " + micronaut + "." + handler + ". "
+                + (question_engine_produced
+                    ? "I ran the read-only Question Engine and returned its highest-ranked open questions. "
+                    : "The Question Engine found no open candidates, so I am returning a route-clarification question. ")
+                + "Prompt n-grams remain approval-gated for AIML pattern or template promotion.";
+        util::JsonObject analysis;
+        analysis["micronaut"] = util::json_string(micronaut);
+        analysis["handler"] = util::json_string(handler);
+        analysis["score"] = util::json_number(score);
+        analysis["confidence_score"] = util::json_number(confidence);
+        analysis["capability_miss"] = util::json_bool(capability_miss);
+        analysis["question_engine_status"] = util::json_string(!question_engine_ran ? "unavailable"
+            : question_engine_produced ? "executed_read_only_with_questions" : "executed_read_only_no_open_questions");
+        analysis["learning_disposition"] = util::json_string("prompt_ngrams_not_promoted; approval_required_for_pattern_or_template");
+        analysis["approval_required"] = util::json_bool(true);
+
+        util::JsonObject reply;
+        reply["kind"] = util::json_string("asx.daemon-dialogue.message.v1");
+        reply["protocol"] = util::json_string("daemon-dialogue/1");
+        reply["conversation_id"] = util::json_string(*conversation);
+        reply["turn_id"] = util::json_string("turn-2");
+        reply["in_reply_to"] = util::json_string(*turn);
+        reply["sender"] = util::json_string("khanary");
+        reply["recipient"] = util::json_string("neural-grammar-core");
+        reply["phase"] = util::json_string("Sek");
+        reply["speech_act"] = util::json_string("question");
+        reply["utterance"] = util::json_string(utterance_text);
+        reply["analysis"] = util::json_object(std::move(analysis));
+        reply["questions"] = util::json_array(std::move(generated_records));
+        reply["question_responses"] = util::json_array(std::move(dispositions));
+        reply["remaining_budget"] = util::json_number(0);
+        reply["requires_response"] = util::json_bool(!generated_questions.empty());
+        reply["dispatch_requested"] = util::json_bool(false);
+        reply["execution_authorized"] = util::json_bool(false);
+        reply["learning_committed"] = util::json_bool(false);
+        return util::json_object(std::move(reply));
+    });
+
     // Agent key store: record model-generated key→response pairs
     rpc_server.register_method("record_key", [&](const util::JsonPtr& p) {
         auto key  = p ? p->get_string("key")      : std::nullopt;
@@ -9980,7 +10183,8 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 const std::string memory_key = "memory: " + payload;
-                vm.gram_store().gramWrite(memory_key, payload, "Ch'en");
+                vm.gram_store().gramWriteProvenance(memory_key, payload, "Ch'en", "user_memory",
+                    "scoped_memory", "user_memory", "user:local", "user_scoped_memory");
                 factory.record_key(memory_key, payload);
                 factory.record_key("@memory " + payload, payload);
 
@@ -12463,10 +12667,12 @@ int main(int argc, char* argv[]) {
                     "UNKNOWN", false, &factory, &vm.gram_store(), &jrom);
                 const auto grams = build_learning_ngrams(text, 24);
                 for (const auto& g : grams) {
-                    vm.gram_store().gramWrite(g,
+                    const std::string response_gram_key = "source:model_response:" + prompt_archive.prompt_key + ":" + g;
+                    vm.gram_store().gramWriteProvenance(response_gram_key,
                         text.size() > 120 ? text.substr(0, 120) : text,
-                        "Yax", "ADVISOR-µ", "definitions_and_relations");
-                    factory.record_key("response_ngram:" + g, prompt_archive.prompt_key);
+                        "Yax", "ADVISOR-µ", "statistical_evidence",
+                        "model_response", "conversation:" + prompt_archive.prompt_key, "evidence_only");
+                    factory.record_key("response_ngram:" + prompt_archive.prompt_key + ":" + g, response_gram_key);
                 }
                 {
                     util::JsonObject rl;
@@ -12543,11 +12749,13 @@ int main(int argc, char* argv[]) {
         // Write response ngrams directly into gram_store and key store.
         const auto grams = build_learning_ngrams(text, 24);
         for (const auto& g : grams) {
-            vm.gram_store().gramWrite(
-                g,
+            const std::string response_gram_key = "source:model_response:" + prompt_archive.prompt_key + ":" + g;
+            vm.gram_store().gramWriteProvenance(
+                response_gram_key,
                 text.size() > 120 ? text.substr(0, 120) : text,
-                response_phase, response_track, "definitions_and_relations");
-            factory.record_key("response_ngram:" + g, prompt_archive.prompt_key);
+                response_phase, response_track, "statistical_evidence",
+                "model_response", "conversation:" + prompt_archive.prompt_key, "evidence_only");
+            factory.record_key("response_ngram:" + prompt_archive.prompt_key + ":" + g, response_gram_key);
         }
 
         // jrom: replay + evolve candidates for track evolution pipeline.

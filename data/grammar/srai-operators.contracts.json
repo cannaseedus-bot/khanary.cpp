@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kuhul:srai-operators:v1",
+  "description": "Machine-readable binding registry for the SRAI operator dispatch surface. Each operator maps an AIML SRAI target to a typed XCFE dispatch frame. SraiOperators.mml is the human-readable contract authority.",
+  "version": "1",
+  "authority": {
+    "document": "data/grammar/SraiOperators.mml",
+    "content_dictionary": "urn:kuhul:srai-operators:v1",
+    "aiml_file": "data/alice/khanary-distilled.aiml",
+    "executor_files": [
+      "src/micronaut/aiml_engine.cpp",
+      "src/kuhul/xcfe_executor.cpp"
+    ]
+  },
+  "pipeline": {
+    "canonical_order": ["SCORE", "RANK", "COLLAPSE", "VERIFY", "TRAIN"],
+    "terminal": "Xul",
+    "description": "SCORE → RANK → COLLAPSE → VERIFY → TRAIN → Xul commit. No operator may shortcut to Xul without traversing Ch'en verification.",
+    "weight_invariant": {
+      "formula": "W_effective = W_corpus * W_learned",
+      "W_corpus": "read-only; set by scraper pipeline; never overwritten by TRAIN",
+      "W_learned": "mutable; updated only after Ch'en_verification AND Xul_authorization"
+    }
+  },
+  "operators": [
+    {
+      "operator": "SCORE",
+      "srai_pattern": "SCORE *",
+      "xcfe_pattern": "XCFE SCORE *",
+      "executor": "metric",
+      "phase": "Sek",
+      "authority_phase": "Sek",
+      "input_roles": ["candidate_set", "query_vector", "context"],
+      "output_role": "scored_candidates",
+      "effects": ["read", "measure"],
+      "commit_requires": null,
+      "description": "Evaluates W·C·R, vector similarity, and metric evidence for each candidate. Populates evidence field for RANK. Does not select or admit."
+    },
+    {
+      "operator": "RANK",
+      "srai_pattern": "RANK *",
+      "xcfe_pattern": "XCFE RANK *",
+      "executor": "metric",
+      "phase": "Sek",
+      "authority_phase": "Sek",
+      "input_roles": ["scored_candidates", "context"],
+      "output_role": "ranked_candidates",
+      "effects": ["read", "order"],
+      "commit_requires": null,
+      "description": "Orders the admitted scored_candidates set. XCFE legality is a separate hard gate; high rank cannot promote an inadmissible candidate."
+    },
+    {
+      "operator": "COLLAPSE",
+      "srai_pattern": "COLLAPSE *",
+      "xcfe_pattern": "XCFE COLLAPSE *",
+      "executor": "jyggalag",
+      "executor_temperature": 0.0,
+      "phase": "Ch_en",
+      "authority_phase": "Ch_en",
+      "input_roles": ["ranked_candidates", "critic_reports"],
+      "output_role": "collapsed_candidate",
+      "effects": ["read", "collapse"],
+      "commit_requires": null,
+      "note": "Greymarch_record_only; Xul commit requires full authority path",
+      "description": "Total-order reduction via Jyggalag (T=0.00). Produces Greymarch record naming the surviving candidate. Not a topology commit. Sheogorath/Jyggalag must appear as a matched unit.",
+      "pair_constraint": {
+        "requires_counterpart": "Sheogorath",
+        "counterpart_temperature": 0.97,
+        "counterpart_phase": "Xul",
+        "law": "Sheogorath generates the high-entropy candidate set that COLLAPSE reduces"
+      }
+    },
+    {
+      "operator": "VERIFY",
+      "srai_pattern": "VERIFY *",
+      "xcfe_pattern": "XCFE VERIFY *",
+      "executor": "ch_en_gate",
+      "phase": "Ch_en",
+      "authority_phase": "Ch_en",
+      "input_roles": ["candidate", "evidence_refs", "comparison_report"],
+      "output_role": "verified_outcome",
+      "effects": ["read", "gate"],
+      "commit_requires": null,
+      "description": "The Ch'en verification gate. verified_outcome is the only input that unlocks TRAIN. Does not commit; produces a gate token required by both TRAIN and Xul.",
+      "gate_law": "TRAIN dispatch is blocked (XCFE TRAIN UNVERIFIED) without verified_outcome from this operator"
+    },
+    {
+      "operator": "TRAIN",
+      "srai_pattern": "TRAIN *",
+      "xcfe_pattern": "XCFE TRAIN *",
+      "guard_pattern": "XCFE TRAIN GUARD *",
+      "blocked_pattern": "XCFE TRAIN UNVERIFIED *",
+      "executor": "learning",
+      "phase": "Xul",
+      "authority_phase": "Xul",
+      "input_roles": ["ranked_candidates", "verified_feedback"],
+      "output_role": "weight_delta",
+      "effects": ["propose_delta"],
+      "commit_requires": ["Ch_en_verification", "Xul_authorization"],
+      "W_target": "W_learned",
+      "W_invariant": "W_effective = W_corpus * W_learned",
+      "description": "Proposes W_learned delta from verified feedback. Requires verified_outcome from VERIFY/Ch'en and Xul_authorization. W_corpus is never overwritten."
+    },
+    {
+      "operator": "COMPARE",
+      "srai_pattern": "COMPARE *",
+      "xcfe_pattern": "XCFE COMPARE *",
+      "executor": "eliza",
+      "phase": "Ch_en",
+      "authority_phase": "Ch_en",
+      "input_roles": ["candidate_a", "candidate_b", "evidence_refs"],
+      "output_role": "comparison_report",
+      "effects": ["read", "analyze"],
+      "commit_requires": null,
+      "description": "Structured comparison of two candidates or evidence sets. Output feeds evidence_refs for VERIFY."
+    },
+    {
+      "operator": "RECALL",
+      "srai_pattern": "RECALL *",
+      "xcfe_pattern": "XCFE RECALL *",
+      "executor": "gram_store",
+      "phase": "Pop",
+      "authority_phase": "Pop",
+      "input_roles": ["query", "phase", "context"],
+      "output_role": "gram_evidence",
+      "effects": ["read"],
+      "commit_requires": null,
+      "description": "GramStore + vector evidence retrieval. Output feeds scored_candidates or evidence_refs into the SCORE→RANK pipeline."
+    },
+    {
+      "operator": "PROJECT",
+      "srai_pattern": "PROJECT *",
+      "xcfe_pattern": "XCFE PROJECT *",
+      "executor": "vector_mu",
+      "phase": "Yax",
+      "authority_phase": "Yax",
+      "input_roles": ["source_substrate", "context", "trajectory_id"],
+      "output_role": "result_substrate",
+      "effects": ["read", "project"],
+      "mutation": "none",
+      "commit_requires": null,
+      "description": "VectorMuMicronaut geodesic projection. Returns a new bounded result substrate without mutating the target. Zero pattern inflation."
+    },
+    {
+      "operator": "QUESTION",
+      "srai_pattern": "QUESTION *",
+      "xcfe_pattern": "XCFE QUESTION *",
+      "executor": "question_selector",
+      "phase": "Yax",
+      "authority_phase": "Yax",
+      "input_roles": ["intent_gap", "context", "question_history"],
+      "output_role": "question_record",
+      "effects": ["read", "emit"],
+      "commit_requires": null,
+      "description": "Question selector; drives clarification and intent-gap filling. Learned preferences keyed as q_pref:<gap_id>:<pattern> in GramStore."
+    }
+  ],
+  "pipeline_patterns": [
+    {
+      "pattern": "SCORE AND RANK *",
+      "expansion": "RANK <srai>SCORE *</srai>",
+      "description": "Score then rank convenience pattern"
+    },
+    {
+      "pattern": "PIPELINE SCORE RANK COLLAPSE *",
+      "expansion": "COLLAPSE <srai>RANK <srai>SCORE *</srai></srai>",
+      "description": "Full pre-verification pipeline without premature TRAIN"
+    },
+    {
+      "pattern": "VERIFY AND TRAIN *",
+      "expansion": "TRAIN <srai>VERIFY *</srai>",
+      "description": "The only safe TRAIN path — forces verification before learning"
+    }
+  ],
+  "invariants": [
+    "SRAI redirects text through the pattern matcher; XCFE dispatch requires the [XCFE:OP] binding frame in the template",
+    "Every operator declares phase, executor, input_roles, output_role, and effects before dispatch",
+    "TRAIN requires verified_outcome from Ch'en; raw RANK output alone does not authorize learning",
+    "W_effective = W_corpus * W_learned; W_corpus is read-only; TRAIN updates only W_learned",
+    "COLLAPSE produces a Greymarch record; it is not a topology commit",
+    "No operator can shortcut to Xul without traversing the Ch'en verification gate",
+    "effects must be a subset of {read, measure, order, analyze, gate, project, emit, collapse, propose_delta}",
+    "Operators with propose_delta in effects must declare commit_requires fields",
+    "This registry describes operator contracts; aiml_engine.cpp + xcfe_executor.cpp supply the implementation"
+  ],
+  "validation": {
+    "checker": "tools/check_srai_operators.py",
+    "fixtures": "data/conformance/srai_operators.json"
+  }
+}
