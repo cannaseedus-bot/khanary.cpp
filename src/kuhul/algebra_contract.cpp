@@ -282,9 +282,55 @@ StructureRule rule_clifford_algebra() {
     rule.family = "algebra_like";
     rule.laws = {must_hold(Law::Associative, LawState::Yes),
                  must_hold(Law::Commutative, LawState::No),
+                 must_hold(Law::Idempotent, LawState::No),
+                 must_hold(Law::Invertible, LawState::No),
+                 must_hold(Law::Distributive, LawState::Yes),
                  must_hold(Law::Unital, LawState::Yes),
                  must_hold(Law::Bilinear, LawState::Yes),
-                 must_hold(Law::Invertible, LawState::No)};
+                 must_hold(Law::Anticommutative, LawState::No)};
+    rule.structural = {{"closed", true}};
+    rule.product_image = ProductImage::Carrier;
+    rule.requires_scalar_field = true;
+    return rule;
+}
+
+// The tensor family: one construction, three quotients, three law tables. The
+// difference between them is exactly which relations are imposed on the free
+// word, so the law tables must differ in exactly those places.
+StructureRule rule_tensor_family(Structure structure, LawState commutative,
+                                 LawState anticommutative) {
+    StructureRule rule;
+    rule.structure = structure;
+    rule.family = "algebra_like";
+    rule.laws = {must_hold(Law::Associative, LawState::Yes),
+                 must_hold(Law::Commutative, commutative),
+                 must_hold(Law::Idempotent, LawState::No),
+                 must_hold(Law::Invertible, LawState::No),
+                 must_hold(Law::Distributive, LawState::Yes),
+                 must_hold(Law::Unital, LawState::Yes),
+                 must_hold(Law::Bilinear, LawState::Yes),
+                 must_hold(Law::Anticommutative, anticommutative)};
+    rule.structural = {{"closed", true}};
+    rule.product_image = ProductImage::Carrier;
+    rule.requires_scalar_field = true;
+    return rule;
+}
+
+// F2^n under XOR: associative, commutative, unital, fully invertible (indeed
+// every element is its own inverse, so a XOR a = 0 and the operation is never
+// idempotent). A vector space over GF(2).
+StructureRule rule_binary_vector_space() {
+    StructureRule rule;
+    rule.structure = Structure::BinaryVectorSpace;
+    rule.family = "group_like";
+    rule.laws = {must_hold(Law::Associative, LawState::Yes),
+                 must_hold(Law::Commutative, LawState::Yes),
+                 must_hold(Law::Idempotent, LawState::No),
+                 must_hold(Law::Invertible, LawState::Yes),
+                 must_hold(Law::Distributive, LawState::NotApplicable),
+                 must_hold(Law::Unital, LawState::Yes),
+                 must_hold(Law::Bilinear, LawState::NotApplicable),
+                 must_hold(Law::Anticommutative, LawState::NotApplicable)};
     rule.structural = {{"closed", true}};
     rule.product_image = ProductImage::Carrier;
     rule.requires_scalar_field = true;
@@ -302,7 +348,13 @@ const StructureTable& builtin_structure_table() {
             {"gram_event_list", true},{"boolean", true},      {"record", true},
             {"vector", false},        {"vector3", false},     {"square_matrix_n", false},
             {"micronaut_state", false},{"state", false},
-            {"cl20_multivector", false},
+            {"multivector_2d", false},
+            {"binary_vector", true},
+            {"scalar_field_2d", false},
+            {"vector_field_2d", false},
+            {"edge_field", false},
+            {"tensor_term", false},
+            {"rectangular_matrix", false},
         };
         value.rules = {
             rule_none(),
@@ -322,6 +374,10 @@ const StructureTable& builtin_structure_table() {
             rule_unital_associative_algebra(),
             rule_inner_product_space(),
             rule_square_zero_extension(),
+            rule_binary_vector_space(),
+            rule_tensor_family(Structure::TensorAlgebra, LawState::No, LawState::No),
+            rule_tensor_family(Structure::SymmetricAlgebra, LawState::Yes, LawState::No),
+            rule_tensor_family(Structure::ExteriorAlgebra, LawState::No, LawState::Yes),
             rule_clifford_algebra(),
         };
         // Structure-specific overrides of the generic algebra rule.

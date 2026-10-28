@@ -241,7 +241,7 @@ bool matches_expected_policy(const aoi::ReductionPolicy& policy, const aoi::Rewr
 int main(int argc, char** argv) {
     const std::string data_root = argc > 1 ? argv[1] : "data";
 
-    return khanary::test::run("KHANARY_ALGEBRA_ISA_TEST", [&](khanary::test::Suite& suite) {
+    return khanary::test::run("algebra_isa", [&](khanary::test::Suite& suite) {
         Registry registry = load_registry(data_root);
 
         // ── 1. Three-valued laws ────────────────────────────────────────────
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
 
         // ── 3. Registry contracts validate ─────────────────────────────────
         suite.check("registry/operator-count", registry.operator_ids.size() == std::size_t{12});
-        suite.check("registry/reducer-count", registry.reducer_ids.size() == std::size_t{14});
+        suite.check("registry/reducer-count", registry.reducer_ids.size() == std::size_t{32});
 
         for (const aoi::AlgebraContract& contract : registry.contracts) {
             const std::vector<aoi::Violation> violations = aoi::validate(contract, registry.table);

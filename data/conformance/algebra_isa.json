@@ -398,6 +398,46 @@
           "code": "phase_advance_declared"
         }
       }
+    },
+    {
+      "id": "aoi-pos-012",
+      "description": "INCIDENCE_PRODUCT: A = B W_E Bᵀ. Pure measurement layer, no phase authority, not bilinear in the whole-matrix sense (full map B→BWBᵀ is quadratic in B), no identity, not closed (output shape differs from input).",
+      "algebra": {
+        "structure": "none",
+        "carrier": "rectangular_matrix",
+        "scalar_field": "real",
+        "binary_operation": "incidence_gram",
+        "product_image": "none",
+        "closed": false,
+        "identity": null,
+        "associative": null,
+        "commutative": null,
+        "idempotent": null,
+        "invertible": null,
+        "distributive": null,
+        "unital": null,
+        "bilinear": false,
+        "anticommutative": null,
+        "pure": true,
+        "deterministic": true,
+        "order_sensitive": false,
+        "phase_policy": "none",
+        "reproducibility": "implementation_defined"
+      },
+      "expect": "valid",
+      "expect_policy": {
+        "regroup": false,
+        "reorder": false,
+        "repeat": false,
+        "phase_same": {
+          "allowed": true,
+          "code": "phase_preserved"
+        },
+        "phase_cross": {
+          "allowed": false,
+          "code": "no_phase_authority"
+        }
+      }
     }
   ],
   "negative": [
@@ -1027,6 +1067,33 @@
         "order_sensitive": true,
         "phase_policy": "none",
         "reproducibility": "deterministic_grouping"
+      }
+    },
+    {
+      "id": "aoi-neg-024",
+      "description": "INCIDENCE_PRODUCT with an unknown carrier name fails the shape check before any law check.",
+      "expect_code": "UNKNOWN_CARRIER",
+      "algebra": {
+        "structure": "none",
+        "carrier": "incidence_matrix_typo",
+        "scalar_field": "real",
+        "binary_operation": "incidence_gram",
+        "product_image": "carrier",
+        "closed": false,
+        "identity": null,
+        "associative": null,
+        "commutative": null,
+        "idempotent": null,
+        "invertible": null,
+        "distributive": null,
+        "unital": null,
+        "bilinear": false,
+        "anticommutative": null,
+        "pure": true,
+        "deterministic": true,
+        "order_sensitive": false,
+        "phase_policy": "none",
+        "reproducibility": "implementation_defined"
       }
     }
   ],
